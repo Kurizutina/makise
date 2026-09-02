@@ -19,6 +19,15 @@ const formatPrice = (price) => new Intl.NumberFormat('en-PH', {
 }).format(price);
 
 const progressSteps = ['Confirmed', 'Preparing', 'Out for delivery', 'Delivered'];
+const statusLabels = {
+  pending_rider: 'Waiting for rider',
+  confirmed: 'Confirmed',
+  preparing: 'Preparing',
+  out_for_delivery: 'Out for delivery',
+  delivered: 'Delivered',
+  cancelled: 'Cancelled'
+};
+const statusIndexes = { confirmed: 0, preparing: 1, out_for_delivery: 2, delivered: 3 };
 
 const CustomerActivity = () => {
   const {
@@ -85,7 +94,7 @@ const CustomerActivity = () => {
                   {activityTab === 'notifications' && (
                     notifications.length ? notifications.map((notification) => (
                       <article className="notification-card" key={notification.id}>
-                        <span><i className="fa-solid fa-circle-check" aria-hidden="true" /></span>
+                        <span className={notification.type === 'cancelled' ? 'cancelled' : ''}><i className={`fa-solid ${notification.type === 'cancelled' ? 'fa-circle-xmark' : 'fa-circle-check'}`} aria-hidden="true" /></span>
                         <div><strong>{notification.title}</strong><p>{notification.message}</p><small>{new Date(notification.createdAt).toLocaleString()}</small></div>
                       </article>
                     )) : <EmptyState icon="fa-bell" title="No notifications yet" message="Order confirmations will appear here." />
@@ -93,14 +102,34 @@ const CustomerActivity = () => {
 
                   {activityTab === 'orders' && (
                     orders.length ? orders.map((order) => (
-                      <article className="order-tracking-card" key={order.id}>
-                        <div className="tracking-card-heading"><div><small>{order.id}</small><strong>{order.label}</strong></div><span>Confirmed</span></div>
+                      <article className={`order-tracking-card order-status-${order.status}`} key={order.id}>
+                        <div className="tracking-card-heading"><div><small>{order.id}</small><strong>{order.label}</strong></div><span>{statusLabels[order.status] || 'Confirmed'}</span></div>
                         <p>{order.source} · {new Date(order.createdAt).toLocaleString()}</p>
-                        <div className="tracking-progress">
-                          {progressSteps.map((step, index) => (
-                            <div className={index === 0 ? 'complete current' : ''} key={step}><i className={index === 0 ? 'fa-solid fa-check' : ''}>{index > 0 ? index + 1 : ''}</i><span>{step}</span></div>
-                          ))}
-                        </div>
+
+                        {!!order.items?.length && (
+                          <details className="tracking-order-items">
+                            <summary>View ordered items ({order.items.reduce((total, item) => total + (item.quantity || 1), 0)})</summary>
+                            <ul>{order.items.map((item, index) => <li key={item.cartId || item.id || index}><span>{item.name || `Item ${index + 1}`}</span><strong>×{item.quantity || 1}</strong></li>)}</ul>
+                          </details>
+                        )}
+
+                        {order.status === 'pending_rider' && (
+                          <div className="rider-decision-state"><i className="fa-solid fa-clock" aria-hidden="true" /><div><strong>Waiting for a rider</strong><span>Tracking will begin after a rider accepts your order.</span></div></div>
+                        )}
+
+                        {order.status === 'cancelled' && (
+                          <div className="rider-decision-state cancelled"><i className="fa-solid fa-circle-xmark" aria-hidden="true" /><div><strong>Cancelled by rider</strong><span>This order will not proceed to delivery.</span></div></div>
+                        )}
+
+                        {!['pending_rider', 'cancelled'].includes(order.status) && (
+                          <div className="tracking-progress">
+                            {progressSteps.map((step, index) => {
+                              const currentIndex = statusIndexes[order.status] ?? 0;
+                              const isComplete = index <= currentIndex;
+                              return <div className={`${isComplete ? 'complete' : ''} ${index === currentIndex ? 'current' : ''}`} key={step}><i className={isComplete ? 'fa-solid fa-check' : ''}>{isComplete ? '' : index + 1}</i><span>{step}</span></div>;
+                            })}
+                          </div>
+                        )}
                       </article>
                     )) : <EmptyState icon="fa-route" title="No active orders" message="Placed orders will be tracked here." />
                   )}

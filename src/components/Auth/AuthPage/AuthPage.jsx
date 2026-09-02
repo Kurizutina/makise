@@ -211,6 +211,9 @@ const AuthPage = ({ mode }) => {
         `✅ Welcome back! Redirecting to your ${roleName} dashboard...`
     });
 
+    sessionStorage.setItem('otuzanAuthenticated', selectedRole);
+    navigate(selectedRole === ROLES.DRIVER.key ? '/driver/orders' : '/home');
+
   };
 
 

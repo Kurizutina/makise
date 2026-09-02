@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 const CustomerActivityContext = createContext(null);
 const STORAGE_KEY = 'otuzanCustomerActivity';
@@ -16,6 +16,22 @@ export const CustomerActivityProvider = ({ children }) => {
   const [cart, setCart] = useState(saved.cart || []);
   const [orders, setOrders] = useState(saved.orders || []);
   const [notifications, setNotifications] = useState(saved.notifications || []);
+
+  useEffect(() => {
+    const syncActivity = (event) => {
+      if (event.key !== STORAGE_KEY || !event.newValue) return;
+      try {
+        const next = JSON.parse(event.newValue);
+        setCart(next.cart || []);
+        setOrders(next.orders || []);
+        setNotifications(next.notifications || []);
+      } catch {
+        // Ignore malformed browser storage values.
+      }
+    };
+    window.addEventListener('storage', syncActivity);
+    return () => window.removeEventListener('storage', syncActivity);
+  }, []);
 
   const persist = (nextCart, nextOrders, nextNotifications) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -60,14 +76,14 @@ export const CustomerActivityProvider = ({ children }) => {
       label: label || 'Customer order',
       items,
       details,
-      status: 'confirmed',
+      status: 'pending_rider',
       createdAt
     };
     const notification = {
       id: `NOT-${Date.now()}-${Math.random()}`,
       orderId: order.id,
-      title: 'Order confirmed',
-      message: `${order.label} has been confirmed and is now being processed.`,
+      title: 'Order request sent',
+      message: `${order.label} is waiting for a rider to accept it.`,
       createdAt,
       read: false
     };
@@ -83,14 +99,14 @@ export const CustomerActivityProvider = ({ children }) => {
       source: source || 'Multiple establishments',
       label: `${orderItems.reduce((total, item) => total + item.quantity, 0)} cart item(s)`,
       items: orderItems,
-      status: 'confirmed',
+      status: 'pending_rider',
       createdAt: new Date().toISOString()
     };
     const notification = {
       id: `NOT-${Date.now()}-${Math.random()}`,
       orderId: order.id,
-      title: 'Order confirmed',
-      message: `Your cart order ${order.id} has been confirmed.`,
+      title: 'Order request sent',
+      message: `Your cart order ${order.id} is waiting for a rider.`,
       createdAt: order.createdAt,
       read: false
     };
@@ -104,6 +120,36 @@ export const CustomerActivityProvider = ({ children }) => {
     updateAll(cart, orders, nextNotifications);
   };
 
+  const updateOrderStatus = (orderId, status) => {
+    const currentOrder = orders.find((order) => order.id === orderId);
+    if (!currentOrder || currentOrder.status === status) return;
+
+    const statusContent = {
+      confirmed: ['Order accepted', `A rider accepted ${currentOrder.label}. Tracking is now available.`],
+      cancelled: ['Order cancelled', `${currentOrder.label} was cancelled by the rider.`],
+      preparing: ['Order is being prepared', `${currentOrder.label} is now being prepared.`],
+      out_for_delivery: ['Order is out for delivery', `${currentOrder.label} is on the way.`],
+      delivered: ['Order delivered', `${currentOrder.label} has been delivered.`]
+    };
+    const content = statusContent[status];
+    if (!content) return;
+
+    const updatedAt = new Date().toISOString();
+    const nextOrders = orders.map((order) => order.id === orderId
+      ? { ...order, status, updatedAt }
+      : order);
+    const notification = {
+      id: `NOT-${Date.now()}-${Math.random()}`,
+      orderId,
+      title: content[0],
+      message: content[1],
+      createdAt: updatedAt,
+      read: false,
+      type: status === 'cancelled' ? 'cancelled' : 'status'
+    };
+    updateAll(cart, nextOrders, [notification, ...notifications]);
+  };
+
   const value = useMemo(() => ({
     cart,
     orders,
@@ -112,7 +158,8 @@ export const CustomerActivityProvider = ({ children }) => {
     updateCartQuantity,
     placeOrder,
     placeCartOrder,
-    markNotificationsRead
+    markNotificationsRead,
+    updateOrderStatus
   // State is intentionally included so consumers always receive current actions.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [cart, orders, notifications]);
