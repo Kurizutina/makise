@@ -10,7 +10,14 @@ const formatPrice = (price) => new Intl.NumberFormat('en-PH', {
   maximumFractionDigits: 2
 }).format(price);
 
-const McDonaldsMenu = () => {
+export const RestaurantMenu = ({
+  restaurantName,
+  sourceKey,
+  manifestUrl,
+  pageClass = '',
+  headerClass = '',
+  eyebrowClass = ''
+}) => {
   const navigate = useNavigate();
   const {
     cart: sharedCart,
@@ -20,7 +27,7 @@ const McDonaldsMenu = () => {
     placeCartOrder
   } = useCustomerActivity();
   const [products, setProducts] = useState([]);
-  const cart = sharedCart.filter((item) => item.source === "McDonald's");
+  const cart = sharedCart.filter((item) => item.source === sourceKey);
   const [customName, setCustomName] = useState('');
   const [customQuantity, setCustomQuantity] = useState(1);
   const [showCustomItem, setShowCustomItem] = useState(false);
@@ -28,9 +35,9 @@ const McDonaldsMenu = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/images/Mcdo%20(Mega%20Meal)/menu-manifest.json')
+    fetch(manifestUrl)
       .then((response) => {
-        if (!response.ok) throw new Error('Unable to load the McDonald’s menu.');
+        if (!response.ok) throw new Error(`Unable to load the ${restaurantName} menu.`);
         return response.json();
       })
       .then((items) => setProducts(items.map((item, index) => ({
@@ -41,7 +48,7 @@ const McDonaldsMenu = () => {
       }))))
       .catch(() => setNotice('The menu could not be loaded. Please try again.'))
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [manifestUrl, restaurantName]);
 
   const categories = useMemo(() => products.reduce((groups, product) => {
     const existing = groups.find((group) => group.category === product.category);
@@ -66,7 +73,7 @@ const McDonaldsMenu = () => {
   };
 
   const addToCart = (product, quantity = 1) => {
-    addSharedCartItem({ ...product, source: "McDonald's", quantity });
+    addSharedCartItem({ ...product, source: sourceKey, quantity });
     showNotice(`${product.name} added to cart.`);
   };
 
@@ -76,7 +83,7 @@ const McDonaldsMenu = () => {
   };
 
   const placeProductOrder = (product) => {
-    placeOrder({ source: "McDonald's", label: product.name, items: [{ ...product, quantity: 1 }] });
+    placeOrder({ source: sourceKey, label: product.name, items: [{ ...product, quantity: 1 }] });
     showNotice(`Order placed for ${product.name}.`);
   };
 
@@ -96,19 +103,19 @@ const McDonaldsMenu = () => {
 
   const checkoutCart = () => {
     if (!cart.length) return;
-    placeCartOrder("McDonald's");
+    placeCartOrder(sourceKey);
     showNotice(`Order placed with ${itemCount} item${itemCount === 1 ? '' : 's'}.`);
   };
 
   return (
-    <main className="jollibee-page mcdo-page">
-      <header className="jollibee-page-header mcdo-page-header">
+    <main className={`jollibee-page ${pageClass}`}>
+      <header className={`jollibee-page-header ${headerClass}`}>
         <button type="button" className="jollibee-back" onClick={() => navigate('/home')}>
           <i className="fa-solid fa-arrow-left" aria-hidden="true" /> Back
         </button>
         <div>
           <span>Food Delivery</span>
-          <h1>McDonald’s Menu</h1>
+          <h1>{restaurantName} Menu</h1>
         </div>
         <button type="button" className="jollibee-cart-link" onClick={() => document.getElementById('mcdo-cart')?.scrollIntoView({ behavior: 'smooth' })}>
           <i className="fa-solid fa-cart-shopping" aria-hidden="true" />
@@ -122,9 +129,9 @@ const McDonaldsMenu = () => {
         <div className="jollibee-menu-content">
           <section className="jollibee-intro">
             <div>
-              <p className="jollibee-eyebrow mcdo-eyebrow">Choose your favorites</p>
+              <p className={`jollibee-eyebrow ${eyebrowClass}`}>Choose your favorites</p>
               <h2>What are you craving today?</h2>
-              <p>Browse the complete McDonald’s menu by category or request something not listed.</p>
+              <p>Browse the complete {restaurantName} menu by category or request something not listed.</p>
             </div>
             <button type="button" onClick={() => setShowCustomItem((current) => !current)}>
               <i className="fa-solid fa-plus" aria-hidden="true" /> Add an item not on the menu
@@ -214,5 +221,16 @@ const McDonaldsMenu = () => {
     </main>
   );
 };
+
+const McDonaldsMenu = () => (
+  <RestaurantMenu
+    restaurantName="McDonald’s"
+    sourceKey="McDonald's"
+    manifestUrl="/images/Mcdo%20(Mega%20Meal)/menu-manifest.json"
+    pageClass="mcdo-page"
+    headerClass="mcdo-page-header"
+    eyebrowClass="mcdo-eyebrow"
+  />
+);
 
 export default McDonaldsMenu;

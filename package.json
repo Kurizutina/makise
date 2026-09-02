@@ -16,6 +16,7 @@
   },
   "scripts": {
     "generate:mcdo-menu": "node scripts/generate-mcdo-manifest.js",
+    "generate:mang-inasal-menu": "node scripts/generate-mang-inasal-manifest.js",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",

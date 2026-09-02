@@ -1,0 +1,59 @@
+Paa Large 1 Rice
+Price: ₱139
+
+Paa Large 1 Rice Value Meal
+Price: ₱170
+
+Paa Large Unli Rice
+Price: ₱179
+
+Paa Large Unli Rice Value Meal
+Price: ₱210
+
+Spicy Paa Large 1 Rice
+Price: ₱154
+
+Spicy Paa Large 1 Rice Value Meal
+Price: ₱185
+
+Spicy Paa Large Unli Rice
+Price: ₱194
+
+Spicy Paa Large Unli Rice Value Meal
+Price: ₱225
+
+Pecho Large 1 Rice
+Price: ₱169
+
+Pecho Large 1 Rice Value Meal
+Price: ₱200
+
+Pecho Large Unli Rice
+Price: ₱209
+
+Pecho Large Unli Rice Value Meal
+Price: ₱240
+
+Spicy Pecho Large 1 Rice
+Price: ₱184
+
+Spicy Pecho Large 1 Rice Value Meal
+Price: ₱215
+
+Spicy Pecho Large Unli Rice
+Price: ₱224
+
+Spicy Pecho Large Unli Rice Value Meal
+Price: ₱255
+
+Regular Chicken 1 Rice
+Price: ₱99
+
+Regular Chicken 1 Rice Value Meal
+Price: ₱134
+
+Regular Chicken Unli Rice
+Price: ₱139
+
+Regular Chicken Unli Rice Value Meal
+Price: ₱174

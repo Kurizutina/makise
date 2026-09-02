@@ -86,6 +86,11 @@ const Home = () => {
             return;
           }
 
+          if (brand.type === 'food' && brand.name === 'Mang Inasal') {
+            navigate('/food/mang-inasal');
+            return;
+          }
+
           const foodBrandsWithoutCustomForm = ['Jollibee', "McDonald's", 'Mang Inasal'];
           const canOpenCustomForm = brand.type === 'item'
             || (brand.type === 'food' && !foodBrandsWithoutCustomForm.includes(brand.name));

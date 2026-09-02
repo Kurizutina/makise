@@ -1,0 +1,41 @@
+All Chicken Inasal Paa
+Price: ₱895
+
+All Chicken Inasal Pecho
+Price: ₱1075
+
+FFM All Chicken Inasal Paa
+Price: ₱995
+
+FFM All Chicken Inasal Pecho
+Price: ₱1175
+
+Paa & Pork BBQ
+Price: ₱765
+
+Pecho & Pork BBQ
+Price: ₱855
+
+FFM Paa & Pork BBQ
+Price: ₱865
+
+FFM Pecho & Pork BBQ
+Price: ₱955
+
+Paa & Chicken BBQ
+Price: ₱765
+
+Pecho & Chicken BBQ
+Price: ₱855
+
+Paa & Grilled Liempo
+Price: ₱865
+
+Pecho & Grilled Liempo
+Price: ₱985
+
+Pork BBQ & Grilled Liempo
+Price: ₱750
+
+Chicken BBQ & Grilled Liempo
+Price: ₱750

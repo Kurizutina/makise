@@ -11,6 +11,7 @@ import Register from '../Pages/auth/Register';
 import Home from '../Pages/costumer/Home';
 import JollibeeMenu from '../Pages/costumer/JollibeeMenu';
 import McDonaldsMenu from '../Pages/costumer/McDonaldsMenu';
+import MangInasalMenu from '../Pages/costumer/MangInasalMenu';
 
 const AppRoutes = () => {
   return (
@@ -46,6 +47,11 @@ const AppRoutes = () => {
         <Route
           path="/food/mcdonalds"
           element={<McDonaldsMenu />}
+        />
+
+        <Route
+          path="/food/mang-inasal"
+          element={<MangInasalMenu />}
         />
 
       </Routes>

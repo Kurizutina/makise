@@ -1,0 +1,23 @@
+Paa 1 Rice
+Price: ₱224
+
+Paa Unli Rice
+Price: ₱274
+
+Pecho 1 Rice
+Price: ₱254
+
+Pecho Unli Rice
+Price: ₱304
+
+Paa + Pork BBQ
+Price: ₱254
+
+Pecho + Pork BBQ
+Price: ₱284
+
+Paa + Chicken BBQ
+Price: ₱254
+
+Pecho + Chicken BBQ
+Price: ₱284

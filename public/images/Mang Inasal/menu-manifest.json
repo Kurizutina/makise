@@ -1,0 +1,242 @@
+[
+  {
+    "category": "Breakfast",
+    "name": "Breakfast Chicken Inasal Regular",
+    "price": 139,
+    "image": "/images/Mang Inasal/Breakfast/Breakfast Chicken Inasal Regular.webp"
+  },
+  {
+    "category": "Breakfast",
+    "name": "Breakfast Pork BBQ",
+    "price": 139,
+    "image": "/images/Mang Inasal/Breakfast/Breakfast Pork BBQ.webp"
+  },
+  {
+    "category": "Breakfast",
+    "name": "Breakfast Pork Sisig",
+    "price": 139,
+    "image": "/images/Mang Inasal/Breakfast/Breakfast Pork Sisig.webp"
+  },
+  {
+    "category": "Chicken Inasal",
+    "name": "10pc Spicy Chicken BBQ Family Size",
+    "price": 55,
+    "image": "/images/Mang Inasal/Chicken Inasal/10pc Spicy Chicken BBQ Family Size.webp"
+  },
+  {
+    "category": "Chicken Inasal",
+    "name": "4pc Spicy Chicken BBQ Buddy Size",
+    "price": 149,
+    "image": "/images/Mang Inasal/Chicken Inasal/4pc Spicy Chicken BBQ Buddy Size.webp"
+  },
+  {
+    "category": "Chicken Inasal",
+    "name": "Chicken Inasal & 1pc Pork BBQ Solo Fiesta",
+    "price": 750,
+    "image": "/images/Mang Inasal/Chicken Inasal/Chicken Inasal & 1pc Pork BBQ Solo Fiesta.webp"
+  },
+  {
+    "category": "Chicken Inasal",
+    "name": "Chicken Inasal Regular Family Size",
+    "price": 139,
+    "image": "/images/Mang Inasal/Chicken Inasal/Chicken Inasal Regular Family Size.webp"
+  },
+  {
+    "category": "Chicken Inasal",
+    "name": "Chicken Inasal Regular",
+    "price": 99,
+    "image": "/images/Mang Inasal/Chicken Inasal/Chicken Inasal Regular.png"
+  },
+  {
+    "category": "Chicken Inasal",
+    "name": "Chicken Inasal Solo Fiesta",
+    "price": 139,
+    "image": "/images/Mang Inasal/Chicken Inasal/Chicken Inasal Solo Fiesta.webp"
+  },
+  {
+    "category": "Chicken Inasal",
+    "name": "Paa Large - PM1",
+    "price": 139,
+    "image": "/images/Mang Inasal/Chicken Inasal/Paa Large - PM1.png"
+  },
+  {
+    "category": "Chicken Inasal",
+    "name": "Paa Large Family Size",
+    "price": 179,
+    "image": "/images/Mang Inasal/Chicken Inasal/Paa Large Family Size.webp"
+  },
+  {
+    "category": "Chicken Inasal",
+    "name": "Pecho Large - PM2",
+    "price": 169,
+    "image": "/images/Mang Inasal/Chicken Inasal/Pecho Large - PM2.png"
+  },
+  {
+    "category": "Chicken Inasal",
+    "name": "Pecho Large Family Size",
+    "price": 209,
+    "image": "/images/Mang Inasal/Chicken Inasal/Pecho Large Family Size.webp"
+  },
+  {
+    "category": "Chicken Inasal",
+    "name": "Spicy Chicken BBQ with Rice",
+    "price": 64,
+    "image": "/images/Mang Inasal/Chicken Inasal/Spicy Chicken BBQ with Rice.png"
+  },
+  {
+    "category": "Chicken Inasal",
+    "name": "Todo Solb Paa Large",
+    "price": 89,
+    "image": "/images/Mang Inasal/Chicken Inasal/Todo Solb Paa Large.webp"
+  },
+  {
+    "category": "Chicken Inasal",
+    "name": "Todo Solb Pecho Large",
+    "price": 254,
+    "image": "/images/Mang Inasal/Chicken Inasal/Todo Solb Pecho Large.webp"
+  },
+  {
+    "category": "Grilled",
+    "name": "1pc Pork BBQ Ala Carte",
+    "price": 50,
+    "image": "/images/Mang Inasal/Grilled/1pc Pork BBQ Ala Carte.webp"
+  },
+  {
+    "category": "Grilled",
+    "name": "1pc Pork with Peanut Sauce and Java Rice",
+    "price": 135,
+    "image": "/images/Mang Inasal/Grilled/1pc Pork with Peanut Sauce and Java Rice.png"
+  },
+  {
+    "category": "Grilled",
+    "name": "20pc Pork BBQ Party Size",
+    "price": 950,
+    "image": "/images/Mang Inasal/Grilled/20pc Pork BBQ Party Size.webp"
+  },
+  {
+    "category": "Grilled",
+    "name": "20pc Spicy Pork BBQ Party Size",
+    "price": 999,
+    "image": "/images/Mang Inasal/Grilled/20pc Spicy Pork BBQ Party Size.webp"
+  },
+  {
+    "category": "Grilled",
+    "name": "2pc Pork BBQ Solo Fiesta",
+    "price": 50,
+    "image": "/images/Mang Inasal/Grilled/2pc Pork BBQ Solo Fiesta.webp"
+  },
+  {
+    "category": "Grilled",
+    "name": "2pc Pork BBQ with Peanut Sauce and Java Rice",
+    "price": 135,
+    "image": "/images/Mang Inasal/Grilled/2pc Pork BBQ with Peanut Sauce and Java Rice.webp"
+  },
+  {
+    "category": "Grilled",
+    "name": "2pc Pork with Spiced Vinegar",
+    "price": 59,
+    "image": "/images/Mang Inasal/Grilled/2pc Pork with Spiced Vinegar.webp"
+  },
+  {
+    "category": "Grilled",
+    "name": "4pc Spicy Pork BBQ Buddy Size",
+    "price": 205,
+    "image": "/images/Mang Inasal/Grilled/4pc Spicy Pork BBQ Buddy Size.webp"
+  },
+  {
+    "category": "Grilled",
+    "name": "Grilled Liempo",
+    "price": 135,
+    "image": "/images/Mang Inasal/Grilled/Grilled Liempo.png"
+  },
+  {
+    "category": "Grilled",
+    "name": "Pork BBQ Ala Carte",
+    "price": 50,
+    "image": "/images/Mang Inasal/Grilled/Pork BBQ Ala Carte.png"
+  },
+  {
+    "category": "Grilled",
+    "name": "Pork BBQ Buddy Size",
+    "price": 193,
+    "image": "/images/Mang Inasal/Grilled/Pork BBQ Buddy Size.webp"
+  },
+  {
+    "category": "Grilled",
+    "name": "Pork BBQ Family Size",
+    "price": 475,
+    "image": "/images/Mang Inasal/Grilled/Pork BBQ Family Size.webp"
+  },
+  {
+    "category": "Grilled",
+    "name": "Sizzling Liempo",
+    "price": 135,
+    "image": "/images/Mang Inasal/Grilled/Sizzling Liempo.webp"
+  },
+  {
+    "category": "Halo-Halo",
+    "name": "Crema de Leche Halo-Halo",
+    "price": 194,
+    "image": "/images/Mang Inasal/Halo-Halo/Crema de Leche Halo-Halo.webp"
+  },
+  {
+    "category": "Halo-Halo",
+    "name": "Extra Creamy Halo-Halo",
+    "price": 39,
+    "image": "/images/Mang Inasal/Halo-Halo/Extra Creamy Halo-Halo.webp"
+  },
+  {
+    "category": "Lumpiang Togue",
+    "name": "Lumpiang Togue",
+    "price": 29,
+    "image": "/images/Mang Inasal/Lumpiang Togue/Lumpiang Togue.webp"
+  },
+  {
+    "category": "Palabok",
+    "name": "Palabok Party Size",
+    "price": 681,
+    "image": "/images/Mang Inasal/Palabok/Palabok Party Size.webp"
+  },
+  {
+    "category": "Palabok",
+    "name": "Palabok with 1pc Pork BBQ",
+    "price": 165,
+    "image": "/images/Mang Inasal/Palabok/Palabok with 1pc Pork BBQ.webp"
+  },
+  {
+    "category": "Palabok",
+    "name": "Palabok with Chicken Inasal",
+    "price": 139,
+    "image": "/images/Mang Inasal/Palabok/Palabok with Chicken Inasal.webp"
+  },
+  {
+    "category": "Palabok",
+    "name": "Palabok",
+    "price": 89,
+    "image": "/images/Mang Inasal/Palabok/Palabok.webp"
+  },
+  {
+    "category": "Rice Meals",
+    "name": "Bangus Sisig",
+    "price": 135,
+    "image": "/images/Mang Inasal/Rice Meals (Existing Products)/Bangus Sisig.webp"
+  },
+  {
+    "category": "Rice Meals",
+    "name": "Pork Sisig",
+    "price": 105,
+    "image": "/images/Mang Inasal/Rice Meals (Existing Products)/Pork Sisig.webp"
+  },
+  {
+    "category": "Sisig",
+    "name": "Bangus Sisig Family Size",
+    "price": 135,
+    "image": "/images/Mang Inasal/Sisig/Bangus Sisig Family Size.webp"
+  },
+  {
+    "category": "Sisig",
+    "name": "Pork Sisig Family Size",
+    "price": 105,
+    "image": "/images/Mang Inasal/Sisig/Pork Sisig Family Size.webp"
+  }
+]

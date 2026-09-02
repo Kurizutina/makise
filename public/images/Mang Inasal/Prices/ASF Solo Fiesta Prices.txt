@@ -1,0 +1,11 @@
+Paa 1 Rice
+Price: ₱224
+
+Pecho 1 Rice
+Price: ₱254
+
+Paa + Pork BBQ
+Price: ₱254
+
+Pecho + Pork BBQ
+Price: ₱284
