@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCustomerActivity } from '../../context/CustomerActivityContext';
 import './JollibeeMenu.css';
 
 const formatPrice = (price) => new Intl.NumberFormat('en-PH', {
@@ -11,8 +12,15 @@ const formatPrice = (price) => new Intl.NumberFormat('en-PH', {
 
 const McDonaldsMenu = () => {
   const navigate = useNavigate();
+  const {
+    cart: sharedCart,
+    addToCart: addSharedCartItem,
+    updateCartQuantity,
+    placeOrder,
+    placeCartOrder
+  } = useCustomerActivity();
   const [products, setProducts] = useState([]);
-  const [cart, setCart] = useState([]);
+  const cart = sharedCart.filter((item) => item.source === "McDonald's");
   const [customName, setCustomName] = useState('');
   const [customQuantity, setCustomQuantity] = useState(1);
   const [showCustomItem, setShowCustomItem] = useState(false);
@@ -58,25 +66,17 @@ const McDonaldsMenu = () => {
   };
 
   const addToCart = (product, quantity = 1) => {
-    setCart((current) => {
-      const existing = current.find((item) => item.id === product.id);
-      return existing
-        ? current.map((item) => item.id === product.id
-          ? { ...item, quantity: item.quantity + quantity }
-          : item)
-        : [...current, { ...product, quantity }];
-    });
+    addSharedCartItem({ ...product, source: "McDonald's", quantity });
     showNotice(`${product.name} added to cart.`);
   };
 
   const updateQuantity = (id, amount) => {
-    setCart((current) => current
-      .map((item) => item.id === id ? { ...item, quantity: item.quantity + amount } : item)
-      .filter((item) => item.quantity > 0));
+    const item = cart.find((entry) => entry.id === id);
+    if (item) updateCartQuantity(item.cartId, amount);
   };
 
   const placeProductOrder = (product) => {
-    console.log('McDonald’s product order placed:', { ...product, quantity: 1 });
+    placeOrder({ source: "McDonald's", label: product.name, items: [{ ...product, quantity: 1 }] });
     showNotice(`Order placed for ${product.name}.`);
   };
 
@@ -96,9 +96,8 @@ const McDonaldsMenu = () => {
 
   const checkoutCart = () => {
     if (!cart.length) return;
-    console.log('McDonald’s cart order placed:', cart);
+    placeCartOrder("McDonald's");
     showNotice(`Order placed with ${itemCount} item${itemCount === 1 ? '' : 's'}.`);
-    setCart([]);
   };
 
   return (

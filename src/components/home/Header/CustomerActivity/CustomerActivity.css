@@ -1,0 +1,51 @@
+.activity-trigger { position: relative; }
+.activity-badge { position: absolute; top: -4px; right: -4px; display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border: 2px solid #da1c5c; border-radius: 10px; background: #f9c12f; color: #6b3400; font-size: 9px; font-weight: 800; }
+.activity-drawer-backdrop { position: fixed; inset: 0; z-index: 2100; background: rgba(35,18,26,.42); backdrop-filter: blur(2px); }
+.activity-drawer { position: absolute; top: 0; right: 0; display: flex; flex-direction: column; width: min(430px, 100%); height: 100%; background: #fff; color: #392f34; box-shadow: -14px 0 45px rgba(48,16,28,.2); }
+.activity-drawer-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px; border-bottom: 1px solid #eee6e9; }
+.activity-drawer-header span { color: #da1c5c; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.activity-drawer-header h2 { margin: 3px 0 0; font-size: 22px; }
+.activity-drawer-header button { width: 38px; height: 38px; border: 0; border-radius: 50%; background: #f8edf1; color: #a51546; font-size: 25px; cursor: pointer; }
+.activity-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 14px 20px 0; padding: 4px; border-radius: 12px; background: #f6f1f3; }
+.activity-tabs button { padding: 9px; border: 0; border-radius: 9px; background: transparent; color: #796c72; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.activity-tabs button.active { background: #fff; color: #da1c5c; box-shadow: 0 2px 8px rgba(67,33,45,.09); }
+.activity-drawer-body { flex: 1; overflow-y: auto; padding: 18px 20px 24px; }
+.notification-card { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 11px; padding: 14px; border: 1px solid #eee5e8; border-radius: 14px; background: #fff; }
+.notification-card > span { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; background: #eaf7ef; color: #2d9454; }
+.notification-card strong, .notification-card small { display: block; }
+.notification-card strong { font-size: 13px; }
+.notification-card p { margin: 4px 0 7px; color: #74676d; font-size: 12px; line-height: 1.4; }
+.notification-card small { color: #a09399; font-size: 10px; }
+.order-tracking-card { margin-bottom: 14px; padding: 16px; border: 1px solid #eadfe3; border-radius: 15px; box-shadow: 0 4px 15px rgba(65,30,43,.06); }
+.tracking-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.tracking-card-heading small, .tracking-card-heading strong { display: block; }
+.tracking-card-heading small { margin-bottom: 3px; color: #9a8d93; font-size: 9px; }
+.tracking-card-heading strong { font-size: 13px; }
+.tracking-card-heading > span { padding: 5px 8px; border-radius: 8px; background: #eaf7ef; color: #287f4a; font-size: 9px; font-weight: 800; }
+.order-tracking-card > p { margin: 7px 0 17px; color: #887b81; font-size: 10px; }
+.tracking-progress { display: grid; grid-template-columns: repeat(4,1fr); }
+.tracking-progress > div { position: relative; display: grid; justify-items: center; gap: 5px; color: #a99da2; text-align: center; }
+.tracking-progress > div:not(:last-child)::after { content: ''; position: absolute; top: 11px; left: calc(50% + 12px); right: calc(-50% + 12px); height: 2px; background: #e8e0e3; }
+.tracking-progress i { position: relative; z-index: 1; display: grid; place-items: center; width: 23px; height: 23px; border-radius: 50%; background: #eee8ea; font-size: 8px; font-style: normal; }
+.tracking-progress span { font-size: 8px; }
+.tracking-progress .complete { color: #da1c5c; }
+.tracking-progress .complete i { background: #da1c5c; color: #fff; }
+.activity-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; color: #a99ca2; text-align: center; }
+.activity-empty > i { margin-bottom: 15px; font-size: 38px; color: #e1cbd3; }
+.activity-empty strong { color: #5c5056; font-size: 14px; }
+.activity-empty p { margin: 6px 0 0; font-size: 12px; }
+.global-cart-items { display: grid; gap: 11px; }
+.global-cart-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px; border: 1px solid #eee5e8; border-radius: 13px; }
+.global-cart-item-copy { min-width: 0; }
+.global-cart-item-copy small, .global-cart-item-copy strong, .global-cart-item-copy span { display: block; }
+.global-cart-item-copy small { color: #da1c5c; font-size: 9px; font-weight: 700; text-transform: uppercase; }
+.global-cart-item-copy strong { margin: 3px 0; font-size: 12px; }
+.global-cart-item-copy span { color: #85787e; font-size: 10px; }
+.global-cart-quantity { display: grid; grid-template-columns: 30px 27px 30px; align-items: center; flex-shrink: 0; overflow: hidden; border: 1px solid #e6dce0; border-radius: 9px; }
+.global-cart-quantity button { height: 31px; border: 0; background: #fff3f7; color: #c21751; cursor: pointer; }
+.global-cart-quantity output { text-align: center; font-size: 11px; font-weight: 700; }
+.global-cart-summary { display: flex; justify-content: space-between; margin: 20px 0 14px; padding-top: 16px; border-top: 1px solid #eee6e9; }
+.global-cart-summary span { color: #786b71; font-size: 12px; }
+.global-cart-summary strong { color: #da1c5c; }
+.global-cart-place { width: 100%; padding: 13px; border: 0; border-radius: 11px; background: #da1c5c; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+@media (max-width: 480px) { .activity-drawer-header { padding: 18px 16px; } .activity-drawer-body { padding-inline: 14px; } .activity-tabs { margin-inline: 14px; } }

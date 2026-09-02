@@ -1,11 +1,19 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { jollibeeMenu } from '../../components/home/JollibeeMenu/jollibeeMenuData';
+import { useCustomerActivity } from '../../context/CustomerActivityContext';
 import './JollibeeMenu.css';
 
 const JollibeeMenu = () => {
   const navigate = useNavigate();
-  const [cart, setCart] = useState([]);
+  const {
+    cart: sharedCart,
+    addToCart: addSharedCartItem,
+    updateCartQuantity,
+    placeOrder,
+    placeCartOrder
+  } = useCustomerActivity();
+  const cart = sharedCart.filter((item) => item.source === 'Jollibee');
   const [customName, setCustomName] = useState('');
   const [customQuantity, setCustomQuantity] = useState(1);
   const [showCustomItem, setShowCustomItem] = useState(false);
@@ -35,27 +43,19 @@ const JollibeeMenu = () => {
 
   const addToCart = (product, quantity = 1) => {
     const configuredProduct = getConfiguredProduct(product);
-    setCart((current) => {
-      const existing = current.find((item) => item.id === configuredProduct.id);
-      return existing
-        ? current.map((item) => item.id === configuredProduct.id
-          ? { ...item, quantity: item.quantity + quantity }
-          : item)
-        : [...current, { ...configuredProduct, quantity }];
-    });
+    addSharedCartItem({ ...configuredProduct, source: 'Jollibee', quantity });
     showNotice(`${configuredProduct.name}${configuredProduct.selectedOption ? ` (${configuredProduct.selectedOption})` : ''} added to cart.`);
   };
 
   const updateQuantity = (id, amount) => {
-    setCart((current) => current
-      .map((item) => item.id === id ? { ...item, quantity: item.quantity + amount } : item)
-      .filter((item) => item.quantity > 0));
+    const item = cart.find((entry) => entry.id === id);
+    if (item) updateCartQuantity(item.cartId, amount);
   };
 
   const placeProductOrder = (product) => {
     const configuredProduct = getConfiguredProduct(product);
     showNotice(`Order placed for ${configuredProduct.name}${configuredProduct.selectedOption ? ` (${configuredProduct.selectedOption})` : ''}.`);
-    console.log('Jollibee product order placed:', { ...configuredProduct, quantity: 1 });
+    placeOrder({ source: 'Jollibee', label: configuredProduct.name, items: [{ ...configuredProduct, quantity: 1 }] });
   };
 
   const addCustomItem = (event) => {
@@ -74,9 +74,8 @@ const JollibeeMenu = () => {
 
   const checkoutCart = () => {
     if (!cart.length) return;
-    console.log('Jollibee cart order placed:', cart);
+    placeCartOrder('Jollibee');
     showNotice(`Order placed with ${itemCount} item${itemCount === 1 ? '' : 's'}.`);
-    setCart([]);
   };
 
   return (

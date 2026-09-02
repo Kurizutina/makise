@@ -4,6 +4,7 @@ import Header from '../../components/home/Header/Header';
 import FoodandItemsSection from '../../components/home/FoodandItem/FoodandItemsSection/FoodandItemsSection';
 import OthersOrderForm from '../../components/home/OthersOrderForm/OthersOrderForm';
 import PayBillsForm from '../../components/home/PayBillsForm/PayBillsForm';
+import { useCustomerActivity } from '../../context/CustomerActivityContext';
 import {
   temporaryFoodBrands,
   temporaryItemBrands,
@@ -13,6 +14,7 @@ import {
 
 const Home = () => {
   const navigate = useNavigate();
+  const { addToCart, placeOrder } = useCustomerActivity();
 
   // Currently selected service
   const [selectedService, setSelectedService] = useState('food');
@@ -104,16 +106,21 @@ const Home = () => {
           allowPickup={customOrderBrand.type === 'item' && customOrderBrand.name === 'Others'}
           onCancel={() => setCustomOrderBrand(null)}
           onAddToCart={(order) => {
-            console.log('Custom order added to cart:', {
-              ...order,
-              selectedBrand: customOrderBrand.name
+            addToCart({
+              id: `custom-${Date.now()}`,
+              source: customOrderBrand.name,
+              name: `Custom order (${order.items.length} item${order.items.length === 1 ? '' : 's'})`,
+              quantity: 1,
+              details: order
             });
             setCustomOrderBrand(null);
           }}
           onSubmit={(order) => {
-            console.log('Custom order submitted:', {
-              ...order,
-              selectedBrand: customOrderBrand.name
+            placeOrder({
+              source: customOrderBrand.name,
+              label: `${customOrderBrand.name} custom order`,
+              items: order.items,
+              details: order
             });
             setCustomOrderBrand(null);
           }}
@@ -126,9 +133,14 @@ const Home = () => {
           canEditEstablishment={paymentBrand.name === 'Others'}
           onCancel={() => setPaymentBrand(null)}
           onSubmit={(payment) => {
-            console.log('Bill payment submitted:', {
-              ...payment,
-              selectedBrand: paymentBrand.name
+            placeOrder({
+              source: paymentBrand.name,
+              label: `${paymentBrand.name} bill payment`,
+              details: {
+                establishment: payment.establishment,
+                billReceiptName: payment.billReceipt?.name,
+                transferProofName: payment.transferProof?.name
+              }
             });
             setPaymentBrand(null);
           }}
