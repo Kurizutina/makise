@@ -21,7 +21,7 @@ body {
 
 .app-container:has(.home-page),
 .app-container:has(.jollibee-page),
-.app-container:has(.driver-orders-page) {
+.app-container:has(.rider-dashboard-page) {
   display: block;
   padding: 0;
 }

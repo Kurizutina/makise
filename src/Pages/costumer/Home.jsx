@@ -125,7 +125,8 @@ const Home = () => {
               source: customOrderBrand.name,
               label: `${customOrderBrand.name} custom order`,
               items: order.items,
-              details: order
+              details: order,
+              section: customOrderBrand.type
             });
             setCustomOrderBrand(null);
           }}
@@ -141,6 +142,7 @@ const Home = () => {
             placeOrder({
               source: paymentBrand.name,
               label: `${paymentBrand.name} bill payment`,
+              section: 'bills',
               details: {
                 establishment: payment.establishment,
                 billReceiptName: payment.billReceipt?.name,

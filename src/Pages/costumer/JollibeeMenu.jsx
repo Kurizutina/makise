@@ -55,7 +55,7 @@ const JollibeeMenu = () => {
   const placeProductOrder = (product) => {
     const configuredProduct = getConfiguredProduct(product);
     showNotice(`Order placed for ${configuredProduct.name}${configuredProduct.selectedOption ? ` (${configuredProduct.selectedOption})` : ''}.`);
-    placeOrder({ source: 'Jollibee', label: configuredProduct.name, items: [{ ...configuredProduct, quantity: 1 }] });
+    placeOrder({ source: 'Jollibee', label: configuredProduct.name, items: [{ ...configuredProduct, quantity: 1 }], section: 'food' });
   };
 
   const addCustomItem = (event) => {

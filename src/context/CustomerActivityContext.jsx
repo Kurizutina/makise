@@ -68,7 +68,7 @@ export const CustomerActivityProvider = ({ children }) => {
     updateAll(nextCart, orders, notifications);
   };
 
-  const placeOrder = ({ source, label, items = [], details = null }) => {
+  const placeOrder = ({ source, label, items = [], details = null, section = 'food' }) => {
     const createdAt = new Date().toISOString();
     const order = {
       id: `ORD-${Date.now().toString().slice(-7)}`,
@@ -76,6 +76,7 @@ export const CustomerActivityProvider = ({ children }) => {
       label: label || 'Customer order',
       items,
       details,
+      section,
       status: 'pending_rider',
       createdAt
     };
@@ -99,6 +100,7 @@ export const CustomerActivityProvider = ({ children }) => {
       source: source || 'Multiple establishments',
       label: `${orderItems.reduce((total, item) => total + item.quantity, 0)} cart item(s)`,
       items: orderItems,
+      section: orderItems.every((item) => item.details?.serviceType === 'item') ? 'item' : 'food',
       status: 'pending_rider',
       createdAt: new Date().toISOString()
     };

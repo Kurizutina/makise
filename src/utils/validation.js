@@ -79,7 +79,7 @@ export const validateAdditionalFields = (
   }
 
   if (
-    selectedRole === 'driver' ||
+    selectedRole === 'rider' ||
     selectedRole === 'admin'
   ) {
     if (!name.trim()) {

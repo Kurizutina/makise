@@ -212,7 +212,7 @@ const AuthPage = ({ mode }) => {
     });
 
     sessionStorage.setItem('otuzanAuthenticated', selectedRole);
-    navigate(selectedRole === ROLES.DRIVER.key ? '/driver/orders' : '/home');
+    navigate(selectedRole === ROLES.RIDER.key ? '/rider/orders' : '/home');
 
   };
 

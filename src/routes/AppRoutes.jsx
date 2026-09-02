@@ -12,7 +12,7 @@ import Home from '../Pages/costumer/Home';
 import JollibeeMenu from '../Pages/costumer/JollibeeMenu';
 import McDonaldsMenu from '../Pages/costumer/McDonaldsMenu';
 import MangInasalMenu from '../Pages/costumer/MangInasalMenu';
-import DriverOrders from '../Pages/driver/DriverOrders';
+import RiderDashboard from '../Pages/rider/RiderDashboard';
 
 const AppRoutes = () => {
   return (
@@ -56,8 +56,8 @@ const AppRoutes = () => {
         />
 
         <Route
-          path="/driver/orders"
-          element={<DriverOrders />}
+          path="/rider/orders"
+          element={<RiderDashboard />}
         />
 
       </Routes>

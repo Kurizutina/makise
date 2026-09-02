@@ -83,7 +83,7 @@ export const RestaurantMenu = ({
   };
 
   const placeProductOrder = (product) => {
-    placeOrder({ source: sourceKey, label: product.name, items: [{ ...product, quantity: 1 }] });
+    placeOrder({ source: sourceKey, label: product.name, items: [{ ...product, quantity: 1 }], section: 'food' });
     showNotice(`Order placed for ${product.name}.`);
   };
 
