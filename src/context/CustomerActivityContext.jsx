@@ -2,6 +2,19 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 
 const CustomerActivityContext = createContext(null);
 const STORAGE_KEY = 'otuzanCustomerActivity';
+const PROFILE_KEY = 'otuzanCustomerProfile';
+
+const getCustomerSnapshot = () => {
+  try {
+    const profile = JSON.parse(localStorage.getItem(PROFILE_KEY)) || {};
+    return {
+      customerName: profile.username || 'Customer',
+      customerAddress: profile.address || ''
+    };
+  } catch {
+    return { customerName: 'Customer', customerAddress: '' };
+  }
+};
 
 export const getOrderItemCount = (items = []) => Math.max(
   1,
@@ -97,6 +110,7 @@ export const CustomerActivityProvider = ({ children }) => {
   const placeOrder = ({ source, label, items = [], details = null, section = 'food' }) => {
     const createdAt = new Date().toISOString();
     const estimatedWaitMinutes = calculateEstimatedWaitMinutes(items);
+    const customer = getCustomerSnapshot();
     const order = {
       id: `ORD-${Date.now().toString().slice(-7)}`,
       source: source || 'Otu-Zan',
@@ -104,6 +118,7 @@ export const CustomerActivityProvider = ({ children }) => {
       items,
       details,
       section,
+      ...customer,
       estimatedWaitMinutes,
       status: 'pending_rider',
       createdAt
@@ -133,12 +148,14 @@ export const CustomerActivityProvider = ({ children }) => {
       }, {}));
 
     const orderTime = Date.now();
+    const customer = getCustomerSnapshot();
     const newOrders = groupedItems.map(([establishment, items], index) => ({
       id: `ORD-${(orderTime + index).toString().slice(-7)}`,
       source: establishment,
       label: getCartOrderLabel(items),
       items,
       section: items.every((item) => item.details?.serviceType === 'item') ? 'item' : 'food',
+      ...customer,
       estimatedWaitMinutes: calculateEstimatedWaitMinutes(items),
       status: 'pending_rider',
       createdAt: new Date(orderTime + index).toISOString()
@@ -199,6 +216,13 @@ export const CustomerActivityProvider = ({ children }) => {
     updateAll(cart, nextOrders, [notification, ...notifications]);
   };
 
+  const assignOrderToRider = (orderId, rider) => {
+    const nextOrders = orders.map((order) => order.id === orderId
+      ? { ...order, assignedRider: rider || null }
+      : order);
+    updateAll(cart, nextOrders, notifications);
+  };
+
   const value = useMemo(() => ({
     cart,
     orders,
@@ -208,7 +232,8 @@ export const CustomerActivityProvider = ({ children }) => {
     placeOrder,
     placeCartOrder,
     markNotificationsRead,
-    updateOrderStatus
+    updateOrderStatus,
+    assignOrderToRider
   // State is intentionally included so consumers always receive current actions.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [cart, orders, notifications]);

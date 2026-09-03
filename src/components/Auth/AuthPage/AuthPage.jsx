@@ -212,7 +212,11 @@ const AuthPage = ({ mode }) => {
     });
 
     sessionStorage.setItem('otuzanAuthenticated', selectedRole);
-    navigate(selectedRole === ROLES.RIDER.key ? '/rider/orders' : '/home');
+    const roleDestinations = {
+      [ROLES.RIDER.key]: '/rider/orders',
+      [ROLES.ADMIN.key]: '/admin/dashboard'
+    };
+    navigate(roleDestinations[selectedRole] || '/home');
 
   };
 

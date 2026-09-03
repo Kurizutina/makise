@@ -13,6 +13,7 @@ import JollibeeMenu from '../Pages/costumer/JollibeeMenu';
 import McDonaldsMenu from '../Pages/costumer/McDonaldsMenu';
 import MangInasalMenu from '../Pages/costumer/MangInasalMenu';
 import RiderDashboard from '../Pages/rider/RiderDashboard';
+import DeliveryAdminDashboard from '../Pages/admin/DeliveryAdminDashboard';
 
 const AppRoutes = () => {
   return (
@@ -58,6 +59,11 @@ const AppRoutes = () => {
         <Route
           path="/rider/orders"
           element={<RiderDashboard />}
+        />
+
+        <Route
+          path="/admin/dashboard"
+          element={<DeliveryAdminDashboard />}
         />
 
       </Routes>
