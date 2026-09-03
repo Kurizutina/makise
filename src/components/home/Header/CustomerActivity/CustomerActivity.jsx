@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
-import { useCustomerActivity } from '../../../../context/CustomerActivityContext';
+import React, { useEffect, useState } from 'react';
+import {
+  calculateEstimatedWaitMinutes,
+  getOrderDisplayLabel,
+  useCustomerActivity
+} from '../../../../context/CustomerActivityContext';
 import './CustomerActivity.css';
 
 const NotificationIcon = () => (
@@ -29,6 +33,35 @@ const statusLabels = {
 };
 const statusIndexes = { confirmed: 0, preparing: 1, out_for_delivery: 2, delivered: 3 };
 
+const formatEstimatedWait = (order, now) => {
+  const estimatedMinutes = order.estimatedWaitMinutes
+    || calculateEstimatedWaitMinutes(order.items);
+
+  if (order.status === 'pending_rider') return `${estimatedMinutes} min after confirmation`;
+  if (order.status === 'cancelled') return 'Order cancelled';
+  if (order.status === 'delivered') return 'Completed';
+
+  const startedAt = Date.parse(order.confirmedAt || order.updatedAt || order.createdAt);
+  const completionAt = Date.parse(order.estimatedCompletionAt)
+    || (startedAt + (estimatedMinutes * 60 * 1000));
+  const remainingSeconds = Math.max(0, Math.ceil((completionAt - now) / 1000));
+
+  if (!remainingSeconds) return 'Due now';
+  const minutes = Math.floor(remainingSeconds / 60);
+  const seconds = String(remainingSeconds % 60).padStart(2, '0');
+  return `${minutes}m ${seconds}s remaining`;
+};
+
+const EstimatedWait = ({ order, now }) => (
+  <div className="estimated-wait-row">
+    <span className="estimated-wait-label">Estimated Wait Time</span>
+    <div className={`estimated-wait-time ${order.status === 'cancelled' ? 'cancelled' : ''}`}>
+      <i className="fa-regular fa-clock" aria-hidden="true" />
+      <strong>{formatEstimatedWait(order, now)}</strong>
+    </div>
+  </div>
+);
+
 const CustomerActivity = () => {
   const {
     cart,
@@ -40,9 +73,15 @@ const CustomerActivity = () => {
   } = useCustomerActivity();
   const [openPanel, setOpenPanel] = useState(null);
   const [activityTab, setActivityTab] = useState('notifications');
+  const [now, setNow] = useState(Date.now());
   const unreadCount = notifications.filter((item) => !item.read).length;
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
   const cartTotal = cart.reduce((total, item) => total + (item.price || 0) * item.quantity, 0);
+
+  useEffect(() => {
+    const countdown = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(countdown);
+  }, []);
 
   const openActivity = () => {
     setOpenPanel('activity');
@@ -103,7 +142,7 @@ const CustomerActivity = () => {
                   {activityTab === 'orders' && (
                     orders.length ? orders.map((order) => (
                       <article className={`order-tracking-card order-status-${order.status}`} key={order.id}>
-                        <div className="tracking-card-heading"><div><small>{order.id}</small><strong>{order.label}</strong></div><span>{statusLabels[order.status] || 'Confirmed'}</span></div>
+                        <div className="tracking-card-heading"><div><small>{order.id}</small><strong>{getOrderDisplayLabel(order)}</strong></div><span>{statusLabels[order.status] || 'Confirmed'}</span></div>
                         <p>{order.source} · {new Date(order.createdAt).toLocaleString()}</p>
 
                         {!!order.items?.length && (
@@ -111,6 +150,10 @@ const CustomerActivity = () => {
                             <summary>View ordered items ({order.items.reduce((total, item) => total + (item.quantity || 1), 0)})</summary>
                             <ul>{order.items.map((item, index) => <li key={item.cartId || item.id || index}><span>{item.name || `Item ${index + 1}`}</span><strong>×{item.quantity || 1}</strong></li>)}</ul>
                           </details>
+                        )}
+
+                        {['pending_rider', 'cancelled'].includes(order.status) && (
+                          <EstimatedWait order={order} now={now} />
                         )}
 
                         {order.status === 'pending_rider' && (
@@ -122,12 +165,15 @@ const CustomerActivity = () => {
                         )}
 
                         {!['pending_rider', 'cancelled'].includes(order.status) && (
-                          <div className="tracking-progress">
-                            {progressSteps.map((step, index) => {
-                              const currentIndex = statusIndexes[order.status] ?? 0;
-                              const isComplete = index <= currentIndex;
-                              return <div className={`${isComplete ? 'complete' : ''} ${index === currentIndex ? 'current' : ''}`} key={step}><i className={isComplete ? 'fa-solid fa-check' : ''}>{isComplete ? '' : index + 1}</i><span>{step}</span></div>;
-                            })}
+                          <div className="tracking-progress-with-wait">
+                            <div className="tracking-progress">
+                              {progressSteps.map((step, index) => {
+                                const currentIndex = statusIndexes[order.status] ?? 0;
+                                const isComplete = index <= currentIndex;
+                                return <div className={`${isComplete ? 'complete' : ''} ${index === currentIndex ? 'current' : ''}`} key={step}><i className={isComplete ? 'fa-solid fa-check' : ''}>{isComplete ? '' : index + 1}</i><span>{step}</span></div>;
+                              })}
+                            </div>
+                            <EstimatedWait order={order} now={now} />
                           </div>
                         )}
                       </article>

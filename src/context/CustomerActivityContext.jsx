@@ -3,6 +3,32 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 const CustomerActivityContext = createContext(null);
 const STORAGE_KEY = 'otuzanCustomerActivity';
 
+export const getOrderItemCount = (items = []) => Math.max(
+  1,
+  items.reduce((total, item) => total + (Number(item.quantity) || 1), 0)
+);
+
+export const calculateEstimatedWaitMinutes = (items = []) => (
+  Math.min(50, 40 + ((getOrderItemCount(items) - 1) * 2))
+);
+
+const getCartOrderLabel = (items) => {
+  if (items.length === 1) {
+    const quantity = Number(items[0].quantity) || 1;
+    const itemName = items[0].name || 'Custom item';
+    return quantity > 1 ? `${quantity}pc ${itemName}` : itemName;
+  }
+
+  const totalItems = getOrderItemCount(items);
+  return `${totalItems} items: ${items[0].name || 'Custom item'} + ${items.length - 1} more`;
+};
+
+export const getOrderDisplayLabel = (order) => (
+  /cart item/i.test(order.label || '') && order.items?.length
+    ? getCartOrderLabel(order.items)
+    : order.label
+);
+
 const loadActivity = () => {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
@@ -70,6 +96,7 @@ export const CustomerActivityProvider = ({ children }) => {
 
   const placeOrder = ({ source, label, items = [], details = null, section = 'food' }) => {
     const createdAt = new Date().toISOString();
+    const estimatedWaitMinutes = calculateEstimatedWaitMinutes(items);
     const order = {
       id: `ORD-${Date.now().toString().slice(-7)}`,
       source: source || 'Otu-Zan',
@@ -77,6 +104,7 @@ export const CustomerActivityProvider = ({ children }) => {
       items,
       details,
       section,
+      estimatedWaitMinutes,
       status: 'pending_rider',
       createdAt
     };
@@ -95,26 +123,37 @@ export const CustomerActivityProvider = ({ children }) => {
   const placeCartOrder = (source = null) => {
     const orderItems = source ? cart.filter((item) => item.source === source) : cart;
     if (!orderItems.length) return null;
-    const order = {
-      id: `ORD-${Date.now().toString().slice(-7)}`,
-      source: source || 'Multiple establishments',
-      label: `${orderItems.reduce((total, item) => total + item.quantity, 0)} cart item(s)`,
-      items: orderItems,
-      section: orderItems.every((item) => item.details?.serviceType === 'item') ? 'item' : 'food',
+
+    const groupedItems = source
+      ? [[source, orderItems]]
+      : Object.entries(orderItems.reduce((groups, item) => {
+        const establishment = item.source || 'Otu-Zan';
+        groups[establishment] = [...(groups[establishment] || []), item];
+        return groups;
+      }, {}));
+
+    const orderTime = Date.now();
+    const newOrders = groupedItems.map(([establishment, items], index) => ({
+      id: `ORD-${(orderTime + index).toString().slice(-7)}`,
+      source: establishment,
+      label: getCartOrderLabel(items),
+      items,
+      section: items.every((item) => item.details?.serviceType === 'item') ? 'item' : 'food',
+      estimatedWaitMinutes: calculateEstimatedWaitMinutes(items),
       status: 'pending_rider',
-      createdAt: new Date().toISOString()
-    };
-    const notification = {
-      id: `NOT-${Date.now()}-${Math.random()}`,
+      createdAt: new Date(orderTime + index).toISOString()
+    }));
+    const newNotifications = newOrders.map((order) => ({
+      id: `NOT-${order.id}-${Math.random()}`,
       orderId: order.id,
       title: 'Order request sent',
-      message: `Your cart order ${order.id} is waiting for a rider.`,
+      message: `Your ${order.source} order ${order.id} is waiting for a rider.`,
       createdAt: order.createdAt,
       read: false
-    };
+    }));
     const nextCart = source ? cart.filter((item) => item.source !== source) : [];
-    updateAll(nextCart, [order, ...orders], [notification, ...notifications]);
-    return order;
+    updateAll(nextCart, [...newOrders, ...orders], [...newNotifications, ...notifications]);
+    return newOrders[0];
   };
 
   const markNotificationsRead = () => {
@@ -137,8 +176,16 @@ export const CustomerActivityProvider = ({ children }) => {
     if (!content) return;
 
     const updatedAt = new Date().toISOString();
+    const estimatedWaitMinutes = currentOrder.estimatedWaitMinutes
+      || calculateEstimatedWaitMinutes(currentOrder.items);
+    const confirmationTiming = status === 'confirmed' ? {
+      confirmedAt: updatedAt,
+      estimatedCompletionAt: new Date(
+        Date.parse(updatedAt) + (estimatedWaitMinutes * 60 * 1000)
+      ).toISOString()
+    } : {};
     const nextOrders = orders.map((order) => order.id === orderId
-      ? { ...order, status, updatedAt }
+      ? { ...order, status, updatedAt, estimatedWaitMinutes, ...confirmationTiming }
       : order);
     const notification = {
       id: `NOT-${Date.now()}-${Math.random()}`,

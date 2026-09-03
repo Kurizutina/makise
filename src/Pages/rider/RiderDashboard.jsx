@@ -1,6 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCustomerActivity } from '../../context/CustomerActivityContext';
+import {
+  calculateEstimatedWaitMinutes,
+  getOrderDisplayLabel,
+  useCustomerActivity
+} from '../../context/CustomerActivityContext';
 import './RiderDashboard.css';
 
 const sections = [
@@ -20,6 +24,21 @@ const statusLabels = {
   out_for_delivery: 'Out for delivery', delivered: 'Delivered', cancelled: 'Cancelled'
 };
 
+const formatEstimatedWait = (order, now) => {
+  const estimatedMinutes = order.estimatedWaitMinutes
+    || calculateEstimatedWaitMinutes(order.items);
+  if (order.status === 'pending_rider') return `${estimatedMinutes} min after confirmation`;
+  if (order.status === 'cancelled') return 'Cancelled';
+  if (order.status === 'delivered') return 'Completed';
+
+  const startedAt = Date.parse(order.confirmedAt || order.updatedAt || order.createdAt);
+  const completionAt = Date.parse(order.estimatedCompletionAt)
+    || (startedAt + (estimatedMinutes * 60 * 1000));
+  const remainingSeconds = Math.max(0, Math.ceil((completionAt - now) / 1000));
+  if (!remainingSeconds) return 'Due now';
+  return `${Math.floor(remainingSeconds / 60)}m ${String(remainingSeconds % 60).padStart(2, '0')}s`;
+};
+
 const inferSection = (order) => {
   if (order.section) return order.section;
   if (order.details?.serviceType) return order.details.serviceType;
@@ -33,10 +52,16 @@ const RiderDashboard = () => {
   const { orders, updateOrderStatus } = useCustomerActivity();
   const [activeSection, setActiveSection] = useState('food');
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [now, setNow] = useState(Date.now());
   const selectedOrder = orders.find((order) => order.id === selectedOrderId);
   const sectionOrders = useMemo(() => orders.filter((order) => inferSection(order) === activeSection), [activeSection, orders]);
   const pendingCount = orders.filter((order) => order.status === 'pending_rider').length;
   const getCount = (section) => orders.filter((order) => inferSection(order) === section).length;
+
+  useEffect(() => {
+    const countdown = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(countdown);
+  }, []);
 
   const logout = () => {
     sessionStorage.removeItem('otuzanAuthenticated');
@@ -72,8 +97,9 @@ const RiderDashboard = () => {
           <div className="rider-order-grid">
             {sectionOrders.map((order) => (
               <article className={`rider-order-card status-${order.status}`} key={order.id}>
-                <div className="rider-order-heading"><div><small>{order.id}</small><h3>{order.label}</h3></div><span>{statusLabels[order.status] || 'Confirmed'}</span></div>
+                <div className="rider-order-heading"><div><small>{order.id}</small><h3>{getOrderDisplayLabel(order)}</h3></div><span>{statusLabels[order.status] || 'Confirmed'}</span></div>
                 <div className="rider-order-source"><i className="fa-solid fa-store" /><div><strong>{order.source}</strong><span>{new Date(order.createdAt).toLocaleString()}</span></div></div>
+                <div className="rider-order-estimate"><i className="fa-regular fa-clock" /><span>Estimated wait</span><strong>{formatEstimatedWait(order, now)}</strong></div>
                 <div className="rider-order-preview"><span><i className="fa-solid fa-bag-shopping" /> {order.items?.reduce((total, item) => total + (item.quantity || 1), 0) || 0} item(s)</span><button type="button" onClick={() => setSelectedOrderId(order.id)}>View Order <i className="fa-solid fa-arrow-right" /></button></div>
                 {order.status === 'pending_rider' && <div className="rider-decision-buttons"><button type="button" className="rider-cancel" onClick={() => updateOrderStatus(order.id, 'cancelled')}>Cancel</button><button type="button" className="rider-accept" onClick={() => updateOrderStatus(order.id, 'confirmed')}>Confirm Order</button></div>}
               </article>
@@ -86,7 +112,7 @@ const RiderDashboard = () => {
         <div className="rider-order-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedOrderId(null); }}>
           <section className="rider-order-modal" role="dialog" aria-modal="true" aria-labelledby="rider-order-title">
             <div className="rider-order-modal-header"><div><span>{selectedOrder.id}</span><h2 id="rider-order-title">Order Details</h2></div><button type="button" onClick={() => setSelectedOrderId(null)} aria-label="Close order details">×</button></div>
-            <div className="rider-detail-summary"><div><span>Establishment</span><strong>{selectedOrder.source}</strong></div><div><span>Status</span><strong>{statusLabels[selectedOrder.status]}</strong></div><div><span>Placed</span><strong>{new Date(selectedOrder.createdAt).toLocaleString()}</strong></div></div>
+            <div className="rider-detail-summary"><div><span>Establishment</span><strong>{selectedOrder.source}</strong></div><div><span>Status</span><strong>{statusLabels[selectedOrder.status]}</strong></div><div><span>Estimated wait</span><strong>{formatEstimatedWait(selectedOrder, now)}</strong></div><div><span>Placed</span><strong>{new Date(selectedOrder.createdAt).toLocaleString()}</strong></div></div>
 
             {!!selectedOrder.items?.length ? (
               <div className="rider-detail-items"><h3>Items placed</h3><ul>{selectedOrder.items.map((item, index) => <li key={item.cartId || item.id || index}><div><strong>{item.name || `Item ${index + 1}`}</strong>{item.selectedOption && <span>{item.selectedOption}</span>}</div><b>×{item.quantity || 1}</b></li>)}</ul></div>

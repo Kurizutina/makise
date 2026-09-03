@@ -39,6 +39,15 @@
 .tracking-order-items ul { display: grid; gap: 6px; margin: 0; padding: 0 11px 10px; list-style: none; }
 .tracking-order-items li { display: flex; justify-content: space-between; gap: 10px; color: #75686e; font-size: 10px; }
 .tracking-order-items li strong { flex-shrink: 0; color: #3e3338; }
+.estimated-wait-row { display: flex; align-items: center; justify-content: flex-end; gap: 9px; margin: 0 0 14px; }
+.estimated-wait-label { color: #8b6875; font-size: 9px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; }
+.estimated-wait-time { display: flex; align-items: center; gap: 7px; padding: 9px 11px; border-radius: 10px; background: #fff1f6; color: #bd174f; }
+.estimated-wait-time > i { font-size: 16px; }
+.estimated-wait-time strong { font-size: 11px; }
+.estimated-wait-time.cancelled { background: #f7f3f4; color: #8e7c83; }
+.tracking-progress-with-wait { display: flex; flex-direction: column; gap: 11px; }
+.tracking-progress-with-wait .tracking-progress { width: 100%; }
+.tracking-progress-with-wait .estimated-wait-row { align-self: flex-end; margin: 0; }
 .rider-decision-state { display: flex; align-items: center; gap: 11px; padding: 11px; border-radius: 10px; background: #fff8e7; color: #9b6c08; }
 .rider-decision-state > i { font-size: 18px; }
 .rider-decision-state strong, .rider-decision-state span { display: block; }
