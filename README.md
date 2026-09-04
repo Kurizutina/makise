@@ -1,4 +1,45 @@
-# Getting Started with Create React App
+# Otu-Zan
+
+## Team Setup
+
+### Requirements
+
+- Node.js 18 or newer
+- MySQL 8.0.16 or newer
+- phpMyAdmin or another MySQL client
+
+### Install the project
+
+```bash
+git clone <repository-url>
+cd Otu-Zan
+npm install
+```
+
+### Create the local database
+
+1. Start MySQL on your computer.
+2. Open phpMyAdmin.
+3. Import `backend/database/schema.sql`.
+4. Confirm that the database is named `otu-zan-db` and contains seven tables.
+
+Each developer should import the schema into their own local MySQL installation. Do not commit database passwords or `.env` files.
+
+### Configure local environment variables
+
+Copy `.env.example` to `.env` and replace `DB_PASSWORD` and `JWT_SECRET` with local values. The `.env` file is ignored by Git.
+
+### Run the frontend
+
+```bash
+npm start
+```
+
+The frontend runs at `http://localhost:3000`.
+
+The backend database connection and authentication API are the next implementation step; the current repository does not yet include a backend start command.
+
+## Create React App Reference
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
