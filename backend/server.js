@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 const pool = require('./database/connection');
 const {
   authenticate,
@@ -15,6 +16,7 @@ const app = express();
 const port = Number(process.env.PORT || 5000);
 
 app.use(express.json());
+app.use(cors({ origin: 'http://localhost:3000' }));
 
 const requireAuth = async (req, res, next) => {
   const authorization = req.headers.authorization || '';
