@@ -12,6 +12,8 @@ import {
   validateAdditionalFields
 } from '../../../utils/validation';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const AuthPage = ({ mode }) => {
 
   const navigate = useNavigate();
@@ -85,7 +87,7 @@ const AuthPage = ({ mode }) => {
   };
 
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
 
     e.preventDefault();
 
@@ -178,26 +180,57 @@ const AuthPage = ({ mode }) => {
     }
 
 
-    const roleName =
-      ROLES[selectedRole.toUpperCase()]?.label ||
-      selectedRole;
+    const roleName = ROLES[selectedRole.toUpperCase()]?.label || selectedRole;
+    const requestBody = mode === 'register'
+      ? {
+          email: email.trim(),
+          password,
+          role: selectedRole,
+          accessCode: accessCode.trim(),
+          username: (username || name).trim(),
+          contact: contactNumber.trim()
+        }
+      : {
+          email: email.trim(),
+          password,
+          role: selectedRole
+        };
 
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/${mode}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+      const result = await response.json();
 
-    /*
-     * Registration
-     */
-    if (mode === 'register') {
+      if (!response.ok) {
+        throw new Error(result.error || `${roleName} authentication failed`);
+      }
+
+      sessionStorage.setItem('otuzanAuthenticated', result.token);
+      localStorage.setItem('otuzanCustomerProfile', JSON.stringify({
+        username: result.user.username || result.user.name || '',
+        address: mode === 'register' ? address.trim() : '',
+        email: result.user.email,
+        contact: result.user.contact,
+        role: result.user.role
+      }));
 
       setMessage({
         type: 'success',
-
-        text:
-          `🎉 Welcome to Otu-Zan, ${
-            username || name
-          }! Your ${roleName} account has been created.`
+        text: mode === 'register'
+          ? `Welcome to Otu-Zan, ${username || name}! Your ${roleName} account has been created.`
+          : `Welcome back! Redirecting to your ${roleName} dashboard...`
       });
-
-      return;
+      navigate('/home', { replace: true });
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error.message === 'Failed to fetch'
+          ? 'Unable to reach the backend. Start the backend server and try again.'
+          : error.message
+      });
     }
 
 

@@ -12,6 +12,7 @@ import Home from '../Pages/costumer/Home';
 import JollibeeMenu from '../Pages/costumer/JollibeeMenu';
 import McDonaldsMenu from '../Pages/costumer/McDonaldsMenu';
 import MangInasalMenu from '../Pages/costumer/MangInasalMenu';
+import ProtectedRoute from './ProtectedRoute';
 import RiderDashboard from '../Pages/rider/RiderDashboard';
 import DeliveryAdminDashboard from '../Pages/admin/DeliveryAdminDashboard';
 
@@ -36,25 +37,27 @@ const AppRoutes = () => {
           element={<Register />}
         />
 
-        <Route 
-          path="/home" 
-          element={<Home />} 
-        />
+        <Route element={<ProtectedRoute />}>
+          <Route
+            path="/home"
+            element={<Home />}
+          />
 
-        <Route
-          path="/food/jollibee"
-          element={<JollibeeMenu />}
-        />
+          <Route
+            path="/food/jollibee"
+            element={<JollibeeMenu />}
+          />
 
-        <Route
-          path="/food/mcdonalds"
-          element={<McDonaldsMenu />}
-        />
+          <Route
+            path="/food/mcdonalds"
+            element={<McDonaldsMenu />}
+          />
 
-        <Route
-          path="/food/mang-inasal"
-          element={<MangInasalMenu />}
-        />
+          <Route
+            path="/food/mang-inasal"
+            element={<MangInasalMenu />}
+          />
+        </Route>
 
         <Route
           path="/rider/orders"
