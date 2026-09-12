@@ -101,9 +101,9 @@ const AuthForm = ({
     );
   };
 
-  const renderDriverAdminFields = () => {
+  const renderRiderAdminFields = () => {
     if (
-      (selectedRole !== 'driver' &&
+      (selectedRole !== 'rider' &&
         selectedRole !== 'admin') ||
       !isRegister
     ) {
@@ -158,7 +158,7 @@ const AuthForm = ({
           </div>
 
           {renderCustomerFields()}
-          {renderDriverAdminFields()}
+          {renderRiderAdminFields()}
 
         </div>
       )}
@@ -209,8 +209,8 @@ const AuthForm = ({
 
               <span>
                 Demo:{' '}
-                {selectedRole === 'driver'
-                  ? 'DRIVER2024'
+                {selectedRole === 'rider'
+                  ? 'RIDER2024'
                   : 'ADMIN2024'}
               </span>
 

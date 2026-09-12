@@ -233,6 +233,24 @@ const AuthPage = ({ mode }) => {
       });
     }
 
+
+    /*
+     * Login
+     */
+    setMessage({
+      type: 'success',
+
+      text:
+        `✅ Welcome back! Redirecting to your ${roleName} dashboard...`
+    });
+
+    sessionStorage.setItem('otuzanAuthenticated', selectedRole);
+    const roleDestinations = {
+      [ROLES.RIDER.key]: '/rider/orders',
+      [ROLES.ADMIN.key]: '/admin/dashboard'
+    };
+    navigate(roleDestinations[selectedRole] || '/home');
+
   };
 
 

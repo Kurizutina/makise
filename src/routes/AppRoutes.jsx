@@ -13,6 +13,8 @@ import JollibeeMenu from '../Pages/costumer/JollibeeMenu';
 import McDonaldsMenu from '../Pages/costumer/McDonaldsMenu';
 import MangInasalMenu from '../Pages/costumer/MangInasalMenu';
 import ProtectedRoute from './ProtectedRoute';
+import RiderDashboard from '../Pages/rider/RiderDashboard';
+import DeliveryAdminDashboard from '../Pages/admin/DeliveryAdminDashboard';
 
 const AppRoutes = () => {
   return (
@@ -56,6 +58,16 @@ const AppRoutes = () => {
             element={<MangInasalMenu />}
           />
         </Route>
+
+        <Route
+          path="/rider/orders"
+          element={<RiderDashboard />}
+        />
+
+        <Route
+          path="/admin/dashboard"
+          element={<DeliveryAdminDashboard />}
+        />
 
       </Routes>
 

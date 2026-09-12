@@ -20,7 +20,9 @@ body {
 }
 
 .app-container:has(.home-page),
-.app-container:has(.jollibee-page) {
+.app-container:has(.jollibee-page),
+.app-container:has(.rider-dashboard-page),
+.app-container:has(.admin-dashboard-page) {
   display: block;
   padding: 0;
 }

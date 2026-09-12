@@ -8,13 +8,13 @@ export const ROLES = {
     fields: ['username', 'address', 'contactNumber']
   },
 
-  DRIVER: {
-    key: 'driver',
-    label: 'Driver',
+  RIDER: {
+    key: 'rider',
+    label: 'Rider',
     icon: 'fa-solid fa-truck-fast',
     color: '#F15A29',
     requiresCode: true,
-    codeLabel: 'Driver Access Code',
+    codeLabel: 'Rider Access Code',
     fields: ['name', 'contactNumber']
   },
 
@@ -30,6 +30,6 @@ export const ROLES = {
 };
 
 export const VALID_CODES = {
-  driver: 'DRIVER2024',
+  rider: 'RIDER2024',
   admin: 'ADMIN2024'
 };
