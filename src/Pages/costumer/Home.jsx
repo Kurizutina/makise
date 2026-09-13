@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/home/Header/Header';
+import Footer from '../../components/home/Footer/Footer';
 import FoodandItemsSection from '../../components/home/FoodandItem/FoodandItemsSection/FoodandItemsSection';
 import OthersOrderForm from '../../components/home/OthersOrderForm/OthersOrderForm';
 import PayBillsForm from '../../components/home/PayBillsForm/PayBillsForm';
@@ -63,7 +64,7 @@ const Home = () => {
 
 
   return (
-    <div className="home-page">
+    <div className="home-page" id="home">
 
       {/* Header */}
       <Header
@@ -154,6 +155,7 @@ const Home = () => {
         />
       )}
 
+      <Footer onServiceChange={setSelectedService} />
     </div>
   );
 };

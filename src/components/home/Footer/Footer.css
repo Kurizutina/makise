@@ -1,0 +1,128 @@
+.home-footer {
+  margin-top: auto;
+  background: #86133b;
+  color: #ffffff;
+  border-top: 5px solid #da1c5c;
+  padding: 44px clamp(20px, 4vw, 56px) 0;
+}
+
+.home-footer-content,
+.home-footer-bottom {
+  max-width: 1288px;
+  margin: 0 auto;
+}
+
+.home-footer-content {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr;
+  gap: 40px;
+  padding-bottom: 36px;
+}
+
+.home-footer a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.home-footer a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.home-footer a:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 5px;
+  border-radius: 2px;
+}
+
+.home-footer-name {
+  display: inline-block;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.home-footer h2 {
+  font-size: 16px;
+  margin: 0 0 16px;
+}
+
+.home-footer p {
+  color: #f9dce6;
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.home-footer-brand p {
+  max-width: 360px;
+}
+
+.home-footer .home-footer-established {
+  margin: 8px 0 12px;
+  font-weight: 700;
+}
+
+.home-footer-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.home-footer-links a {
+  display: inline-block;
+  padding: 8px 0;
+}
+
+.home-footer-social {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.home-footer-social svg {
+  width: 24px;
+  height: 24px;
+}
+
+.home-footer-bottom {
+  border-top: 1px solid #b25d7a;
+  padding: 20px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.home-footer-bottom p {
+  font-size: inherit;
+}
+
+@media (max-width: 767px) {
+  .home-footer-content {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 28px;
+  }
+
+  .home-footer-brand {
+    grid-column: 1 / -1;
+  }
+
+  .home-footer-bottom {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 380px) {
+  .home-footer-content {
+    grid-template-columns: 1fr;
+  }
+}
