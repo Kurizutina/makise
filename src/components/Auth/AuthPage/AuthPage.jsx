@@ -209,9 +209,25 @@ const AuthPage = ({ mode }) => {
       }
 
       sessionStorage.setItem('otuzanAuthenticated', result.token);
+      const addressKey = `otuzanCustomerAddress:${result.user.email.toLowerCase()}`;
+      let savedAddress = localStorage.getItem(addressKey) || '';
+      if (!savedAddress) {
+        try {
+          const previousProfile = JSON.parse(localStorage.getItem('otuzanCustomerProfile'));
+          if (previousProfile?.email?.toLowerCase() === result.user.email.toLowerCase()) {
+            savedAddress = previousProfile.address || '';
+          }
+        } catch {
+          // Ignore an invalid saved profile.
+        }
+      }
+      const customerAddress = result.user.address || (mode === 'register' ? address.trim() : savedAddress);
+      if (result.user.role === 'customer' && customerAddress) {
+        localStorage.setItem(addressKey, customerAddress);
+      }
       localStorage.setItem('otuzanCustomerProfile', JSON.stringify({
         username: result.user.username || result.user.name || '',
-        address: mode === 'register' ? address.trim() : '',
+        address: customerAddress,
         email: result.user.email,
         contact: result.user.contact,
         role: result.user.role

@@ -1,0 +1,33 @@
+.order-customer-details {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid #f0dce4;
+  border-radius: 10px;
+  background: #fff7fa;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.order-customer-details dt {
+  color: #78636c;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.order-customer-details dd {
+  margin: 0;
+  color: #382e33;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.admin-table-wrap .order-customer-details {
+  min-width: 200px;
+  max-width: 320px;
+  margin: 0;
+}

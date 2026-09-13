@@ -7,6 +7,7 @@ import {
   temporaryUtilityCompanies
 } from '../../components/home/FoodandItem/data/temporaryData';
 import './DeliveryAdminDashboard.css';
+import OrderCustomerDetails from '../../components/common/OrderCustomerDetails/OrderCustomerDetails';
 
 const SERVICE_META = {
   food: { label: 'Food Delivery', icon: 'fa-utensils', color: '#f9c12f' },
@@ -68,7 +69,7 @@ const OrderCard = ({ order, onAssign, onStatus }) => {
         <div><strong>{order.id}</strong><small>{new Date(order.createdAt).toLocaleString()}</small></div>
         <ServiceBadge service={service} />
       </div>
-      <h3>{order.customerName || 'Customer'}</h3>
+      <OrderCustomerDetails order={order} />
       <span className="admin-order-source">{order.source}</span>
       <p>{getItemSummary(order)}</p>
       <div className="admin-order-total"><span>Order total</span><strong>{formatCurrency(getOrderTotal(order))}</strong></div>
@@ -117,7 +118,7 @@ const HistoryTab = ({ orders }) => {
     .filter((order) => filter === 'all' || inferService(order) === filter);
   return <section>
     <div className="admin-filter-row">{['all', 'food', 'item', 'bills'].map((key) => <button className={filter === key ? 'active' : ''} type="button" onClick={() => setFilter(key)} key={key}>{key === 'all' ? 'All services' : SERVICE_META[key].label}</button>)}</div>
-    <div className="admin-table-wrap"><table><thead><tr><th>Order ID</th><th>Service</th><th>Customer</th><th>Date</th><th>Total</th><th>Rider</th><th>Status</th></tr></thead><tbody>{rows.map((order) => <tr key={order.id}><td>{order.id}</td><td><ServiceBadge service={inferService(order)} /></td><td>{order.customerName || 'Customer'}</td><td>{new Date(order.createdAt).toLocaleString()}</td><td>{formatCurrency(getOrderTotal(order))}</td><td>{order.assignedRider?.name || '—'}</td><td><span className={`admin-history-status ${order.status}`}>{order.status}</span></td></tr>)}</tbody></table>{!rows.length && <div className="admin-table-empty">No completed transactions yet.</div>}</div>
+    <div className="admin-table-wrap"><table><thead><tr><th>Order ID</th><th>Service</th><th>Customer</th><th>Date</th><th>Total</th><th>Rider</th><th>Status</th></tr></thead><tbody>{rows.map((order) => <tr key={order.id}><td>{order.id}</td><td><ServiceBadge service={inferService(order)} /></td><td><OrderCustomerDetails order={order} /></td><td>{new Date(order.createdAt).toLocaleString()}</td><td>{formatCurrency(getOrderTotal(order))}</td><td>{order.assignedRider?.name || '—'}</td><td><span className={`admin-history-status ${order.status}`}>{order.status}</span></td></tr>)}</tbody></table>{!rows.length && <div className="admin-table-empty">No completed transactions yet.</div>}</div>
   </section>;
 };
 
@@ -138,7 +139,7 @@ const RevenueTab = ({ orders }) => {
 const PaymentsTab = ({ orders, onStatus }) => {
   const payments = orders.filter((order) => inferService(order) === 'bills');
   return <div className="admin-payment-list">{payments.map((order) => <article className="admin-payment-card" key={order.id}>
-    <div><small>{order.id}</small><h3>{order.customerName || 'Customer'}</h3><span>{order.source}</span></div>
+    <div><small>{order.id}</small><OrderCustomerDetails order={order} /><span>{order.source}</span></div>
     <div><small>Uploaded bill</small><strong>{order.details?.billReceiptName || 'No receipt uploaded'}</strong><span>{order.details?.transferProofName || 'No transfer proof'}</span></div>
     <span className={`admin-payment-status ${order.status}`}>{order.status.replaceAll('_', ' ')}</span>
     {order.status === 'pending_rider' && <div className="admin-payment-actions"><button className="primary" type="button" onClick={() => onStatus(order.id, 'confirmed')}>Approve</button><button type="button" onClick={() => onStatus(order.id, 'cancelled')}>Reject</button></div>}

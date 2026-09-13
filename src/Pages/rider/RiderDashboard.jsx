@@ -6,6 +6,7 @@ import {
   useCustomerActivity
 } from '../../context/CustomerActivityContext';
 import './RiderDashboard.css';
+import OrderCustomerDetails from '../../components/common/OrderCustomerDetails/OrderCustomerDetails';
 
 const sections = [
   { key: 'food', label: 'Food Delivery', icon: 'fa-utensils' },
@@ -100,6 +101,7 @@ const RiderDashboard = () => {
                 <div className="rider-order-heading"><div><small>{order.id}</small><h3>{getOrderDisplayLabel(order)}</h3></div><span>{statusLabels[order.status] || 'Confirmed'}</span></div>
                 <div className="rider-order-source"><i className="fa-solid fa-store" /><div><strong>{order.source}</strong><span>{new Date(order.createdAt).toLocaleString()}</span></div></div>
                 <div className="rider-order-estimate"><i className="fa-regular fa-clock" /><span>Estimated wait</span><strong>{formatEstimatedWait(order, now)}</strong></div>
+                <OrderCustomerDetails order={order} />
                 <div className="rider-order-preview"><span><i className="fa-solid fa-bag-shopping" /> {order.items?.reduce((total, item) => total + (item.quantity || 1), 0) || 0} item(s)</span><button type="button" onClick={() => setSelectedOrderId(order.id)}>View Order <i className="fa-solid fa-arrow-right" /></button></div>
                 {order.status === 'pending_rider' && <div className="rider-decision-buttons"><button type="button" className="rider-cancel" onClick={() => updateOrderStatus(order.id, 'cancelled')}>Cancel</button><button type="button" className="rider-accept" onClick={() => updateOrderStatus(order.id, 'confirmed')}>Confirm Order</button></div>}
               </article>
@@ -114,6 +116,7 @@ const RiderDashboard = () => {
             <div className="rider-order-modal-header"><div><span>{selectedOrder.id}</span><h2 id="rider-order-title">Order Details</h2></div><button type="button" onClick={() => setSelectedOrderId(null)} aria-label="Close order details">×</button></div>
             <div className="rider-detail-summary"><div><span>Establishment</span><strong>{selectedOrder.source}</strong></div><div><span>Status</span><strong>{statusLabels[selectedOrder.status]}</strong></div><div><span>Estimated wait</span><strong>{formatEstimatedWait(selectedOrder, now)}</strong></div><div><span>Placed</span><strong>{new Date(selectedOrder.createdAt).toLocaleString()}</strong></div></div>
 
+            <OrderCustomerDetails order={selectedOrder} />
             {!!selectedOrder.items?.length ? (
               <div className="rider-detail-items"><h3>Items placed</h3><ul>{selectedOrder.items.map((item, index) => <li key={item.cartId || item.id || index}><div><strong>{item.name || `Item ${index + 1}`}</strong>{item.selectedOption && <span>{item.selectedOption}</span>}</div><b>×{item.quantity || 1}</b></li>)}</ul></div>
             ) : (
