@@ -77,6 +77,10 @@ const Home = () => {
         title={getSectionTitle()}
         brands={getCurrentBrands()}
         onBrandSelect={(brand) => {
+          if (brand.type === 'food' && brand.name === "Manuela's") {
+            navigate('/food/manuelas');
+            return;
+          }
           if (brand.type === 'food' && brand.name === 'Jollibee') {
             navigate('/food/jollibee');
             return;

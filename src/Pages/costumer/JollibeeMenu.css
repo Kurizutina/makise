@@ -618,3 +618,40 @@
     font-size: 12px;
   }
 }
+.restaurant-serving-size {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+  font-size: 13px;
+  color: #555;
+}
+
+.restaurant-serving-size select {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 8px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: #fff;
+  color: #333;
+  font: inherit;
+}
+
+.restaurant-serving-size select:focus-visible {
+  outline: 2px solid #da1c5c;
+  outline-offset: 2px;
+}
+.restaurant-product-food-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 110px;
+  background: #fff0f5;
+  color: #da1c5c;
+  border-bottom: 1px solid #f8d5e1;
+}
+
+.restaurant-product-food-icon svg {
+  width: 38px;
+  height: 38px;
+}

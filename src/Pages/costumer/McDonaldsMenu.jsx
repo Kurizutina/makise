@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { FaUtensils } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerActivity } from '../../context/CustomerActivityContext';
 import './JollibeeMenu.css';
@@ -10,10 +11,53 @@ const formatPrice = (price) => new Intl.NumberFormat('en-PH', {
   maximumFractionDigits: 2
 }).format(price);
 
+const RestaurantProductCard = ({ product, onAddToCart, onPlaceOrder, showFoodIcons }) => {
+  const [variantIndex, setVariantIndex] = useState(0);
+  const variant = product.variants?.[variantIndex];
+  const selectedProduct = variant ? {
+    ...product,
+    id: `${product.id}-size-${variantIndex}`,
+    name: `${product.name} — ${variant.label}`,
+    price: variant.price,
+    servingSize: variant.label
+  } : product;
+
+  return (
+    <article className="jollibee-product-card">
+      {product.image && <div className="jollibee-product-image"><img src={product.image} alt={product.name} loading="lazy" /></div>}
+      {showFoodIcons && !product.image && (
+        <div className="restaurant-product-food-icon" aria-hidden="true">
+          <FaUtensils />
+        </div>
+      )}
+      <div className="jollibee-product-body">
+        <h3>{product.name}</h3>
+        {product.variants && (
+          <label className="restaurant-serving-size">
+            <span>Serving size</span>
+            <select aria-label={`Serving size for ${product.name}`} value={variantIndex} onChange={(event) => setVariantIndex(Number(event.target.value))}>
+              {product.variants.map((option, index) => <option key={option.label} value={index}>{option.label} — {formatPrice(option.price)}</option>)}
+            </select>
+          </label>
+        )}
+        <strong className="restaurant-product-price">{formatPrice(selectedProduct.price)}</strong>
+        <div className="jollibee-product-actions">
+          <button type="button" className="product-cart-button" onClick={() => onAddToCart(selectedProduct)}>
+            <i className="fa-solid fa-cart-plus" aria-hidden="true" /> Add to Cart
+          </button>
+          <button type="button" className="product-order-button" onClick={() => onPlaceOrder(selectedProduct)}>Place Order</button>
+        </div>
+      </div>
+    </article>
+  );
+};
+
 export const RestaurantMenu = ({
   restaurantName,
   sourceKey,
   manifestUrl,
+  menuItems,
+  showFoodIcons = false,
   pageClass = '',
   headerClass = '',
   eyebrowClass = ''
@@ -26,15 +70,20 @@ export const RestaurantMenu = ({
     placeOrder,
     placeCartOrder
   } = useCustomerActivity();
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState(menuItems || []);
   const cart = sharedCart.filter((item) => item.source === sourceKey);
   const [customName, setCustomName] = useState('');
   const [customQuantity, setCustomQuantity] = useState(1);
   const [showCustomItem, setShowCustomItem] = useState(false);
   const [notice, setNotice] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!menuItems);
 
   useEffect(() => {
+    if (menuItems) {
+      setProducts(menuItems);
+      setIsLoading(false);
+      return;
+    }
     fetch(manifestUrl)
       .then((response) => {
         if (!response.ok) throw new Error(`Unable to load the ${restaurantName} menu.`);
@@ -48,7 +97,7 @@ export const RestaurantMenu = ({
       }))))
       .catch(() => setNotice('The menu could not be loaded. Please try again.'))
       .finally(() => setIsLoading(false));
-  }, [manifestUrl, restaurantName]);
+  }, [manifestUrl, restaurantName, menuItems]);
 
   const categories = useMemo(() => products.reduce((groups, product) => {
     const existing = groups.find((group) => group.category === product.category);
@@ -162,19 +211,7 @@ export const RestaurantMenu = ({
               </div>
               <div className="jollibee-product-grid">
                 {categoryProducts.map((product) => (
-                  <article className="jollibee-product-card" key={product.id}>
-                    <div className="jollibee-product-image"><img src={product.image} alt={product.name} loading="lazy" /></div>
-                    <div className="jollibee-product-body">
-                      <h3>{product.name}</h3>
-                      <strong className="restaurant-product-price">{formatPrice(product.price)}</strong>
-                      <div className="jollibee-product-actions">
-                        <button type="button" className="product-cart-button" onClick={() => addToCart(product)}>
-                          <i className="fa-solid fa-cart-plus" aria-hidden="true" /> Add to Cart
-                        </button>
-                        <button type="button" className="product-order-button" onClick={() => placeProductOrder(product)}>Place Order</button>
-                      </div>
-                    </div>
-                  </article>
+                  <RestaurantProductCard key={product.id} product={product} onAddToCart={addToCart} onPlaceOrder={placeProductOrder} showFoodIcons={showFoodIcons} />
                 ))}
               </div>
             </section>
