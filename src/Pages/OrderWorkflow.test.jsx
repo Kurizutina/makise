@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { CustomerActivityProvider, useCustomerActivity } from '../context/CustomerActivityContext';
 import DeliveryAdminDashboard from './admin/DeliveryAdminDashboard';
 import RiderDashboard from './rider/RiderDashboard';
+import { syncCustomerOrders } from '../utils/customerProfileSync';
 
 jest.mock('react-router-dom', () => ({ useNavigate: () => jest.fn() }));
 
@@ -29,6 +30,40 @@ afterEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   delete global.fetch;
+});
+
+test.each(['admin', 'driver'])('saved profile refreshes %s cards and detail views without changing assignment', async (role) => {
+  signIn(role === 'admin' ? 1 : 7, role);
+  const linked = { ...order, customerId: 42, customerName: 'Old Name', customerAddress: 'Old Address', assignedRider: { id: 7 } };
+  localStorage.setItem('otuzanCustomerActivity', JSON.stringify({ orders: [linked], cart: [], notifications: [] }));
+  render(<CustomerActivityProvider>{role === 'admin' ? <DeliveryAdminDashboard /> : <RiderDashboard />}</CustomerActivityProvider>);
+  if (role === 'admin') await screen.findByRole('option', { name: 'Rider Seven' });
+  else fireEvent.click(screen.getByRole('button', { name: /View Order/ }));
+  act(() => syncCustomerOrders({ id: 42, role: 'customer', username: 'Updated Full Name', address: 'Updated Address', email: 'updated@example.com' }));
+  expect(screen.queryByText('Old Name')).not.toBeInTheDocument();
+  expect(screen.getAllByText('Updated Full Name').length).toBeGreaterThan(0);
+  expect(screen.getAllByText('Updated Address').length).toBeGreaterThan(0);
+  if (role === 'driver') expect(within(screen.getByRole('dialog')).getByText('Updated Full Name')).toBeInTheDocument();
+  expect(saved().orders[0]).toMatchObject({ customerId: 42, assignedRider: { id: 7 }, status: 'pending_rider' });
+});
+
+test('profile sync never replaces another customer or an unlinked legacy order', () => {
+  const other = { ...order, customerId: 99, customerName: 'Same Name', customerAddress: 'Same Address' };
+  const legacy = { ...order, id: 'legacy', customerName: 'Same Name', customerAddress: 'Same Address' };
+  localStorage.setItem('otuzanCustomerActivity', JSON.stringify({ orders: [other, legacy] }));
+  syncCustomerOrders({ id: 42, role: 'customer', username: 'Updated Name', address: 'Updated Address' });
+  expect(saved().orders).toEqual([other, legacy]);
+});
+
+test('direct and cart orders retain the signed-in customer account ID', () => {
+  signIn(42, 'customer');
+  localStorage.setItem('otuzanCustomerProfile', JSON.stringify({ id: 42, username: 'Full Name', address: 'Address', email: 'customer@example.com' }));
+  render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
+  act(() => actions.placeOrder({ source: 'Shop', items: [] }));
+  expect(saved().orders[0]).toMatchObject({ customerId: 42, customerName: 'Full Name', customerEmail: 'customer@example.com' });
+  act(() => actions.addToCart({ id: 'item', source: 'Shop', name: 'Food' }));
+  act(() => actions.placeCartOrder());
+  expect(saved().orders[0]).toMatchObject({ customerId: 42, customerName: 'Full Name' });
 });
 
 test('admin explicitly assigns an active delivery and only the selected rider sees it', async () => {

@@ -17,6 +17,7 @@ beforeEach(() => {
 afterEach(() => { delete global.fetch; localStorage.clear(); sessionStorage.clear(); });
 
 test('loads database values and caches only the confirmed server response after save', async () => {
+  localStorage.setItem('otuzanCustomerActivity', JSON.stringify({ orders: [{ id: 'order', customerId: user.id, customerName: user.username, assignedRider: { id: 8 } }] }));
   const updated = { ...user, username: 'New Full Name', email: 'new@example.com', address: 'New Address' };
   global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ user: updated }) });
   await openEditor();
@@ -35,6 +36,7 @@ test('loads database values and caches only the confirmed server response after 
   expect(JSON.parse(sessionStorage.getItem('otuzanUser'))).toEqual(updated);
   expect(localStorage.getItem('otuzanCustomerAddress:new@example.com')).toBe('New Address');
   expect(screen.getByPlaceholderText('Leave blank to keep current password')).toHaveValue('');
+  expect(JSON.parse(localStorage.getItem('otuzanCustomerActivity')).orders[0]).toMatchObject({ customerName: updated.username, customerAddress: updated.address, assignedRider: { id: 8 } });
 });
 
 test('failed save displays server error and keeps persisted profile unchanged', async () => {
