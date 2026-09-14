@@ -60,7 +60,9 @@ const AuthForm = ({
             <input
               type="text"
               className="input-field with-icon"
-              placeholder="Username"
+              placeholder="Full name"
+              aria-label="Full name"
+              autoComplete="name"
               value={username}
               onChange={onUsernameChange}
               required

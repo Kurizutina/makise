@@ -76,4 +76,30 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
         return response()->json(['status' => 'ok']);
     }
+
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'username' => ['required', 'string', 'max:100'],
+            'email' => ['required', 'email', 'max:255'],
+            'address' => ['required', 'string', 'max:2000'],
+            'password' => ['nullable', 'string', 'min:6', 'max:72'],
+        ], [], ['username' => 'full name']);
+        $user = $request->user();
+        $email = strtolower(trim($data['email']));
+        if (User::where('Email', $email)->where('UserID', '!=', $user->UserID)->exists()) {
+            return response()->json(['error' => 'email is already registered'], 409);
+        }
+        $changes = [
+            'UserName' => trim($data['username']), 'Email' => $email,
+            'Address' => trim($data['address']),
+        ];
+        if (!empty($data['password'])) $changes['PasswordHash'] = Hash::make($data['password']);
+        try {
+            $user->update($changes);
+        } catch (UniqueConstraintViolationException $error) {
+            return response()->json(['error' => 'email is already registered'], 409);
+        }
+        return response()->json(['user' => $user->fresh()->profile()]);
+    }
 }

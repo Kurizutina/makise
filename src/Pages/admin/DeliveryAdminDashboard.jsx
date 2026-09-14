@@ -58,6 +58,11 @@ const ServiceBadge = ({ service }) => {
 const OrderCard = ({ order, onAssign, onStatus, riders }) => {
   const service = inferService(order);
   const meta = SERVICE_META[service];
+  const assignedRiderId = String(order.assignedRider?.id || '');
+  const [selectedRiderId, setSelectedRiderId] = useState(assignedRiderId);
+  useEffect(() => setSelectedRiderId(assignedRiderId), [assignedRiderId]);
+  const selectedRider = riders.find((rider) => String(rider.id) === selectedRiderId);
+  const canAssign = service !== 'bills' && !['delivered', 'cancelled'].includes(order.status);
   const nextAction = {
     confirmed: ['preparing', 'Start preparing'],
     preparing: ['out_for_delivery', 'Out for delivery'],
@@ -75,10 +80,10 @@ const OrderCard = ({ order, onAssign, onStatus, riders }) => {
       <p>{getItemSummary(order)}</p>
       <div className="admin-order-total"><span>Order total</span><strong>{formatCurrency(getOrderTotal(order))}</strong></div>
 
-      {order.status !== 'cancelled' && service !== 'bills' && (
+      {canAssign && (
         <label className="admin-rider-select">
           <span>Assigned rider</span>
-          <select value={order.assignedRider?.id || ''} onChange={(event) => onAssign(order.id, riders.find((rider) => String(rider.id) === event.target.value) || null)}>
+          <select value={selectedRiderId} onChange={(event) => setSelectedRiderId(event.target.value)}>
             <option value="">Select a rider</option>
             {order.assignedRider && !riders.some((rider) => String(rider.id) === String(order.assignedRider.id)) && <option value={order.assignedRider.id}>{order.assignedRider.name} (reassign to a registered rider)</option>}
             {riders.map((rider) => <option value={rider.id} key={rider.id}>{rider.name}</option>)}
@@ -86,15 +91,12 @@ const OrderCard = ({ order, onAssign, onStatus, riders }) => {
         </label>
       )}
 
+      <p className="admin-order-status">{STATUS_LABELS[order.status]}</p>
+      {canAssign && order.assignedRider && riders.some((rider) => String(rider.id) === assignedRiderId) && <p role="status">Assigned to {order.assignedRider.name}</p>}
       <div className="admin-order-actions">
-        {!['delivered', 'cancelled'].includes(order.status) && <label className="admin-rider-select">
-          <span>Order status</span>
-          <select value={order.status} onChange={(event) => onStatus(order.id, event.target.value)}>
-            {Object.entries(STATUS_LABELS).filter(([status]) => status !== 'pending_rider' || order.status === status).map(([status, label]) => <option key={status} value={status}>{label}</option>)}
-          </select>
-        </label>}
         {order.status === 'pending_rider' && <><button className="primary" type="button" onClick={() => onStatus(order.id, 'confirmed')}>Accept</button><button type="button" onClick={() => onStatus(order.id, 'cancelled')}>Decline</button></>}
-        {nextAction && <button className="primary" type="button" onClick={() => onStatus(order.id, nextAction[0])}>{nextAction[1]}</button>}
+        {canAssign && <button className="primary" type="button" disabled={!selectedRider || selectedRiderId === assignedRiderId} onClick={() => onAssign(order.id, selectedRider)}>Assign</button>}
+        {service === 'bills' && nextAction && <button className="primary" type="button" onClick={() => onStatus(order.id, nextAction[0])}>{nextAction[1]}</button>}
         {order.status === 'cancelled' && <span className="admin-cancelled-state"><i className="fa-solid fa-circle-xmark" /> Cancelled</span>}
       </div>
     </article>

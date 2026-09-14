@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { getSessionUser, isAssignedTo } from '../utils/session';
+import { CUSTOMER_ACTIVITY_CHANGED } from '../utils/customerProfileSync';
 
 const CustomerActivityContext = createContext(null);
 const STORAGE_KEY = 'otuzanCustomerActivity';
@@ -8,9 +9,15 @@ const PROFILE_KEY = 'otuzanCustomerProfile';
 const getCustomerSnapshot = () => {
   try {
     const profile = JSON.parse(localStorage.getItem(PROFILE_KEY)) || {};
+    const user = getSessionUser();
+    const customer = user?.role === 'customer'
+      ? { ...user, ...(String(profile.id) === String(user.id) || profile.email === user.email ? profile : {}) }
+      : profile;
     return {
-      customerName: profile.username || 'Customer',
-      customerAddress: profile.address || ''
+      customerId: user?.role === 'customer' ? user.id : null,
+      customerEmail: customer.email || '',
+      customerName: customer.username || 'Customer',
+      customerAddress: customer.address || ''
     };
   } catch {
     return { customerName: 'Customer', customerAddress: '' };
@@ -70,7 +77,16 @@ export const CustomerActivityProvider = ({ children }) => {
       }
     };
     window.addEventListener('storage', syncActivity);
-    return () => window.removeEventListener('storage', syncActivity);
+    const syncProfileOrders = (event) => {
+      setCart(event.detail.cart || []);
+      setOrders(event.detail.orders || []);
+      setNotifications(event.detail.notifications || []);
+    };
+    window.addEventListener(CUSTOMER_ACTIVITY_CHANGED, syncProfileOrders);
+    return () => {
+      window.removeEventListener('storage', syncActivity);
+      window.removeEventListener(CUSTOMER_ACTIVITY_CHANGED, syncProfileOrders);
+    };
   }, []);
 
   const persist = (nextCart, nextOrders, nextNotifications) => {

@@ -1,8 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './CustomerMenu.css';
+import { syncCustomerOrders } from '../../../../utils/customerProfileSync';
 
 const PROFILE_KEY = 'otuzanCustomerProfile';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+const cacheProfile = (user) => {
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(user));
+  localStorage.setItem(`otuzanCustomerAddress:${user.email.toLowerCase()}`, user.address || '');
+  sessionStorage.setItem('otuzanUser', JSON.stringify(user));
+  syncCustomerOrders(user);
+};
 
 const getSavedProfile = () => {
   try {
@@ -19,6 +28,10 @@ const CustomerMenu = ({ icon }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [savedMessage, setSavedMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [profile, setProfile] = useState(() => ({
     username: '',
     address: '',
@@ -56,29 +69,80 @@ const CustomerMenu = ({ icon }) => {
     };
   }, [isProfileOpen]);
 
+  useEffect(() => {
+    if (!isProfileOpen) return undefined;
+    const controller = new AbortController();
+    const loadProfile = async () => {
+      setIsLoading(true);
+      setProfileLoaded(false);
+      try {
+        const response = await fetch(`${API_URL}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${sessionStorage.getItem('otuzanAuthenticated')}`, Accept: 'application/json' },
+          signal: controller.signal
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(response.status === 401 ? 'Your session expired. Please sign in again.' : result.error || 'Unable to load your profile.');
+        if (controller.signal.aborted) return;
+        cacheProfile(result.user);
+        setProfile({ ...result.user, password: '' });
+        setProfileLoaded(true);
+      } catch (error) {
+        if (!controller.signal.aborted) setErrorMessage(error.message === 'Failed to fetch' ? 'Unable to reach the backend. Please try again.' : error.message);
+      } finally {
+        if (!controller.signal.aborted) setIsLoading(false);
+      }
+    };
+    loadProfile();
+    return () => controller.abort();
+  }, [isProfileOpen]);
+
   const updateProfile = (field, value) => {
     setProfile((current) => ({ ...current, [field]: value }));
     setSavedMessage('');
+    setErrorMessage('');
   };
 
   const openProfile = () => {
     setIsMenuOpen(false);
     setIsProfileOpen(true);
     setSavedMessage('');
+    setErrorMessage('');
+    setProfileLoaded(false);
   };
 
-  const saveProfile = (event) => {
+  const saveProfile = async (event) => {
     event.preventDefault();
-    if (profile.password && profile.password.length < 6) return;
+    if (isSaving || !profileLoaded) return;
+    setSavedMessage('');
+    setErrorMessage('');
+    if (!profile.username.trim() || !profile.address.trim()) {
+      setErrorMessage('Full name and delivery address are required.');
+      return;
+    }
 
     const persistedProfile = {
       username: profile.username.trim(),
       address: profile.address.trim(),
       email: profile.email.trim()
     };
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(persistedProfile));
-    setProfile((current) => ({ ...current, ...persistedProfile, password: '' }));
-    setSavedMessage('Profile updated successfully.');
+    if (profile.password) persistedProfile.password = profile.password;
+    setIsSaving(true);
+    try {
+      const response = await fetch(`${API_URL}/api/auth/me`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${sessionStorage.getItem('otuzanAuthenticated')}` },
+        body: JSON.stringify(persistedProfile)
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(response.status === 401 ? 'Your session expired. Please sign in again.' : result.error || 'Unable to save your profile.');
+      cacheProfile(result.user);
+      setProfile({ ...result.user, password: '' });
+      setSavedMessage('Profile updated successfully.');
+    } catch (error) {
+      setErrorMessage(error.message === 'Failed to fetch' ? 'Unable to reach the backend. Your changes were not saved.' : error.message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const logout = () => {
@@ -137,10 +201,10 @@ const CustomerMenu = ({ icon }) => {
             </div>
 
             <form onSubmit={saveProfile}>
-              <div className="profile-fields-grid">
+              <fieldset className="profile-fields-grid" disabled={isLoading || isSaving || !profileLoaded} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
                 <label className="profile-field">
-                  <span>Username</span>
-                  <div><i className="fa-solid fa-user" aria-hidden="true" /><input required value={profile.username} onChange={(event) => updateProfile('username', event.target.value)} placeholder="Enter username" /></div>
+                  <span>Full name</span>
+                  <div><i className="fa-solid fa-user" aria-hidden="true" /><input required maxLength="100" autoComplete="name" value={profile.username} onChange={(event) => updateProfile('username', event.target.value)} placeholder="Enter full name" /></div>
                 </label>
 
                 <label className="profile-field">
@@ -164,13 +228,15 @@ const CustomerMenu = ({ icon }) => {
                   </div>
                   <small>Password must contain at least 6 characters.</small>
                 </label>
-              </div>
+              </fieldset>
 
+              {isLoading && <p role="status">Loading profile...</p>}
+              {errorMessage && <p role="alert">{errorMessage}</p>}
               {savedMessage && <div className="profile-save-message" role="status"><i className="fa-solid fa-circle-check" aria-hidden="true" /> {savedMessage}</div>}
 
               <div className="profile-modal-actions">
                 <button className="profile-cancel" type="button" onClick={() => setIsProfileOpen(false)}>Cancel</button>
-                <button className="profile-save" type="submit">Save Changes</button>
+                <button className="profile-save" type="submit" disabled={isLoading || isSaving || !profileLoaded}>{isSaving ? 'Saving...' : 'Save Changes'}</button>
               </div>
             </form>
           </section>

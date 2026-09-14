@@ -6,6 +6,7 @@ import AuthCard from '../AuthCard/AuthCard';
 import '../Auth.css';
 
 import { ROLES } from '../../../config/roles';
+import { syncCustomerOrders } from '../../../utils/customerProfileSync';
 
 import {
   validateAccessCode,
@@ -228,12 +229,14 @@ const AuthPage = ({ mode }) => {
         localStorage.setItem(addressKey, customerAddress);
       }
       localStorage.setItem('otuzanCustomerProfile', JSON.stringify({
+        id: result.user.id,
         username: result.user.username || result.user.name || '',
         address: customerAddress,
         email: result.user.email,
         contact: result.user.contact,
         role: result.user.role
       }));
+      syncCustomerOrders({ ...result.user, address: customerAddress });
 
       setMessage({
         type: 'success',

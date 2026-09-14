@@ -56,7 +56,7 @@ export const validateAdditionalFields = (
     if (!username.trim()) {
       setMessage({
         type: 'error',
-        text: 'Username is required for customers'
+        text: 'Full name is required for customers'
       });
       return false;
     }

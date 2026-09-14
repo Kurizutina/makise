@@ -31,23 +31,34 @@ afterEach(() => {
   delete global.fetch;
 });
 
-test('admin assigns a registered rider and updates status through delivery immediately and after remount', async () => {
+test('admin explicitly assigns an active delivery and only the selected rider sees it', async () => {
+  localStorage.setItem('otuzanCustomerActivity', JSON.stringify({ orders: [{ ...order, status: 'out_for_delivery' }], cart: [], notifications: [] }));
   signIn(1, 'admin');
-  const view = render(<CustomerActivityProvider><DeliveryAdminDashboard /><Observer /></CustomerActivityProvider>);
+  const admin = render(<CustomerActivityProvider><DeliveryAdminDashboard /></CustomerActivityProvider>);
   await screen.findByRole('option', { name: 'Rider Seven' });
+  expect(screen.queryByLabelText('Order status')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Mark delivered/i })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Assign' })).toBeDisabled();
   fireEvent.change(screen.getByLabelText('Assigned rider'), { target: { value: '7' } });
-  expect(saved().orders[0].assignedRider).toEqual({ id: 7, name: 'Rider Seven' });
-  for (const status of ['preparing', 'out_for_delivery', 'delivered']) {
-    fireEvent.change(screen.getByLabelText('Order status'), { target: { value: status } });
-    expect(screen.getByTestId('status')).toHaveTextContent(status);
-    expect(saved().orders[0]).toMatchObject({ status, assignedRider: { id: 7 } });
-  }
+  expect(saved().orders[0].assignedRider).toBeUndefined();
+  fireEvent.click(screen.getByRole('button', { name: 'Assign' }));
+  expect(saved().orders[0]).toMatchObject({ status: 'out_for_delivery', assignedRider: { id: 7, name: 'Rider Seven' } });
+  expect(screen.getByRole('status')).toHaveTextContent('Assigned to Rider Seven');
+  expect(screen.getByRole('button', { name: 'Assign' })).toBeDisabled();
+  fireEvent.change(screen.getByLabelText('Assigned rider'), { target: { value: '8' } });
+  expect(saved().orders[0].assignedRider.id).toBe(7);
+  admin.unmount();
+  signIn(8, 'driver');
+  const other = render(<CustomerActivityProvider><RiderDashboard /></CustomerActivityProvider>);
+  expect(screen.queryByText('ORD-1')).not.toBeInTheDocument();
+  other.unmount();
+  signIn(7, 'driver');
+  render(<CustomerActivityProvider><RiderDashboard /></CustomerActivityProvider>);
+  expect(screen.getByText('ORD-1')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /View Order/ }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Mark Delivered' }));
+  expect(saved().orders[0].status).toBe('delivered');
   expect(saved().notifications[0].title).toBe('Order delivered');
-  fireEvent.click(screen.getByRole('button', { name: 'History' }));
-  expect(within(screen.getByText('ORD-1').closest('tr')).getByText('delivered')).toBeInTheDocument();
-  view.unmount();
-  render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
-  expect(screen.getByTestId('status')).toHaveTextContent('delivered');
 });
 
 test('admin can cancel an assigned order', async () => {
@@ -55,7 +66,8 @@ test('admin can cancel an assigned order', async () => {
   render(<CustomerActivityProvider><DeliveryAdminDashboard /></CustomerActivityProvider>);
   await screen.findByRole('option', { name: 'Rider Seven' });
   fireEvent.change(screen.getByLabelText('Assigned rider'), { target: { value: '7' } });
-  fireEvent.change(screen.getByLabelText('Order status'), { target: { value: 'cancelled' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Assign' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
   expect(saved().orders[0]).toMatchObject({ status: 'cancelled', assignedRider: { id: 7 } });
   expect(saved().notifications[0].message).not.toContain('by the rider');
 });
@@ -101,11 +113,11 @@ test('status actions preserve a just-written assignment and reject another rider
   expect(saved().orders[0].status).toBe('out_for_delivery');
 });
 
-test('backend rider lookup failure leaves status updates available', async () => {
+test('backend rider lookup failure prevents assigning an unavailable rider', async () => {
   signIn(1, 'admin');
   global.fetch.mockRejectedValue(new Error('offline'));
   render(<CustomerActivityProvider><DeliveryAdminDashboard /></CustomerActivityProvider>);
   await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Unable to load registered riders'));
-  fireEvent.change(screen.getByLabelText('Order status'), { target: { value: 'delivered' } });
-  expect(saved().orders[0].status).toBe('delivered');
+  expect(screen.getByRole('button', { name: 'Assign' })).toBeDisabled();
+  expect(saved().orders[0].assignedRider).toBeUndefined();
 });
