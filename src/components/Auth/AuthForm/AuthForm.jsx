@@ -210,7 +210,7 @@ const AuthForm = ({
               <span>
                 Demo:{' '}
                 {selectedRole === 'rider'
-                  ? 'RIDER2024'
+                  ? 'DRIVER2024'
                   : 'ADMIN2024'}
               </span>
 

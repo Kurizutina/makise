@@ -61,15 +61,18 @@ const AppRoutes = () => {
           />
         </Route>
 
-        <Route
-          path="/rider/orders"
-          element={<RiderDashboard />}
-        />
-
-        <Route
-          path="/admin/dashboard"
-          element={<DeliveryAdminDashboard />}
-        />
+        <Route element={<ProtectedRoute role="driver" />}>
+          <Route
+            path="/rider/orders"
+            element={<RiderDashboard />}
+          />
+        </Route>
+        <Route element={<ProtectedRoute role="admin" />}>
+          <Route
+            path="/admin/dashboard"
+            element={<DeliveryAdminDashboard />}
+          />
+        </Route>
 
       </Routes>
 

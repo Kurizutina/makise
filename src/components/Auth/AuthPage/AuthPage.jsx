@@ -185,15 +185,16 @@ const AuthPage = ({ mode }) => {
       ? {
           email: email.trim(),
           password,
-          role: selectedRole,
+          role: selectedRole === 'rider' ? 'driver' : selectedRole,
           accessCode: accessCode.trim(),
           username: (username || name).trim(),
+          address: address.trim(),
           contact: contactNumber.trim()
         }
       : {
           email: email.trim(),
           password,
-          role: selectedRole
+          role: selectedRole === 'rider' ? 'driver' : selectedRole
         };
 
     try {
@@ -209,6 +210,7 @@ const AuthPage = ({ mode }) => {
       }
 
       sessionStorage.setItem('otuzanAuthenticated', result.token);
+      sessionStorage.setItem('otuzanUser', JSON.stringify(result.user));
       const addressKey = `otuzanCustomerAddress:${result.user.email.toLowerCase()}`;
       let savedAddress = localStorage.getItem(addressKey) || '';
       if (!savedAddress) {
@@ -239,7 +241,8 @@ const AuthPage = ({ mode }) => {
           ? `Welcome to Otu-Zan, ${username || name}! Your ${roleName} account has been created.`
           : `Welcome back! Redirecting to your ${roleName} dashboard...`
       });
-      navigate('/home', { replace: true });
+      const destination = { driver: '/rider/orders', admin: '/admin/dashboard' }[result.user.role] || '/home';
+      navigate(destination, { replace: true });
     } catch (error) {
       setMessage({
         type: 'error',
@@ -250,22 +253,6 @@ const AuthPage = ({ mode }) => {
     }
 
 
-    /*
-     * Login
-     */
-    setMessage({
-      type: 'success',
-
-      text:
-        `✅ Welcome back! Redirecting to your ${roleName} dashboard...`
-    });
-
-    sessionStorage.setItem('otuzanAuthenticated', selectedRole);
-    const roleDestinations = {
-      [ROLES.RIDER.key]: '/rider/orders',
-      [ROLES.ADMIN.key]: '/admin/dashboard'
-    };
-    navigate(roleDestinations[selectedRole] || '/home');
 
   };
 

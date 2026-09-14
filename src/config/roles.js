@@ -30,6 +30,6 @@ export const ROLES = {
 };
 
 export const VALID_CODES = {
-  rider: 'RIDER2024',
+  rider: 'DRIVER2024',
   admin: 'ADMIN2024'
 };

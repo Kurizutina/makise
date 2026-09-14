@@ -1,111 +1,49 @@
 # Otu-Zan
 
-## Team Setup
+React frontend with a Laravel 12 API and a MySQL/MariaDB database managed through phpMyAdmin.
 
-### Requirements
+## Run this checkout on Windows
 
-- Node.js 18 or newer
-- MySQL 8.0.16 or newer
-- phpMyAdmin or another MySQL client
+1. Start **Apache** and **MySQL** in the XAMPP Control Panel.
+2. Run `npm.cmd run backend:local` to start Laravel in the background.
+3. Run `npm.cmd start` for React.
 
-### Install the project
+- Frontend: http://localhost:3000
+- Laravel API: http://localhost:5000/api/health
+- phpMyAdmin: http://localhost/phpmyadmin/index.php?route=/database/structure&db=otu-zan-db
+- Database: `otu-zan-db` on `127.0.0.1:3306`
+- Database credentials and application key: ignored `laravel/.env`
+- Frontend API URL: ignored root `.env`
+- Background launcher log: ignored `.local/laravel.log`
+- Laravel application log: `laravel/storage/logs/laravel.log`
 
-```bash
-git clone <repository-url>
-cd Otu-Zan
-npm install
-```
+The launcher uses XAMPP PHP at `C:/xampp/php/php.exe`, or PHP on PATH. Override with `PHP_BINARY` if needed. It checks database connectivity and will not replace another service already using port 5000. Use `npm.cmd run backend:start` to run Laravel in the foreground instead.
 
-### Create the local database
+## Setup on another computer
 
-1. Start MySQL on your computer.
-2. Open phpMyAdmin.
-3. Import `backend/database/schema.sql`.
-4. Confirm that the database is named `otu-zan-db` and contains seven tables.
+Requires Node.js, PHP 8.2+, Composer, and MySQL/MariaDB (XAMPP includes PHP, MariaDB and phpMyAdmin).
 
-Each developer should import the schema into their own local MySQL installation. Do not commit database passwords or `.env` files.
+1. Run `npm install` in the project root.
+2. Start XAMPP Apache and MySQL. Import `backend/database/schema.sql` through phpMyAdmin to create the seven application tables.
+3. Run `composer install` inside `laravel`.
+4. Copy `laravel/.env.example` to `laravel/.env` and set database credentials, frontend origin and staff registration codes.
+5. Inside `laravel`, run `php artisan key:generate` and `php artisan migrate`.
+6. Copy root `.env.example` to `.env`, then start the backend and frontend as above.
 
-### Configure local environment variables
+Laravel migrations adopt existing Users records and add the address and API-token storage. Existing bcrypt passwords and account IDs are preserved. Staff accounts use backend roles `driver` and `admin`; local default access codes are `DRIVER2024` and `ADMIN2024`.
 
-Copy `.env.example` to `.env` and replace `DB_PASSWORD` and `JWT_SECRET` with local values. The `.env` file is ignored by Git.
+## Backend and verification
 
-### Run the frontend
+Laravel implements registration, login, current account, logout, the admin-only rider directory, and health endpoints. API responses retain the React frontend's existing format. Bearer authentication uses Laravel Sanctum with tokens valid for two hours. Sign in again after migrating from the old Node backend; old JWT sessions are not Laravel tokens.
 
-```bash
-npm start
-```
+- `npm run backend:db-check`: verify Laravel database access
+- `npm run backend:migrate`: apply Laravel migrations
+- `npm run backend:test`: Laravel tests using a separate in-memory SQLite database
+- `npm test -- --watchAll=false`: React tests
+- `npm run build`: frontend production build
 
-The frontend runs at `http://localhost:3000`.
+## Migration notes
 
-The backend database connection and authentication API are the next implementation step; the current repository does not yet include a backend start command.
+This checkout was moved from the separate MySQL instance on port 3307 to XAMPP on port 3306. All seven tables were copied and row counts verified. Other XAMPP databases were left in place. The old database files and migration backups remain in ignored `.local` storage; they are no longer the active database. The former Express implementation under `backend` remains as a migration reference; all backend npm commands now run Laravel.
 
-## Create React App Reference
-
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
-
-## Available Scripts
-
-In the project directory, you can run:
-
-### `npm start`
-
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
-
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
-
-### `npm test`
-
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
-
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Orders and assignment still use the existing browser-storage implementation. Status updates propagate within the app and across tabs in the same browser profile. Moving that workflow to server-side storage and cross-device delivery is separate from this authentication/database migration.

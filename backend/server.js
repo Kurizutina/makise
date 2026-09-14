@@ -69,6 +69,19 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json({ user: publicUser(req.user) });
 });
 
+app.get('/api/riders', requireAuth, async (req, res) => {
+  if (req.user.Role !== 'admin') return res.status(403).json({ error: 'admin access required' });
+  try {
+    const [rows] = await pool.execute(
+      "SELECT UserID AS id, UserName AS name FROM Users WHERE Role = 'driver' ORDER BY UserName, UserID"
+    );
+    return res.json({ riders: rows });
+  } catch (error) {
+    console.error(`Rider lookup failed: ${error.message}`);
+    return res.status(500).json({ error: 'Unable to load riders' });
+  }
+});
+
 app.get('/api/health/db', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT DATABASE() AS databaseName');

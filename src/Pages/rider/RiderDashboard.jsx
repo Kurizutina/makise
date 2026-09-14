@@ -7,6 +7,7 @@ import {
 } from '../../context/CustomerActivityContext';
 import './RiderDashboard.css';
 import OrderCustomerDetails from '../../components/common/OrderCustomerDetails/OrderCustomerDetails';
+import { getSessionUser, isAssignedTo } from '../../utils/session';
 
 const sections = [
   { key: 'food', label: 'Food Delivery', icon: 'fa-utensils' },
@@ -50,7 +51,9 @@ const inferSection = (order) => {
 
 const RiderDashboard = () => {
   const navigate = useNavigate();
-  const { orders, updateOrderStatus } = useCustomerActivity();
+  const { orders: allOrders, updateOrderStatus } = useCustomerActivity();
+  const user = getSessionUser();
+  const orders = allOrders.filter((order) => user?.role === 'driver' && isAssignedTo(order, user));
   const [activeSection, setActiveSection] = useState('food');
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [now, setNow] = useState(Date.now());
@@ -78,7 +81,7 @@ const RiderDashboard = () => {
 
       <div className="rider-dashboard-content">
         <section className="rider-welcome">
-          <div><span>Order management</span><h2>Customer Orders</h2><p>Review new requests by service, then confirm or cancel each order.</p></div>
+          <div><span>Order management</span><h2>Customer Orders</h2><p>Review orders assigned to you by the administrator.</p></div>
           <div className="rider-stat"><strong>{orders.length}</strong><span>Total orders</span></div>
         </section>
 
@@ -93,7 +96,7 @@ const RiderDashboard = () => {
         <div className="rider-section-heading"><div><h2>{sections.find((section) => section.key === activeSection)?.label}</h2><p>{sectionOrders.length} customer order{sectionOrders.length === 1 ? '' : 's'}</p></div></div>
 
         {!sectionOrders.length ? (
-          <div className="rider-empty-orders"><i className="fa-solid fa-receipt" /><h3>No orders in this section</h3><p>New customer requests will appear here automatically.</p></div>
+          <div className="rider-empty-orders"><i className="fa-solid fa-receipt" /><h3>No orders in this section</h3><p>Orders assigned to you will appear here automatically.</p></div>
         ) : (
           <div className="rider-order-grid">
             {sectionOrders.map((order) => (

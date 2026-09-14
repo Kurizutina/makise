@@ -8,7 +8,7 @@ jest.mock('../context/CustomerActivityContext', () => ({
   calculateEstimatedWaitMinutes: () => 40,
   useCustomerActivity: () => ({
     orders: [
-      { id: 'live-1', label: 'Lunch', source: "Manuela's", section: 'food', status: 'pending_rider', createdAt: '2026-09-13T01:00:00Z', customerName: 'Ana Cruz', customerAddress: '12 Mabini Street, Muñoz', items: [] },
+      { id: 'live-1', assignedRider: { id: 1 }, label: 'Lunch', source: "Manuela's", section: 'food', status: 'pending_rider', createdAt: '2026-09-13T01:00:00Z', customerName: 'Ana Cruz', customerAddress: '12 Mabini Street, Muñoz', items: [] },
       { id: 'history-1', label: 'Dinner', source: 'Jollibee', section: 'food', status: 'delivered', createdAt: '2026-09-12T01:00:00Z', customerName: 'Ben Santos', customerAddress: '34 Rizal Street, San Jose', items: [] },
       { id: 'legacy-1', label: 'Old order', source: 'Jollibee', section: 'food', status: 'cancelled', createdAt: '2026-09-11T01:00:00Z', items: [] }
     ],
@@ -17,6 +17,8 @@ jest.mock('../context/CustomerActivityContext', () => ({
 }));
 
 test('rider cards and order details display the saved customer identity', () => {
+  sessionStorage.setItem('otuzanAuthenticated', 'test-token');
+  sessionStorage.setItem('otuzanUser', JSON.stringify({ id: 1, role: 'driver' }));
   render(<RiderDashboard />);
   const card = screen.getByText('live-1').closest('article');
   expect(within(card).getByText('Ana Cruz')).toBeInTheDocument();
@@ -25,6 +27,8 @@ test('rider cards and order details display the saved customer identity', () => 
   expect(within(screen.getByRole('dialog')).getByText('Ana Cruz')).toBeInTheDocument();
   expect(within(screen.getByRole('dialog')).getByText('12 Mabini Street, Muñoz')).toBeInTheDocument();
 });
+
+afterEach(() => sessionStorage.clear());
 
 test('admin live orders and history display names, addresses, and missing-data fallbacks', () => {
   render(<DeliveryAdminDashboard />);

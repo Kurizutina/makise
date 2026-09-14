@@ -23,8 +23,11 @@
   "scripts": {
     "generate:mcdo-menu": "node scripts/generate-mcdo-manifest.js",
     "generate:mang-inasal-menu": "node scripts/generate-mang-inasal-manifest.js",
-    "backend:start": "node backend/server.js",
-    "backend:db-check": "node backend/database/check-connection.js",
+    "backend:start": "node scripts/start-local-backend.js --foreground",
+    "backend:local": "node scripts/start-local-backend.js",
+    "backend:db-check": "node scripts/start-local-backend.js --check",
+    "backend:migrate": "node scripts/start-local-backend.js --migrate",
+    "backend:test": "node scripts/start-local-backend.js --test",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",

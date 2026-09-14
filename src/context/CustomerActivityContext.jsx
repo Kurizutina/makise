@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { getSessionUser, isAssignedTo } from '../utils/session';
 
 const CustomerActivityContext = createContext(null);
 const STORAGE_KEY = 'otuzanCustomerActivity';
@@ -179,12 +180,17 @@ export const CustomerActivityProvider = ({ children }) => {
   };
 
   const updateOrderStatus = (orderId, status) => {
-    const currentOrder = orders.find((order) => order.id === orderId);
+    const latest = loadActivity();
+    const currentOrders = latest.orders || orders;
+    const currentOrder = currentOrders.find((order) => order.id === orderId);
     if (!currentOrder || currentOrder.status === status) return;
+    const user = getSessionUser();
+    if (user?.role !== 'admin' && !(user?.role === 'driver' && isAssignedTo(currentOrder, user))) return;
+    if (['delivered', 'cancelled'].includes(currentOrder.status)) return;
 
     const statusContent = {
-      confirmed: ['Order accepted', `A rider accepted ${currentOrder.label}. Tracking is now available.`],
-      cancelled: ['Order cancelled', `${currentOrder.label} was cancelled by the rider.`],
+      confirmed: ['Order accepted', `${currentOrder.label} was accepted. Tracking is now available.`],
+      cancelled: ['Order cancelled', `${currentOrder.label} was cancelled.`],
       preparing: ['Order is being prepared', `${currentOrder.label} is now being prepared.`],
       out_for_delivery: ['Order is out for delivery', `${currentOrder.label} is on the way.`],
       delivered: ['Order delivered', `${currentOrder.label} has been delivered.`]
@@ -201,7 +207,7 @@ export const CustomerActivityProvider = ({ children }) => {
         Date.parse(updatedAt) + (estimatedWaitMinutes * 60 * 1000)
       ).toISOString()
     } : {};
-    const nextOrders = orders.map((order) => order.id === orderId
+    const nextOrders = currentOrders.map((order) => order.id === orderId
       ? { ...order, status, updatedAt, estimatedWaitMinutes, ...confirmationTiming }
       : order);
     const notification = {
@@ -213,14 +219,16 @@ export const CustomerActivityProvider = ({ children }) => {
       read: false,
       type: status === 'cancelled' ? 'cancelled' : 'status'
     };
-    updateAll(cart, nextOrders, [notification, ...notifications]);
+    updateAll(latest.cart || cart, nextOrders, [notification, ...(latest.notifications || notifications)]);
   };
 
   const assignOrderToRider = (orderId, rider) => {
-    const nextOrders = orders.map((order) => order.id === orderId
+    if (getSessionUser()?.role !== 'admin') return;
+    const latest = loadActivity();
+    const nextOrders = (latest.orders || orders).map((order) => order.id === orderId
       ? { ...order, assignedRider: rider || null }
       : order);
-    updateAll(cart, nextOrders, notifications);
+    updateAll(latest.cart || cart, nextOrders, latest.notifications || notifications);
   };
 
   const value = useMemo(() => ({
@@ -244,5 +252,16 @@ export const CustomerActivityProvider = ({ children }) => {
 export const useCustomerActivity = () => {
   const context = useContext(CustomerActivityContext);
   if (!context) throw new Error('useCustomerActivity must be used inside CustomerActivityProvider');
+  const user = getSessionUser();
+  if (user?.role === 'driver') {
+    const orders = context.orders.filter((order) => isAssignedTo(order, user));
+    const orderIds = new Set(orders.map((order) => order.id));
+    return {
+      ...context,
+      cart: [],
+      orders,
+      notifications: context.notifications.filter((notification) => orderIds.has(notification.orderId))
+    };
+  }
   return context;
 };

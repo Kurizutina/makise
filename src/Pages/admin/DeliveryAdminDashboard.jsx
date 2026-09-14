@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerActivity } from '../../context/CustomerActivityContext';
 import {
@@ -15,9 +15,10 @@ const SERVICE_META = {
   bills: { label: 'Pay Bills', icon: 'fa-file-invoice-dollar', color: '#da1c5c' }
 };
 
-const RIDERS = [
-  { id: 'jayson-deguzman', name: 'Jayson Deguzman', vehicle: 'Motorcycle' }
-];
+const STATUS_LABELS = {
+  pending_rider: 'Pending', confirmed: 'Confirmed', preparing: 'Preparing',
+  out_for_delivery: 'Out for Delivery', delivered: 'Delivered', cancelled: 'Cancelled'
+};
 
 const NAV_ITEMS = [
   { key: 'live', label: 'Live Orders', title: 'Ongoing, Pending & Cancelled', icon: 'fa-list-check' },
@@ -54,7 +55,7 @@ const ServiceBadge = ({ service }) => {
   return <span className="admin-service-badge" style={{ '--service-color': meta.color }}><i className={`fa-solid ${meta.icon}`} />{meta.label}</span>;
 };
 
-const OrderCard = ({ order, onAssign, onStatus }) => {
+const OrderCard = ({ order, onAssign, onStatus, riders }) => {
   const service = inferService(order);
   const meta = SERVICE_META[service];
   const nextAction = {
@@ -77,14 +78,21 @@ const OrderCard = ({ order, onAssign, onStatus }) => {
       {order.status !== 'cancelled' && service !== 'bills' && (
         <label className="admin-rider-select">
           <span>Assigned rider</span>
-          <select value={order.assignedRider?.id || ''} onChange={(event) => onAssign(order.id, RIDERS.find((rider) => rider.id === event.target.value) || null)}>
+          <select value={order.assignedRider?.id || ''} onChange={(event) => onAssign(order.id, riders.find((rider) => String(rider.id) === event.target.value) || null)}>
             <option value="">Select a rider</option>
-            {RIDERS.map((rider) => <option value={rider.id} key={rider.id}>{rider.name} · {rider.vehicle}</option>)}
+            {order.assignedRider && !riders.some((rider) => String(rider.id) === String(order.assignedRider.id)) && <option value={order.assignedRider.id}>{order.assignedRider.name} (reassign to a registered rider)</option>}
+            {riders.map((rider) => <option value={rider.id} key={rider.id}>{rider.name}</option>)}
           </select>
         </label>
       )}
 
       <div className="admin-order-actions">
+        {!['delivered', 'cancelled'].includes(order.status) && <label className="admin-rider-select">
+          <span>Order status</span>
+          <select value={order.status} onChange={(event) => onStatus(order.id, event.target.value)}>
+            {Object.entries(STATUS_LABELS).filter(([status]) => status !== 'pending_rider' || order.status === status).map(([status, label]) => <option key={status} value={status}>{label}</option>)}
+          </select>
+        </label>}
         {order.status === 'pending_rider' && <><button className="primary" type="button" onClick={() => onStatus(order.id, 'confirmed')}>Accept</button><button type="button" onClick={() => onStatus(order.id, 'cancelled')}>Decline</button></>}
         {nextAction && <button className="primary" type="button" onClick={() => onStatus(order.id, nextAction[0])}>{nextAction[1]}</button>}
         {order.status === 'cancelled' && <span className="admin-cancelled-state"><i className="fa-solid fa-circle-xmark" /> Cancelled</span>}
@@ -93,7 +101,7 @@ const OrderCard = ({ order, onAssign, onStatus }) => {
   );
 };
 
-const LiveOrdersTab = ({ orders, onAssign, onStatus }) => {
+const LiveOrdersTab = ({ orders, onAssign, onStatus, riders }) => {
   const columns = [
     { key: 'ongoing', label: 'Ongoing', color: '#34b875', matches: (order) => ACTIVE_STATUSES.includes(order.status) },
     { key: 'pending', label: 'Pending', color: '#f9c12f', matches: (order) => order.status === 'pending_rider' },
@@ -105,7 +113,7 @@ const LiveOrdersTab = ({ orders, onAssign, onStatus }) => {
     return <section className="admin-order-column" key={column.key}>
       <div className="admin-column-heading"><i style={{ background: column.color }} /><h2>{column.label}</h2><span>{list.length}</span></div>
       <div className="admin-column-list">{list.length
-        ? list.map((order) => <OrderCard order={order} onAssign={onAssign} onStatus={onStatus} key={order.id} />)
+        ? list.map((order) => <OrderCard order={order} onAssign={onAssign} onStatus={onStatus} riders={riders} key={order.id} />)
         : <div className="admin-empty-column">No {column.label.toLowerCase()} orders</div>}
       </div>
     </section>;
@@ -169,6 +177,26 @@ const DeliveryAdminDashboard = () => {
   const navigate = useNavigate();
   const { orders, updateOrderStatus, assignOrderToRider } = useCustomerActivity();
   const [activeTab, setActiveTab] = useState('live');
+  const [riders, setRiders] = useState([]);
+  const [riderError, setRiderError] = useState('');
+  useEffect(() => {
+    const controller = new AbortController();
+    const loadRiders = async () => {
+      try {
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/riders`, {
+          headers: { Authorization: `Bearer ${sessionStorage.getItem('otuzanAuthenticated')}` },
+          signal: controller.signal
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Unable to load riders');
+        setRiders(result.riders);
+      } catch (error) {
+        if (!controller.signal.aborted) setRiderError('Unable to load registered riders. Sign in again or check the backend connection.');
+      }
+    };
+    loadRiders();
+    return () => controller.abort();
+  }, []);
   const pendingCount = orders.filter((order) => order.status === 'pending_rider').length;
   const activeNav = useMemo(() => NAV_ITEMS.find((item) => item.key === activeTab), [activeTab]);
 
@@ -184,7 +212,8 @@ const DeliveryAdminDashboard = () => {
 
     <section className="admin-main">
       <header className="admin-page-header"><div><span>Otu-Zan Management</span><h1>{activeNav.title}</h1><p>{new Date().toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p></div>{activeTab === 'live' && <div className="admin-header-services">{Object.keys(SERVICE_META).map((service) => <ServiceBadge service={service} key={service} />)}</div>}</header>
-      {activeTab === 'live' && <LiveOrdersTab orders={orders} onAssign={assignOrderToRider} onStatus={updateOrderStatus} />}
+      {riderError && <p role="alert">{riderError}</p>}
+      {activeTab === 'live' && <LiveOrdersTab orders={orders} onAssign={assignOrderToRider} onStatus={updateOrderStatus} riders={riders} />}
       {activeTab === 'history' && <HistoryTab orders={orders} />}
       {activeTab === 'revenue' && <RevenueTab orders={orders} />}
       {activeTab === 'payments' && <PaymentsTab orders={orders} onStatus={updateOrderStatus} />}
