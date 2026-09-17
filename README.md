@@ -5,8 +5,7 @@ React frontend with a Laravel 12 API and a MySQL/MariaDB database managed throug
 ## Run this checkout on Windows
 
 1. Start **Apache** and **MySQL** in the XAMPP Control Panel.
-2. Run `npm.cmd run backend:local` to start Laravel in the background.
-3. Run `npm.cmd start` for React.
+2. Run `npm.cmd start`. It starts and checks Laravel automatically before it launches React, so the sign-in page cannot open without its local API.
 
 - Frontend: http://localhost:3000
 - Laravel API: http://localhost:5000/api/health
@@ -17,7 +16,7 @@ React frontend with a Laravel 12 API and a MySQL/MariaDB database managed throug
 - Background launcher log: ignored `.local/laravel.log`
 - Laravel application log: `laravel/storage/logs/laravel.log`
 
-The launcher uses XAMPP PHP at `C:/xampp/php/php.exe`, or PHP on PATH. Override with `PHP_BINARY` if needed. It checks database connectivity and will not replace another service already using port 5000. Use `npm.cmd run backend:start` to run Laravel in the foreground instead.
+The launcher uses XAMPP PHP at `C:/xampp/php/php.exe`, or PHP on PATH. Override with `PHP_BINARY` if needed. It checks database connectivity and will not replace another service already using port 5000. Use `npm.cmd run backend:start` to run Laravel in the foreground instead. `npm start` stops with a clear XAMPP instruction if the database cannot be reached rather than starting a frontend that cannot sign in.
 
 ## Setup on another computer
 

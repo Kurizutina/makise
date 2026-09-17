@@ -89,37 +89,6 @@
   color: #c91546 !important;
 }
 
-.mang-inasal-page-header {
-  background: linear-gradient(100deg, #08733b, #15924e);
-}
-
-.mang-inasal-page .jollibee-back,
-.mang-inasal-page .jollibee-cart-link {
-  background: rgba(3, 89, 43, 0.5);
-}
-
-.mang-inasal-page .jollibee-cart-link strong,
-.mang-inasal-eyebrow,
-.mang-inasal-page .restaurant-product-price,
-.mang-inasal-page .jollibee-cart-heading span,
-.mang-inasal-page .restaurant-cart-total strong {
-  color: #087f40 !important;
-}
-
-.mang-inasal-page .jollibee-intro > button,
-.mang-inasal-page .product-cart-button {
-  border-color: #55aa78;
-  background: #f1fbf5;
-  color: #08733b;
-}
-
-.mang-inasal-page .jollibee-custom-item > button,
-.mang-inasal-page .product-order-button,
-.mang-inasal-page .jollibee-checkout {
-  border-color: #087f40;
-  background: #087f40;
-}
-
 .restaurant-menu-loading {
   display: flex;
   align-items: center;
