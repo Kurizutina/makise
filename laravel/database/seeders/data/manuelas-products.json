@@ -1,0 +1,927 @@
+[
+  {
+    "name": "Tapsilog",
+    "category": "Silog Tayo!",
+    "price": 100
+  },
+  {
+    "name": "Tocilog",
+    "category": "Silog Tayo!",
+    "price": 100
+  },
+  {
+    "name": "Chicksilog",
+    "category": "Silog Tayo!",
+    "price": 90
+  },
+  {
+    "name": "Porksilog",
+    "category": "Silog Tayo!",
+    "price": 100
+  },
+  {
+    "name": "Corned Beef Silog",
+    "category": "Silog Tayo!",
+    "price": 90
+  },
+  {
+    "name": "Longsilog (Sweet)",
+    "category": "Silog Tayo!",
+    "price": 100
+  },
+  {
+    "name": "Longsilog (Garlic)",
+    "category": "Silog Tayo!",
+    "price": 100
+  },
+  {
+    "name": "Lumpiasilog",
+    "category": "Silog Tayo!",
+    "price": 90
+  },
+  {
+    "name": "Hotsilog",
+    "category": "Silog Tayo!",
+    "price": 80
+  },
+  {
+    "name": "Spamsilog",
+    "category": "Silog Tayo!",
+    "price": 90
+  },
+  {
+    "name": "Bangsilog (Belly)",
+    "category": "Silog Tayo!",
+    "price": 90
+  },
+  {
+    "name": "Bagnetsilog",
+    "category": "Silog Tayo!",
+    "price": 100
+  },
+  {
+    "name": "Crispy Ulo",
+    "category": "Main Dishes",
+    "price": 630
+  },
+  {
+    "name": "Crispy Pata",
+    "category": "Main Dishes",
+    "price": 580
+  },
+  {
+    "name": "Crispy Tenga",
+    "category": "Main Dishes",
+    "price": 180
+  },
+  {
+    "name": "Crispy Kare-kare",
+    "category": "Main Dishes",
+    "price": 260
+  },
+  {
+    "name": "Lechon Kawali",
+    "category": "Main Dishes",
+    "price": 180
+  },
+  {
+    "name": "Chicharong Bulaklak",
+    "category": "Main Dishes",
+    "price": 160
+  },
+  {
+    "name": "Tokwa’t Baboy",
+    "category": "Main Dishes",
+    "price": 120
+  },
+  {
+    "name": "Lumpiang Shanghai (10 pcs)",
+    "category": "Main Dishes",
+    "price": 150
+  },
+  {
+    "name": "Calamares",
+    "category": "Main Dishes",
+    "price": 160
+  },
+  {
+    "name": "Sweet and Sour Fish Fillet",
+    "category": "Main Dishes",
+    "price": 170
+  },
+  {
+    "name": "Chopsuey",
+    "category": "Main Dishes",
+    "price": 170
+  },
+  {
+    "name": "Pigar-pigar",
+    "category": "Main Dishes",
+    "price": 180
+  },
+  {
+    "name": "Papaitang Baka",
+    "category": "Main Dishes",
+    "price": 150
+  },
+  {
+    "name": "Papaitang Kambing",
+    "category": "Main Dishes",
+    "price": 160
+  },
+  {
+    "name": "Adobong Kambing",
+    "category": "Main Dishes",
+    "price": 150
+  },
+  {
+    "name": "Bulalo",
+    "category": "Main Dishes",
+    "price": 260
+  },
+  {
+    "name": "Sinigang na Salmon Belly",
+    "category": "Main Dishes",
+    "price": 260
+  },
+  {
+    "name": "Sinigang na Pampano",
+    "category": "Main Dishes",
+    "price": 260
+  },
+  {
+    "name": "Sinigang na Salmon Head",
+    "category": "Main Dishes",
+    "price": 210
+  },
+  {
+    "name": "Sinigang na Lechon Kawali",
+    "category": "Main Dishes",
+    "price": 260
+  },
+  {
+    "name": "Fried Chicken (per piece)",
+    "category": "Main Dishes",
+    "price": 45
+  },
+  {
+    "name": "M1 (1 pc Fried Chicken w/ Rice)",
+    "category": "Main Dishes",
+    "price": 65
+  },
+  {
+    "name": "M2 (2 pcs Fried Chicken w/ Rice)",
+    "category": "Main Dishes",
+    "price": 110
+  },
+  {
+    "name": "M3 (1 pc Chicken w/ Spaghetti)",
+    "category": "Main Dishes",
+    "price": 135
+  },
+  {
+    "name": "Crispy Sisig (Regular)",
+    "category": "Main Dishes",
+    "price": 160
+  },
+  {
+    "name": "Crispy Sisig (S bilao (6 pax))",
+    "category": "Main Dishes",
+    "price": 510
+  },
+  {
+    "name": "Crispy Sisig (M bilao (10 pax))",
+    "category": "Main Dishes",
+    "price": 810
+  },
+  {
+    "name": "Crispy Sisig (L bilao (15 pax))",
+    "category": "Main Dishes",
+    "price": 1120
+  },
+  {
+    "name": "Crispy Sisig (XL bilao (22 pax))",
+    "category": "Main Dishes",
+    "price": 1200
+  },
+  {
+    "name": "Pancit Batil Patung (chopped lechon kawali toppings) w/ Egg Soup (Single)",
+    "category": "This Is It, Pancit!",
+    "price": 100
+  },
+  {
+    "name": "Pancit Batil Patung (chopped lechon kawali toppings) w/ Egg Soup (S (4 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 360
+  },
+  {
+    "name": "Pancit Batil Patung (chopped lechon kawali toppings) w/ Egg Soup (M (6 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 540
+  },
+  {
+    "name": "Pancit Batil Patung (chopped lechon kawali toppings) w/ Egg Soup (L (10 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 680
+  },
+  {
+    "name": "Pancit Batil Patung (chopped lechon kawali toppings) w/ Egg Soup (XL (12 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 850
+  },
+  {
+    "name": "Pancit Batil Patung (chopped lechon kawali toppings) w/ Egg Soup (J (20 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 1280
+  },
+  {
+    "name": "Isabela’s Finest Pancit Cabagan (Single)",
+    "category": "This Is It, Pancit!",
+    "price": 80
+  },
+  {
+    "name": "Isabela’s Finest Pancit Cabagan (S (4 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 300
+  },
+  {
+    "name": "Isabela’s Finest Pancit Cabagan (M (6 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 450
+  },
+  {
+    "name": "Isabela’s Finest Pancit Cabagan (L (10 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 560
+  },
+  {
+    "name": "Isabela’s Finest Pancit Cabagan (XL (12 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 700
+  },
+  {
+    "name": "Isabela’s Finest Pancit Cabagan (J (20 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 1040
+  },
+  {
+    "name": "Creamy Spaghetti (Single)",
+    "category": "This Is It, Pancit!",
+    "price": 90
+  },
+  {
+    "name": "Creamy Spaghetti (S (4 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 340
+  },
+  {
+    "name": "Creamy Spaghetti (M (6 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 510
+  },
+  {
+    "name": "Creamy Spaghetti (L (10 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 640
+  },
+  {
+    "name": "Creamy Spaghetti (XL (12 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 800
+  },
+  {
+    "name": "Creamy Spaghetti (J (20 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 1200
+  },
+  {
+    "name": "Carbonara (Single)",
+    "category": "This Is It, Pancit!",
+    "price": 90
+  },
+  {
+    "name": "Carbonara (S (4 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 340
+  },
+  {
+    "name": "Carbonara (M (6 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 510
+  },
+  {
+    "name": "Carbonara (L (10 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 640
+  },
+  {
+    "name": "Carbonara (XL (12 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 800
+  },
+  {
+    "name": "Carbonara (J (20 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 1200
+  },
+  {
+    "name": "Bihon Guisado (Single)",
+    "category": "This Is It, Pancit!",
+    "price": 80
+  },
+  {
+    "name": "Bihon Guisado (S (4 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 300
+  },
+  {
+    "name": "Bihon Guisado (M (6 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 450
+  },
+  {
+    "name": "Bihon Guisado (L (10 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 560
+  },
+  {
+    "name": "Bihon Guisado (XL (12 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 700
+  },
+  {
+    "name": "Bihon Guisado (J (20 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 1040
+  },
+  {
+    "name": "Canton Guisado (Single)",
+    "category": "This Is It, Pancit!",
+    "price": 80
+  },
+  {
+    "name": "Canton Guisado (S (4 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 300
+  },
+  {
+    "name": "Canton Guisado (M (6 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 450
+  },
+  {
+    "name": "Canton Guisado (L (10 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 560
+  },
+  {
+    "name": "Canton Guisado (XL (12 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 700
+  },
+  {
+    "name": "Canton Guisado (J (20 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 1040
+  },
+  {
+    "name": "Bihon Canton Guisado (Single)",
+    "category": "This Is It, Pancit!",
+    "price": 80
+  },
+  {
+    "name": "Bihon Canton Guisado (S (4 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 300
+  },
+  {
+    "name": "Bihon Canton Guisado (M (6 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 450
+  },
+  {
+    "name": "Bihon Canton Guisado (L (10 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 560
+  },
+  {
+    "name": "Bihon Canton Guisado (XL (12 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 700
+  },
+  {
+    "name": "Bihon Canton Guisado (J (20 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 1040
+  },
+  {
+    "name": "Palabok (Single)",
+    "category": "This Is It, Pancit!",
+    "price": 80
+  },
+  {
+    "name": "Palabok (S (4 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 300
+  },
+  {
+    "name": "Palabok (M (6 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 450
+  },
+  {
+    "name": "Palabok (L (10 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 560
+  },
+  {
+    "name": "Palabok (XL (12 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 700
+  },
+  {
+    "name": "Palabok (J (20 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 1040
+  },
+  {
+    "name": "Malabon (Single)",
+    "category": "This Is It, Pancit!",
+    "price": 80
+  },
+  {
+    "name": "Malabon (S (4 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 300
+  },
+  {
+    "name": "Malabon (M (6 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 450
+  },
+  {
+    "name": "Malabon (L (10 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 560
+  },
+  {
+    "name": "Malabon (XL (12 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 700
+  },
+  {
+    "name": "Malabon (J (20 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 1040
+  },
+  {
+    "name": "Sotanghon Guisado (Single)",
+    "category": "This Is It, Pancit!",
+    "price": 90
+  },
+  {
+    "name": "Sotanghon Guisado (S (4 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 340
+  },
+  {
+    "name": "Sotanghon Guisado (M (6 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 510
+  },
+  {
+    "name": "Sotanghon Guisado (L (10 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 640
+  },
+  {
+    "name": "Sotanghon Guisado (XL (12 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 800
+  },
+  {
+    "name": "Sotanghon Guisado (J (20 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 1200
+  },
+  {
+    "name": "Sotanghon Canton Guisado (Single)",
+    "category": "This Is It, Pancit!",
+    "price": 90
+  },
+  {
+    "name": "Sotanghon Canton Guisado (S (4 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 340
+  },
+  {
+    "name": "Sotanghon Canton Guisado (M (6 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 510
+  },
+  {
+    "name": "Sotanghon Canton Guisado (L (10 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 640
+  },
+  {
+    "name": "Sotanghon Canton Guisado (XL (12 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 800
+  },
+  {
+    "name": "Sotanghon Canton Guisado (J (20 pax))",
+    "category": "This Is It, Pancit!",
+    "price": 1200
+  },
+  {
+    "name": "Lomi",
+    "category": "This Is It, Pancit!",
+    "price": 90
+  },
+  {
+    "name": "Sizzling Gising-Gising (Natural) (2–3 pax)",
+    "category": "Sizzlers",
+    "price": 160
+  },
+  {
+    "name": "Sizzling Gising-Gising (Natural) (10 pax)",
+    "category": "Sizzlers",
+    "price": 800
+  },
+  {
+    "name": "Sizzling Gising-Gising (Natural) (20 pax)",
+    "category": "Sizzlers",
+    "price": 1600
+  },
+  {
+    "name": "Sizzling Gising-Gising (Natural) (30 pax)",
+    "category": "Sizzlers",
+    "price": 2400
+  },
+  {
+    "name": "Sizzling Gising-Gising (Spicy) (2–3 pax)",
+    "category": "Sizzlers",
+    "price": 160
+  },
+  {
+    "name": "Sizzling Gising-Gising (Spicy) (10 pax)",
+    "category": "Sizzlers",
+    "price": 800
+  },
+  {
+    "name": "Sizzling Gising-Gising (Spicy) (20 pax)",
+    "category": "Sizzlers",
+    "price": 1600
+  },
+  {
+    "name": "Sizzling Gising-Gising (Spicy) (30 pax)",
+    "category": "Sizzlers",
+    "price": 2400
+  },
+  {
+    "name": "Sizzling Pusit (Natural) (2–3 pax)",
+    "category": "Sizzlers",
+    "price": 160
+  },
+  {
+    "name": "Sizzling Pusit (Natural) (10 pax)",
+    "category": "Sizzlers",
+    "price": 800
+  },
+  {
+    "name": "Sizzling Pusit (Natural) (20 pax)",
+    "category": "Sizzlers",
+    "price": 1600
+  },
+  {
+    "name": "Sizzling Pusit (Natural) (30 pax)",
+    "category": "Sizzlers",
+    "price": 2400
+  },
+  {
+    "name": "Sizzling Pusit (Spicy) (2–3 pax)",
+    "category": "Sizzlers",
+    "price": 160
+  },
+  {
+    "name": "Sizzling Pusit (Spicy) (10 pax)",
+    "category": "Sizzlers",
+    "price": 800
+  },
+  {
+    "name": "Sizzling Pusit (Spicy) (20 pax)",
+    "category": "Sizzlers",
+    "price": 1600
+  },
+  {
+    "name": "Sizzling Pusit (Spicy) (30 pax)",
+    "category": "Sizzlers",
+    "price": 2400
+  },
+  {
+    "name": "Sizzling Asadong Dila (2–3 pax)",
+    "category": "Sizzlers",
+    "price": 170
+  },
+  {
+    "name": "Sizzling Asadong Dila (10 pax)",
+    "category": "Sizzlers",
+    "price": 850
+  },
+  {
+    "name": "Sizzling Asadong Dila (20 pax)",
+    "category": "Sizzlers",
+    "price": 1700
+  },
+  {
+    "name": "Sizzling Asadong Dila (30 pax)",
+    "category": "Sizzlers",
+    "price": 2550
+  },
+  {
+    "name": "Sizzling Sisig (2–3 pax)",
+    "category": "Sizzlers",
+    "price": 170
+  },
+  {
+    "name": "Sizzling Sisig (10 pax)",
+    "category": "Sizzlers",
+    "price": 850
+  },
+  {
+    "name": "Sizzling Sisig (20 pax)",
+    "category": "Sizzlers",
+    "price": 1700
+  },
+  {
+    "name": "Sizzling Sisig (30 pax)",
+    "category": "Sizzlers",
+    "price": 2550
+  },
+  {
+    "name": "Pigar-pigar of Pangasinan (2–3 pax)",
+    "category": "Sizzlers",
+    "price": 180
+  },
+  {
+    "name": "Pigar-pigar of Pangasinan (10 pax)",
+    "category": "Sizzlers",
+    "price": 900
+  },
+  {
+    "name": "Pigar-pigar of Pangasinan (20 pax)",
+    "category": "Sizzlers",
+    "price": 1800
+  },
+  {
+    "name": "Pigar-pigar of Pangasinan (30 pax)",
+    "category": "Sizzlers",
+    "price": 2700
+  },
+  {
+    "name": "Creamy Vegetables w/ Quail Eggs (20 pax)",
+    "category": "Tray Dishes",
+    "price": 1900
+  },
+  {
+    "name": "Creamy Vegetables w/ Quail Eggs (30 pax)",
+    "category": "Tray Dishes",
+    "price": 2800
+  },
+  {
+    "name": "Chicken Caldereta (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2100
+  },
+  {
+    "name": "Chicken Caldereta (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3100
+  },
+  {
+    "name": "Cheesy Chicken Afritada (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2100
+  },
+  {
+    "name": "Cheesy Chicken Afritada (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3100
+  },
+  {
+    "name": "Chicken Cordon Bleu (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2300
+  },
+  {
+    "name": "Chicken Cordon Bleu (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3400
+  },
+  {
+    "name": "Honey Garlic Soy Chicken (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2100
+  },
+  {
+    "name": "Honey Garlic Soy Chicken (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3100
+  },
+  {
+    "name": "Pininyahang Manok (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2100
+  },
+  {
+    "name": "Pininyahang Manok (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3100
+  },
+  {
+    "name": "Creamy Mushroom Chicken (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2100
+  },
+  {
+    "name": "Creamy Mushroom Chicken (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3100
+  },
+  {
+    "name": "Pork Caldereta (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2200
+  },
+  {
+    "name": "Pork Caldereta (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3200
+  },
+  {
+    "name": "Creamy Lenggua in Mushroom Soup (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2200
+  },
+  {
+    "name": "Creamy Lenggua in Mushroom Soup (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3200
+  },
+  {
+    "name": "Sweet and Sour Meatballs (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2200
+  },
+  {
+    "name": "Sweet and Sour Meatballs (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3200
+  },
+  {
+    "name": "Menudo (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2200
+  },
+  {
+    "name": "Menudo (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3200
+  },
+  {
+    "name": "Igado (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2200
+  },
+  {
+    "name": "Igado (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3200
+  },
+  {
+    "name": "Cheesy Pork Afritada (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2200
+  },
+  {
+    "name": "Cheesy Pork Afritada (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3200
+  },
+  {
+    "name": "Pork Garlic Pepper Steak (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2200
+  },
+  {
+    "name": "Pork Garlic Pepper Steak (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3200
+  },
+  {
+    "name": "Braised Pineapple Soy Pork (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2200
+  },
+  {
+    "name": "Braised Pineapple Soy Pork (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3200
+  },
+  {
+    "name": "Pork Salpicao (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2200
+  },
+  {
+    "name": "Pork Salpicao (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3200
+  },
+  {
+    "name": "Beef Teriyaki (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2400
+  },
+  {
+    "name": "Beef Teriyaki (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3400
+  },
+  {
+    "name": "Beef Salpicao (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2400
+  },
+  {
+    "name": "Beef Salpicao (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3400
+  },
+  {
+    "name": "Tender Beef in Mushroom Sauce (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2400
+  },
+  {
+    "name": "Tender Beef in Mushroom Sauce (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3400
+  },
+  {
+    "name": "Beef Stew (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2400
+  },
+  {
+    "name": "Beef Stew (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3400
+  },
+  {
+    "name": "Beef with Broccoli (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2400
+  },
+  {
+    "name": "Beef with Broccoli (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3400
+  },
+  {
+    "name": "Chili Garlic Buttered Squid (20 pax)",
+    "category": "Tray Dishes",
+    "price": 2500
+  },
+  {
+    "name": "Chili Garlic Buttered Squid (30 pax)",
+    "category": "Tray Dishes",
+    "price": 3500
+  },
+  {
+    "name": "Cantonese Sweet and Sour Shrimp (20 pax)",
+    "category": "Tray Dishes",
+    "price": 3000
+  },
+  {
+    "name": "Cantonese Sweet and Sour Shrimp (30 pax)",
+    "category": "Tray Dishes",
+    "price": 4200
+  },
+  {
+    "name": "Seafood Boil in Cajun Sauce (20 pax)",
+    "category": "Tray Dishes",
+    "price": 3000
+  },
+  {
+    "name": "Seafood Boil in Cajun Sauce (30 pax)",
+    "category": "Tray Dishes",
+    "price": 4200
+  },
+  {
+    "name": "Patatim (per piece, good for 4 pax)",
+    "category": "Tray Dishes",
+    "price": 680
+  }
+]

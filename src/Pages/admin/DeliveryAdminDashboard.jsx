@@ -1,13 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerActivity } from '../../context/CustomerActivityContext';
-import {
-  temporaryFoodBrands,
-  temporaryItemBrands,
-  temporaryUtilityCompanies
-} from '../../components/home/FoodandItem/data/temporaryData';
 import './DeliveryAdminDashboard.css';
 import OrderCustomerDetails from '../../components/common/OrderCustomerDetails/OrderCustomerDetails';
+import { catalogImageUrl } from '../../utils/catalog';
 
 const SERVICE_META = {
   food: { label: 'Food Delivery', icon: 'fa-utensils', color: '#f9c12f' },
@@ -156,23 +152,81 @@ const PaymentsTab = ({ orders, onStatus }) => {
   </article>)}{!payments.length && <div className="admin-page-empty"><i className="fa-solid fa-file-invoice" /><h2>No payment requests</h2><p>Customer bill-payment submissions will appear here.</p></div>}</div>;
 };
 
-const initialCatalog = [...temporaryFoodBrands, ...temporaryItemBrands, ...temporaryUtilityCompanies].map((brand, index) => ({ ...brand, catalogId: `${brand.type}-${index}`, active: true }));
-
 const CatalogTab = () => {
-  const [brands, setBrands] = useState(initialCatalog);
+  const api = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const [module, setModule] = useState('brands');
+  const [items, setItems] = useState([]);
+  const [services, setServices] = useState([]);
+  const [brands, setBrands] = useState([]);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ current_page: 1, last_page: 1, total: 0 });
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name: '', type: 'food' });
-  const editBrand = (brand) => { setEditing(brand.catalogId); setForm({ name: brand.name, type: brand.type }); };
-  const saveBrand = (event) => {
-    event.preventDefault();
-    if (!form.name.trim()) return;
-    if (editing === 'new') setBrands((current) => [...current, { catalogId: `brand-${Date.now()}`, name: form.name.trim(), type: form.type, active: true }]);
-    else setBrands((current) => current.map((brand) => brand.catalogId === editing ? { ...brand, name: form.name.trim(), type: form.type } : brand));
-    setEditing(null); setForm({ name: '', type: 'food' });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const activeModule = useRef(module);
+  const latestCatalogRequest = useRef(0);
+  const blank = useCallback(() => module === 'services' ? { ServiceName: '', ServiceType: 'item', Description: '', IsActive: true } : module === 'brands' ? { BrandName: '', ServiceID: '', Description: '', IsActive: true } : { ProductName: '', BrandID: '', ProductPrice: '', Description: '', IsActive: true }, [module]);
+  const [form, setForm] = useState(blank());
+  const [logoFile, setLogoFile] = useState(null);
+  const [productImageFile, setProductImageFile] = useState(null);
+  const request = useCallback(async (path, options = {}) => {
+    const isFormData = options.body instanceof FormData;
+    const response = await fetch(`${api}/api/admin/catalog/${path}`, { ...options, headers: { Authorization: `Bearer ${sessionStorage.getItem('otuzanAuthenticated')}`, ...(isFormData ? {} : { 'Content-Type': 'application/json' }), ...(options.headers || {}) } });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || Object.values(body.errors || {}).flat()[0] || 'Unable to save catalog changes.');
+    return body;
+  }, [api]);
+  const loadOptions = useCallback(async () => {
+    try {
+      const data = await request('options');
+      setServices(data.services); setBrands(data.brands);
+    } catch (e) { setError(e.message); }
+  }, [request]);
+  const load = useCallback(async () => {
+    const requestedModule = module;
+    const requestId = ++latestCatalogRequest.current;
+    try {
+      setError('');
+      const params = new URLSearchParams({ page, per_page: 10 });
+      if (search.trim()) params.set('search', search.trim());
+      if (filter) params.set(module === 'products' ? 'brand_id' : 'service_id', filter);
+      const data = await request(`${module}?${params}`);
+      // A request for a previously selected tab may finish after the user has
+      // switched tabs. Do not render those records in the current table.
+      if (activeModule.current !== requestedModule || requestId !== latestCatalogRequest.current) return;
+      setItems(data.data); setMeta(data);
+    } catch (e) { if (activeModule.current === requestedModule && requestId === latestCatalogRequest.current) setError(e.message); }
+  }, [filter, module, page, request, search]);
+  useEffect(() => { loadOptions(); }, [loadOptions]);
+  useEffect(() => { setPage(1); setItems([]); setEditing(null); setLogoFile(null); setProductImageFile(null); setForm(blank()); }, [blank, module]);
+  useEffect(() => { load(); }, [load]);
+  const key = module === 'services' ? 'ServiceID' : module === 'brands' ? 'BrandID' : 'ProductID';
+  const nameKey = module === 'services' ? 'ServiceName' : module === 'brands' ? 'BrandName' : 'ProductName';
+  const save = async (event) => {
+    event.preventDefault(); setSaving(true); setError('');
+    try {
+      const payload = { ...form, IsActive: form.IsActive ? 1 : 0, ...(module === 'brands' && !form.ServiceID ? { ServiceID: null } : {}) };
+      const hasUpload = module === 'brands' || module === 'products';
+      const body = hasUpload ? (() => { const data = new FormData(); const fields = module === 'brands' ? ['BrandName', 'ServiceID', 'Description', 'IsActive'] : ['ProductName', 'BrandID', 'ProductPrice', 'Description', 'IsActive']; fields.forEach((name) => data.append(name, payload[name] ?? '')); if (module === 'brands' && logoFile) data.append('Logo', logoFile); if (module === 'products' && productImageFile) data.append('Image', productImageFile); if (editing?.[key]) data.append('_method', 'PUT'); return data; })() : JSON.stringify(payload);
+      await request(editing?.[key] ? `${module}/${editing[key]}` : module, { method: hasUpload ? 'POST' : editing?.[key] ? 'PUT' : 'POST', body });
+      setEditing(null); setLogoFile(null); setProductImageFile(null); setForm(blank()); await loadOptions(); if (page !== 1) setPage(1); else await load();
+    } catch (e) { setError(e.message); } finally { setSaving(false); }
   };
-  return <div className="admin-catalog-layout"><div className="admin-table-wrap"><table><thead><tr><th>Brand</th><th>Service</th><th>Status</th><th /></tr></thead><tbody>{brands.map((brand) => <tr key={brand.catalogId}><td>{brand.name}</td><td><ServiceBadge service={brand.type} /></td><td><button className={`admin-catalog-status ${brand.active ? 'active' : ''}`} type="button" onClick={() => setBrands((current) => current.map((item) => item.catalogId === brand.catalogId ? { ...item, active: !item.active } : item))}>{brand.active ? 'Active' : 'Hidden'}</button></td><td><button className="admin-edit-link" type="button" onClick={() => editBrand(brand)}>Edit</button></td></tr>)}</tbody></table></div>
-    <form className="admin-catalog-form" onSubmit={saveBrand}><div className="admin-form-heading"><div><span>Catalog editor</span><h2>{editing === 'new' ? 'Add brand' : editing ? 'Edit brand' : 'Brand management'}</h2></div>{!editing && <button type="button" onClick={() => { setEditing('new'); setForm({ name: '', type: 'food' }); }}>+ Add new</button>}</div>{editing ? <><label>Brand name<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label><label>Service<select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })}><option value="food">Food Delivery</option><option value="item">Item Delivery</option><option value="bills">Pay Bills</option></select></label><div className="admin-form-actions"><button className="primary" type="submit">Save</button><button type="button" onClick={() => setEditing(null)}>Cancel</button></div></> : <p>Select Edit to update a brand, or add a new establishment to the local catalog draft.</p>}</form>
-  </div>;
+  const remove = async (item) => {
+    if (!window.confirm(`Delete ${item[nameKey]}? This cannot be undone.`)) return;
+    try { await request(`${module}/${item[key]}`, { method: 'DELETE' }); await loadOptions(); if (page > 1 && items.length === 1) setPage(page - 1); else await load(); } catch (e) { setError(e.message); }
+  };
+  const beginEdit = (item) => { setEditing(item); setLogoFile(null); setProductImageFile(null); setForm({ ...blank(), ...item, ServiceID: item.ServiceID || '', BrandID: item.BrandID || '' }); };
+  const filterOptions = module === 'products' ? brands : services;
+  const switchModule = (value) => { activeModule.current = value; latestCatalogRequest.current += 1; setModule(value); setFilter(''); };
+  return <section className="admin-catalog-manager"><div className="admin-catalog-tabs">{[['brands', 'Brands'], ['services', 'Services'], ['products', 'Products']].map(([value, label]) => <button type="button" className={module === value ? 'active' : ''} onClick={() => switchModule(value)} key={value}>{label}</button>)}</div>
+    <div className="admin-catalog-toolbar"><input aria-label="Search catalog" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${module}...`} />{module !== 'services' && <select aria-label="Filter catalog" value={filter} onChange={(e) => { setFilter(e.target.value); setPage(1); }}><option value="">All {module === 'products' ? 'brands' : 'services'}</option>{filterOptions.map((item) => <option key={item[module === 'products' ? 'BrandID' : 'ServiceID']} value={item[module === 'products' ? 'BrandID' : 'ServiceID']}>{item[module === 'products' ? 'BrandName' : 'ServiceName']}</option>)}</select>}<button type="button" className="primary" onClick={() => { setEditing({}); setLogoFile(null); setProductImageFile(null); setForm(blank()); }}>+ Add {module.slice(0, -1)}</button></div>
+    {error && <p className="admin-catalog-error" role="alert">{error}</p>}
+    <div className="admin-catalog-layout"><div className="admin-table-wrap"><table><thead><tr><th>{module === 'products' ? 'Product' : module.slice(0, -1)}</th>{module === 'products' && <><th>Brand</th><th>Price</th></>}{module === 'brands' && <th>Service</th>}<th>Status</th><th>Actions</th></tr></thead><tbody>{items.map((item) => <tr key={item[key]}><td><div className="admin-catalog-name">{module !== 'services' && item.ImagePath && <img src={catalogImageUrl(item.ImagePath)} alt="" loading="lazy" />}<strong>{item[nameKey]}</strong></div>{item.Description && <small className="admin-description">{item.Description}</small>}</td>{module === 'products' && <><td>{item.brand?.BrandName || 'Unassigned legacy item'}</td><td>{formatCurrency(item.ProductPrice)}</td></>}{module === 'brands' && <td>{item.service?.ServiceName || 'No service'}</td>}<td>{item.IsActive ? 'Active' : 'Hidden'}</td><td><button className="admin-edit-link" type="button" onClick={() => beginEdit(item)}>Edit</button><button className="admin-delete-link" type="button" onClick={() => remove(item)}>Delete</button></td></tr>)}</tbody></table>{!items.length && <div className="admin-table-empty">No {module} found.</div>}<div className="admin-pagination"><span>{meta.total} total</span><button disabled={page <= 1} type="button" onClick={() => setPage(page - 1)}>Previous</button><span>Page {meta.current_page} of {meta.last_page}</span><button disabled={page >= meta.last_page} type="button" onClick={() => setPage(page + 1)}>Next</button></div></div>
+      <form className="admin-catalog-form" onSubmit={save}><div className="admin-form-heading"><div><span>{module.slice(0, -1)} management</span><h2>{editing ? `${editing[key] ? 'Edit' : 'Add'} ${module.slice(0, -1)}` : 'Catalog editor'}</h2></div></div>{editing ? <><label>Name<input required maxLength="150" value={form[nameKey]} onChange={(e) => setForm({ ...form, [nameKey]: e.target.value })} /></label>{module === 'services' && <label>Service category<select value={form.ServiceType || 'item'} onChange={(e) => setForm({ ...form, ServiceType: e.target.value })}><option value="food">Food delivery</option><option value="item">Item delivery</option><option value="bills">Bill payment</option></select></label>}{module === 'brands' && <><label>Service<select required value={form.ServiceID} onChange={(e) => setForm({ ...form, ServiceID: e.target.value })}><option value="">Choose service</option>{services.map((item) => <option value={item.ServiceID} key={item.ServiceID}>{item.ServiceName}</option>)}</select></label><label>Brand logo<input accept="image/png,image/jpeg,image/webp,image/gif" type="file" onChange={(e) => setLogoFile(e.target.files?.[0] || null)} />{logoFile ? <small className="admin-upload-note">Selected: {logoFile.name}</small> : form.ImagePath ? <small className="admin-upload-note">Current logo is kept until you select a replacement.</small> : <small className="admin-upload-note">PNG, JPG, WebP, or GIF — up to 20 MB.</small>}</label></>}{module === 'products' && <><label>Brand<select required value={form.BrandID} onChange={(e) => setForm({ ...form, BrandID: e.target.value })}><option value="">Choose a brand</option>{brands.map((item) => <option value={item.BrandID} key={item.BrandID}>{item.BrandName}</option>)}</select></label><label>Price<input required min="0" step="0.01" type="number" value={form.ProductPrice} onChange={(e) => setForm({ ...form, ProductPrice: e.target.value })} /></label><label>Product image<input accept="image/png,image/jpeg,image/webp,image/gif" type="file" onChange={(e) => setProductImageFile(e.target.files?.[0] || null)} />{productImageFile ? <small className="admin-upload-note">Selected: {productImageFile.name}</small> : form.ImagePath ? <small className="admin-upload-note">Current image is kept until you select a replacement.</small> : <small className="admin-upload-note">PNG, JPG, WebP, or GIF — up to 20 MB.</small>}</label></>}<label>Description<textarea maxLength="500" value={form.Description || ''} onChange={(e) => setForm({ ...form, Description: e.target.value })} /></label><label className="admin-toggle"><input type="checkbox" checked={Boolean(form.IsActive)} onChange={(e) => setForm({ ...form, IsActive: e.target.checked })} /> Visible to customers</label><div className="admin-form-actions"><button className="primary" disabled={saving} type="submit">{saving ? 'Saving...' : 'Save'}</button><button type="button" onClick={() => { setEditing(null); setLogoFile(null); setProductImageFile(null); }}>Cancel</button></div></> : <p>Create and maintain the services, brands, and products shown in your customer catalog.</p>}</form>
+    </div></section>;
 };
 
 const DeliveryAdminDashboard = () => {

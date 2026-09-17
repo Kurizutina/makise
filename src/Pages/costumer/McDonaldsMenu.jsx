@@ -57,6 +57,7 @@ export const RestaurantMenu = ({
   sourceKey,
   manifestUrl,
   menuItems,
+  serviceType = 'food',
   showFoodIcons = false,
   pageClass = '',
   headerClass = '',
@@ -122,7 +123,7 @@ export const RestaurantMenu = ({
   };
 
   const addToCart = (product, quantity = 1) => {
-    addSharedCartItem({ ...product, source: sourceKey, quantity });
+    addSharedCartItem({ ...product, source: sourceKey, quantity, details: { ...product.details, serviceType } });
     showNotice(`${product.name} added to cart.`);
   };
 
@@ -132,7 +133,7 @@ export const RestaurantMenu = ({
   };
 
   const placeProductOrder = (product) => {
-    placeOrder({ source: sourceKey, label: product.name, items: [{ ...product, quantity: 1 }], section: 'food' });
+    placeOrder({ source: sourceKey, label: product.name, items: [{ ...product, quantity: 1 }], section: serviceType });
     showNotice(`Order placed for ${product.name}.`);
   };
 
@@ -163,7 +164,7 @@ export const RestaurantMenu = ({
           <i className="fa-solid fa-arrow-left" aria-hidden="true" /> Back
         </button>
         <div>
-          <span>Food Delivery</span>
+          <span>{serviceType === 'food' ? 'Food Delivery' : 'Item Delivery'}</span>
           <h1>{restaurantName} Menu</h1>
         </div>
         <button type="button" className="jollibee-cart-link" onClick={() => document.getElementById('mcdo-cart')?.scrollIntoView({ behavior: 'smooth' })}>
@@ -216,6 +217,7 @@ export const RestaurantMenu = ({
               </div>
             </section>
           ))}
+          {!isLoading && !categories.length && <p className="restaurant-menu-loading">No products available yet. You can request an item above.</p>}
         </div>
 
         <aside className="jollibee-cart-panel" id="mcdo-cart">

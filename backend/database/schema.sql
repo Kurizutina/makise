@@ -18,9 +18,7 @@ CREATE TABLE IF NOT EXISTS Product (
     ProductID INT PRIMARY KEY AUTO_INCREMENT,
     ProductName VARCHAR(150) NOT NULL,
     ProductPrice DECIMAL(10, 2) NOT NULL,
-    StockQuantity INT NOT NULL DEFAULT 0,
-    CONSTRAINT chk_product_price_nonnegative CHECK (ProductPrice >= 0),
-    CONSTRAINT chk_product_stock_nonnegative CHECK (StockQuantity >= 0)
+    CONSTRAINT chk_product_price_nonnegative CHECK (ProductPrice >= 0)
 ) ENGINE = InnoDB;
 
 CREATE TABLE IF NOT EXISTS Orders (

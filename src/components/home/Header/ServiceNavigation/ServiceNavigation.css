@@ -8,7 +8,9 @@
   justify-content: flex-start;
 
   width: auto;
-  flex-shrink: 0;
+  max-width: 100%;
+  flex-shrink: 1;
+  overflow-x: auto;
 
   gap: 6px;
 
@@ -115,9 +117,8 @@
   }
 
   .service-tab {
-    min-width: 0;
-
-    flex: 1;
+    min-width: 100px;
+    flex: 0 0 auto;
 
     padding: 9px 5px;
 

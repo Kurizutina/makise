@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import './SearchBar.css';
 
-const SearchBar = () => {
+const SearchBar = ({ onSearch }) => {
   const [searchText, setSearchText] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Search functionality will be added later
-    console.log('Searching for:', searchText);
+    onSearch?.(searchText);
   };
 
   return (
@@ -18,16 +17,16 @@ const SearchBar = () => {
 
       <input
         type="text"
-        placeholder="Search for food, items, brands..."
+        placeholder="Search brands..."
         value={searchText}
-        onChange={(e) => setSearchText(e.target.value)}
+        onChange={(e) => { setSearchText(e.target.value); onSearch?.(e.target.value); }}
       />
 
       {searchText && (
         <button
           type="button"
           className="clear-search"
-          onClick={() => setSearchText('')}
+          onClick={() => { setSearchText(''); onSearch?.(''); }}
         >
           <i className="fa-solid fa-xmark"></i>
         </button>

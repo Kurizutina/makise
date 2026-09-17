@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/home/Header/Header';
 import Footer from '../../components/home/Footer/Footer';
@@ -6,11 +6,7 @@ import FoodandItemsSection from '../../components/home/FoodandItem/FoodandItemsS
 import OthersOrderForm from '../../components/home/OthersOrderForm/OthersOrderForm';
 import PayBillsForm from '../../components/home/PayBillsForm/PayBillsForm';
 import { useCustomerActivity } from '../../context/CustomerActivityContext';
-import {
-  temporaryFoodBrands,
-  temporaryItemBrands,
-  temporaryUtilityCompanies
-} from '../../components/home/FoodandItem/data/temporaryData';
+import { catalogImageUrl, getCatalog } from '../../utils/catalog';
 
 
 const Home = () => {
@@ -18,48 +14,52 @@ const Home = () => {
   const { addToCart, placeOrder } = useCustomerActivity();
 
   // Currently selected service
-  const [selectedService, setSelectedService] = useState('food');
+  const [selectedService, setSelectedService] = useState(null);
+  const [services, setServices] = useState([]);
+  const [catalogError, setCatalogError] = useState('');
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [reloadCatalog, setReloadCatalog] = useState(0);
+  const [search, setSearch] = useState('');
   const [customOrderBrand, setCustomOrderBrand] = useState(null);
   const [paymentBrand, setPaymentBrand] = useState(null);
 
 
-  // Get the brands for the selected service
-  const getCurrentBrands = () => {
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      setCatalogLoading(true);
+      try {
+        const data = await getCatalog();
+        if (!active) return;
+        setServices(data.services);
+        setSelectedService((current) => data.services.some((service) => service.ServiceID === current)
+          ? current : (data.services[0]?.ServiceID ?? null));
+        setCatalogError('');
+      } catch (error) { if (active) setCatalogError(error.message); }
+      finally { if (active) setCatalogLoading(false); }
+    };
+    const refreshWhenVisible = () => { if (document.visibilityState === 'visible') load(); };
+    load();
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => { active = false; document.removeEventListener('visibilitychange', refreshWhenVisible); };
+  }, [reloadCatalog]);
 
-    switch (selectedService) {
-
-      case 'food':
-        return temporaryFoodBrands;
-
-      case 'item':
-        return temporaryItemBrands;
-
-      case 'bills':
-        return temporaryUtilityCompanies;
-
-      default:
-        return temporaryFoodBrands;
-    }
-  };
+  const currentService = services.find((service) => service.ServiceID === selectedService);
+  const getCurrentBrands = () => (currentService?.brands || [])
+    .filter((brand) => brand.BrandName.toLowerCase().includes(search.trim().toLowerCase()))
+    .map((brand) => ({
+    id: brand.BrandID,
+    name: brand.BrandName.startsWith('Others (') ? 'Others' : brand.BrandName,
+    image: catalogImageUrl(brand.ImagePath),
+    type: currentService.ServiceType,
+    productsCount: brand.products_count
+    }));
 
 
   // Change section title depending on service
   const getSectionTitle = () => {
 
-    switch (selectedService) {
-
-      case 'food':
-        return 'Food Brands';
-
-      case 'item':
-        return 'Item Stores';
-
-      case 'bills':
-        return 'Utility Companies';
-
-      default:
-        return 'Food Brands';
-    }
+    return currentService?.ServiceName || 'Services';
   };
 
 
@@ -70,15 +70,20 @@ const Home = () => {
       <Header
         selectedService={selectedService}
         onServiceChange={setSelectedService}
+        services={services}
+        onSearch={setSearch}
       />
+
+      {catalogLoading && <p role="status" className="home-catalog-error">Loading catalog...</p>}
+      {catalogError && <p role="alert" className="home-catalog-error">{catalogError} <button type="button" onClick={() => setReloadCatalog((count) => count + 1)}>Retry</button></p>}
 
       {/* Brand Cards */}
       <FoodandItemsSection
         title={getSectionTitle()}
         brands={getCurrentBrands()}
         onBrandSelect={(brand) => {
-          if (brand.type === 'food' && brand.name === "Manuela's") {
-            navigate('/food/manuelas');
+          if (brand.type !== 'bills' && brand.productsCount > 0) {
+            navigate(`/catalog/brands/${brand.id}`);
             return;
           }
           if (brand.type === 'food' && brand.name === 'Jollibee') {
@@ -86,23 +91,9 @@ const Home = () => {
             return;
           }
 
-          if (brand.type === 'food' && brand.name === "McDonald's") {
-            navigate('/food/mcdonalds');
-            return;
-          }
-
-          if (brand.type === 'food' && brand.name === 'Mang Inasal') {
-            navigate('/food/mang-inasal');
-            return;
-          }
-
-          const foodBrandsWithoutCustomForm = ['Jollibee', "McDonald's", 'Mang Inasal'];
-          const canOpenCustomForm = brand.type === 'item'
-            || (brand.type === 'food' && !foodBrandsWithoutCustomForm.includes(brand.name));
-
           if (brand.type === 'bills') {
             setPaymentBrand(brand);
-          } else if (canOpenCustomForm) {
+          } else {
             setCustomOrderBrand(brand);
           }
         }}
@@ -159,7 +150,10 @@ const Home = () => {
         />
       )}
 
-      <Footer onServiceChange={setSelectedService} />
+      <Footer onServiceChange={(type) => {
+        const service = services.find((item) => item.ServiceType === type);
+        if (service) setSelectedService(service.ServiceID);
+      }} />
     </div>
   );
 };

@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { jollibeeMenu } from '../../components/home/JollibeeMenu/jollibeeMenuData';
 import { useCustomerActivity } from '../../context/CustomerActivityContext';
 import './JollibeeMenu.css';
 
@@ -10,15 +9,13 @@ const JollibeeMenu = () => {
     cart: sharedCart,
     addToCart: addSharedCartItem,
     updateCartQuantity,
-    placeOrder,
     placeCartOrder
   } = useCustomerActivity();
   const cart = sharedCart.filter((item) => item.source === 'Jollibee');
   const [customName, setCustomName] = useState('');
   const [customQuantity, setCustomQuantity] = useState(1);
-  const [showCustomItem, setShowCustomItem] = useState(false);
+  const [showCustomItem, setShowCustomItem] = useState(true);
   const [notice, setNotice] = useState('');
-  const [selectedOptions, setSelectedOptions] = useState({});
 
   const itemCount = useMemo(
     () => cart.reduce((total, item) => total + item.quantity, 0),
@@ -30,32 +27,14 @@ const JollibeeMenu = () => {
     window.setTimeout(() => setNotice(''), 2600);
   };
 
-  const getConfiguredProduct = (product) => {
-    if (!product.options) return product;
-
-    const selectedOption = selectedOptions[product.id] || product.options[0];
-    return {
-      ...product,
-      id: `${product.id}-${selectedOption}`,
-      selectedOption
-    };
-  };
-
   const addToCart = (product, quantity = 1) => {
-    const configuredProduct = getConfiguredProduct(product);
-    addSharedCartItem({ ...configuredProduct, source: 'Jollibee', quantity });
-    showNotice(`${configuredProduct.name}${configuredProduct.selectedOption ? ` (${configuredProduct.selectedOption})` : ''} added to cart.`);
+    addSharedCartItem({ ...product, source: 'Jollibee', quantity });
+    showNotice(`${product.name} added to cart.`);
   };
 
   const updateQuantity = (id, amount) => {
     const item = cart.find((entry) => entry.id === id);
     if (item) updateCartQuantity(item.cartId, amount);
-  };
-
-  const placeProductOrder = (product) => {
-    const configuredProduct = getConfiguredProduct(product);
-    showNotice(`Order placed for ${configuredProduct.name}${configuredProduct.selectedOption ? ` (${configuredProduct.selectedOption})` : ''}.`);
-    placeOrder({ source: 'Jollibee', label: configuredProduct.name, items: [{ ...configuredProduct, quantity: 1 }], section: 'food' });
   };
 
   const addCustomItem = (event) => {
@@ -101,13 +80,13 @@ const JollibeeMenu = () => {
         <div className="jollibee-menu-content">
           <section className="jollibee-intro">
             <div>
-              <p className="jollibee-eyebrow">Choose your favorites</p>
-              <h2>What are you craving today?</h2>
-              <p>Browse the menu by category, add items to your cart, or place an order right away.</p>
+              <p className="jollibee-eyebrow">Jollibee orders</p>
+              <h2>What would you like to order?</h2>
+              <p>Enter the items you want, add them to your cart, then place your order.</p>
             </div>
             <button type="button" onClick={() => setShowCustomItem((current) => !current)}>
               <i className="fa-solid fa-plus" aria-hidden="true" />
-              Add an item not on the menu
+              Add an item
             </button>
           </section>
 
@@ -129,46 +108,6 @@ const JollibeeMenu = () => {
             </form>
           )}
 
-          {jollibeeMenu.map(({ category, products }) => (
-            <section className="jollibee-category" key={category}>
-              <div className="jollibee-category-heading">
-                <h2>{category}</h2>
-                <span>{products.length} items</span>
-              </div>
-              <div className="jollibee-product-grid">
-                {products.map((product) => (
-                  <article className="jollibee-product-card" key={product.id}>
-                    <div className="jollibee-product-image">
-                      <img src={product.image} alt={product.name} loading="lazy" />
-                    </div>
-                    <div className="jollibee-product-body">
-                      <h3>{product.name}</h3>
-                      {product.options && (
-                        <label className="jollibee-product-option">
-                          <span>{product.name === 'Fries' ? 'Choose size' : 'Choose quantity'}</span>
-                          <select
-                            value={selectedOptions[product.id] || product.options[0]}
-                            onChange={(event) => setSelectedOptions((current) => ({
-                              ...current,
-                              [product.id]: event.target.value
-                            }))}
-                          >
-                            {product.options.map((option) => <option key={option}>{option}</option>)}
-                          </select>
-                        </label>
-                      )}
-                      <div className="jollibee-product-actions">
-                        <button type="button" className="product-cart-button" onClick={() => addToCart(product)}>
-                          <i className="fa-solid fa-cart-plus" aria-hidden="true" /> Add to Cart
-                        </button>
-                        <button type="button" className="product-order-button" onClick={() => placeProductOrder(product)}>Place Order</button>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
-          ))}
         </div>
 
         <aside className="jollibee-cart-panel" id="jollibee-cart">
@@ -184,7 +123,7 @@ const JollibeeMenu = () => {
             <div className="jollibee-empty-cart">
               <i className="fa-solid fa-basket-shopping" aria-hidden="true" />
               <p>Your cart is empty.</p>
-              <span>Add something delicious from the menu.</span>
+              <span>Add the items you would like to order.</span>
             </div>
           ) : (
             <div className="jollibee-cart-items">

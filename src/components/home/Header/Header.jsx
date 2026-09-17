@@ -16,7 +16,9 @@ const MenuIcon = () => (
 
 const Header = ({
   selectedService,
-  onServiceChange
+  onServiceChange,
+  services,
+  onSearch
 }) => {
 
   return (
@@ -30,11 +32,12 @@ const Header = ({
           <ServiceNavigation
             selectedService={selectedService}
             onServiceChange={onServiceChange}
+            services={services}
           />
 
           <div className="header-tools">
             <div className="header-search">
-              <SearchBar />
+              <SearchBar onSearch={onSearch} />
             </div>
 
             <div className="header-actions">

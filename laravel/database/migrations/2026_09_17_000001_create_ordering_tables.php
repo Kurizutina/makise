@@ -13,8 +13,6 @@ return new class extends Migration
                 $table->increments('ProductID');
                 $table->string('ProductName', 150);
                 $table->decimal('ProductPrice', 10, 2);
-                // Kept for the existing application inventory data; it is not required by the ERD workflow.
-                $table->unsignedInteger('StockQuantity')->default(0);
             });
         }
 

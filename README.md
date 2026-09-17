@@ -35,8 +35,11 @@ Laravel migrations adopt existing Users records and add the address and API-toke
 
 Laravel implements registration, login, current account, logout, the admin-only rider directory, and health endpoints. API responses retain the React frontend's existing format. Bearer authentication uses Laravel Sanctum with tokens valid for two hours. Sign in again after migrating from the old Node backend; old JWT sessions are not Laravel tokens.
 
+The customer Home and product menus read the active service, brand, and product catalog from MySQL through `/api/catalog`. Admin Catalog changes are persisted through the protected `/api/admin/catalog` routes and appear to customers on refresh or when they return to Home. Brand and product uploads are served from Laravel's public `uploads` directory. The initial catalog seed only runs when the Brands table is empty, so subsequent normal `db:seed` runs do not restore deleted catalog entries.
+
 - `npm run backend:db-check`: verify Laravel database access
 - `npm run backend:migrate`: apply Laravel migrations
+- `npm run generate:manuelas-catalog`: refresh Manuela's Product Management import from the customer menu; run `php artisan db:seed --class=ManuelasProductsSeeder` inside `laravel` to add any new entries
 - `npm run backend:test`: Laravel tests using a separate in-memory SQLite database
 - `npm test -- --watchAll=false`: React tests
 - `npm run build`: frontend production build

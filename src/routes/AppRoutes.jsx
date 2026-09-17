@@ -10,12 +10,11 @@ import Login from '../Pages/auth/Login';
 import Register from '../Pages/auth/Register';
 import Home from '../Pages/costumer/Home';
 import JollibeeMenu from '../Pages/costumer/JollibeeMenu';
-import McDonaldsMenu from '../Pages/costumer/McDonaldsMenu';
-import MangInasalMenu from '../Pages/costumer/MangInasalMenu';
-import ManuelasMenu from '../Pages/costumer/ManuelasMenu';
+import CatalogNameRedirect from '../Pages/costumer/CatalogNameRedirect';
 import ProtectedRoute from './ProtectedRoute';
 import RiderDashboard from '../Pages/rider/RiderDashboard';
 import DeliveryAdminDashboard from '../Pages/admin/DeliveryAdminDashboard';
+import CatalogBrandMenu from '../Pages/costumer/CatalogBrandMenu';
 
 const AppRoutes = () => {
   return (
@@ -39,7 +38,8 @@ const AppRoutes = () => {
         />
 
         <Route element={<ProtectedRoute />}>
-          <Route path="/food/manuelas" element={<ManuelasMenu />} />
+          <Route path="/food/manuelas" element={<CatalogNameRedirect brandName="Manuela's" />} />
+          <Route path="/catalog/brands/:brandId" element={<CatalogBrandMenu />} />
           <Route
             path="/home"
             element={<Home />}
@@ -52,12 +52,12 @@ const AppRoutes = () => {
 
           <Route
             path="/food/mcdonalds"
-            element={<McDonaldsMenu />}
+            element={<CatalogNameRedirect brandName="McDonald's" />}
           />
 
           <Route
             path="/food/mang-inasal"
-            element={<MangInasalMenu />}
+            element={<CatalogNameRedirect brandName="Mang Inasal" />}
           />
         </Route>
 

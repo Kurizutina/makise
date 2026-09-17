@@ -13,9 +13,6 @@ const FoodandItemsSection = ({
       <div className="food-items-header">
         <h2>{title}</h2>
 
-        <button className="view-all-button">
-          View All
-        </button>
       </div>
 
       <div className="brand-list">

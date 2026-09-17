@@ -1,52 +1,22 @@
 import React from 'react';
 import './ServiceNavigation.css';
 
-const ServiceNavigation = ({
-  selectedService = 'food',
-  onServiceChange
-}) => {
+const icons = { food: 'fa-utensils', item: 'fa-box', bills: 'fa-file-invoice-dollar' };
 
-  const handleServiceChange = (service) => {
-    if (onServiceChange) {
-      onServiceChange(service);
-    }
-  };
-
-  return (
-    <div className="service-navigation">
-
+const ServiceNavigation = ({ selectedService, onServiceChange, services = [] }) => (
+  <div className="service-navigation">
+    {services.map((service) => (
       <button
-        className={`service-tab ${
-          selectedService === 'food' ? 'active' : ''
-        }`}
-        onClick={() => handleServiceChange('food')}
+        key={service.ServiceID}
+        type="button"
+        className={`service-tab ${selectedService === service.ServiceID ? 'active' : ''}`}
+        onClick={() => onServiceChange(service.ServiceID)}
       >
-        <i className="fa-solid fa-utensils"></i>
-        <span>Food Delivery</span>
+        <i className={`fa-solid ${icons[service.ServiceType] || icons.item}`} />
+        <span>{service.ServiceName}</span>
       </button>
-
-      <button
-        className={`service-tab ${
-          selectedService === 'item' ? 'active' : ''
-        }`}
-        onClick={() => handleServiceChange('item')}
-      >
-        <i className="fa-solid fa-box"></i>
-        <span>Item Delivery</span>
-      </button>
-
-      <button
-        className={`service-tab ${
-          selectedService === 'bills' ? 'active' : ''
-        }`}
-        onClick={() => handleServiceChange('bills')}
-      >
-        <i className="fa-solid fa-file-invoice-dollar"></i>
-        <span>Pay Bills</span>
-      </button>
-
-    </div>
-  );
-};
+    ))}
+  </div>
+);
 
 export default ServiceNavigation;
