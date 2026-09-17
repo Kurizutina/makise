@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import './OthersOrderForm.css';
+import { calculateDeliveryFee, CUSTOMER_TYPES, DELIVERY_LOCATIONS, deliveryRateLabel, findDeliveryLocation } from '../../../utils/deliveryRates';
 
 const serviceNames = {
   food: 'Food Delivery',
@@ -24,6 +25,8 @@ const OthersOrderForm = ({
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [recipientContact, setRecipientContact] = useState('');
+  const [deliveryLocation, setDeliveryLocation] = useState('');
+  const [customerType, setCustomerType] = useState('');
 
   useEffect(() => {
     const handleEscape = (event) => {
@@ -63,6 +66,8 @@ const OthersOrderForm = ({
       serviceType,
       establishment: establishment.trim(),
       items,
+      deliveryLocation,
+      customerType,
       ...(serviceType === 'item' && {
         fulfillmentMethod,
         ...(fulfillmentMethod === 'pickup' && {
@@ -108,6 +113,20 @@ const OthersOrderForm = ({
               placeholder={canEditEstablishment ? 'Enter the store or vendor name' : ''}
             />
           </label>
+
+          {serviceType !== 'bills' && <label className="order-field">
+            <span>Delivery location</span>
+            <select required value={deliveryLocation} onChange={(event) => setDeliveryLocation(event.target.value)}>
+              <option value="">Select your location</option>
+              {DELIVERY_LOCATIONS.map((location) => <option value={location.id} key={location.id}>{location.name} — {deliveryRateLabel(location)}</option>)}
+            </select>
+            <span>Customer type</span>
+            <select required value={customerType} onChange={(event) => setCustomerType(event.target.value)}>
+              <option value="">Select customer type</option>
+              {CUSTOMER_TYPES.map((type) => <option value={type.id} key={type.id}>{type.label}</option>)}
+            </select>
+            {deliveryLocation && customerType && <small>Delivery/service fee: ₱{calculateDeliveryFee(findDeliveryLocation(deliveryLocation), customerType).serviceFee.toFixed(2)}{calculateDeliveryFee(findDeliveryLocation(deliveryLocation), customerType).surchargeApplied ? ' (includes 50% night surcharge)' : ''}</small>}
+          </label>}
 
           {serviceType === 'item' && allowPickup && (
             <>

@@ -5,6 +5,7 @@ import {
   useCustomerActivity
 } from '../../../../context/CustomerActivityContext';
 import './CustomerActivity.css';
+import { calculateDeliveryFee, CUSTOMER_TYPES, DELIVERY_LOCATIONS, deliveryRateLabel, findDeliveryLocation } from '../../../../utils/deliveryRates';
 
 const NotificationIcon = () => (
   <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -74,6 +75,8 @@ const CustomerActivity = () => {
   const [openPanel, setOpenPanel] = useState(null);
   const [activityTab, setActivityTab] = useState('notifications');
   const [now, setNow] = useState(Date.now());
+  const [deliveryLocation, setDeliveryLocation] = useState('');
+  const [customerType, setCustomerType] = useState('');
   const unreadCount = notifications.filter((item) => !item.read).length;
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
   const cartTotal = cart.reduce((total, item) => total + (item.price || 0) * item.quantity, 0);
@@ -90,12 +93,15 @@ const CustomerActivity = () => {
   };
 
   const confirmCart = () => {
-    const order = placeCartOrder();
+    if (!deliveryLocation || !customerType) return;
+    const order = placeCartOrder(null, deliveryLocation, customerType);
     if (order) {
       setOpenPanel('activity');
       setActivityTab('orders');
     }
   };
+  const selectedLocation = findDeliveryLocation(deliveryLocation);
+  const deliveryFee = calculateDeliveryFee(selectedLocation, customerType || 'non_student');
 
   return (
     <>
@@ -194,7 +200,8 @@ const CustomerActivity = () => {
                       ))}
                     </div>
                     <div className="global-cart-summary"><span>Priced subtotal</span><strong>{formatPrice(cartTotal)}</strong></div>
-                    <button className="global-cart-place" type="button" onClick={confirmCart}>Place Order</button>
+                    <label className="global-cart-location"><span>Delivery location</span><select value={deliveryLocation} onChange={(event) => setDeliveryLocation(event.target.value)}><option value="">Select your location</option>{DELIVERY_LOCATIONS.map((location) => <option value={location.id} key={location.id}>{location.name} — {deliveryRateLabel(location)}</option>)}</select><span>Customer type</span><select value={customerType} onChange={(event) => setCustomerType(event.target.value)}><option value="">Select customer type</option>{CUSTOMER_TYPES.map((type) => <option value={type.id} key={type.id}>{type.label}</option>)}</select>{selectedLocation && customerType && <small>Delivery/service fee: {formatPrice(deliveryFee.serviceFee)}{deliveryFee.surchargeApplied ? ' (includes 50% night surcharge)' : ''}</small>}</label>
+                    <button className="global-cart-place" type="button" disabled={!deliveryLocation || !customerType} onClick={confirmCart}>Place Order</button>
                   </>
                 )}
               </div>

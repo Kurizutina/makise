@@ -154,6 +154,7 @@
 }
 
 .order-field input,
+.order-field select,
 .order-item-name input,
 .order-field textarea {
   width: 100%;
@@ -174,6 +175,7 @@
 }
 
 .order-field input:focus,
+.order-field select:focus,
 .order-item-name input:focus,
 .order-field textarea:focus {
   border-color: #da1c5c;
@@ -190,6 +192,11 @@
 .order-field input[readonly]:focus {
   border-color: #e9e1e4;
   box-shadow: none;
+}
+
+.order-field small {
+  color: #81757b;
+  font-size: 12px;
 }
 
 .pickup-recipient-details {

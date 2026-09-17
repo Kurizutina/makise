@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AccountManagementController;
 use App\Http\Controllers\CatalogController;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -36,6 +37,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/products', [CatalogController::class, 'storeProduct']);
         Route::put('/products/{product}', [CatalogController::class, 'updateProduct']);
         Route::delete('/products/{product}', [CatalogController::class, 'destroyProduct']);
+    });
+    Route::middleware('admin')->prefix('admin/accounts')->group(function () {
+        Route::get('/{role}', [AccountManagementController::class, 'index']);
+        Route::post('/{role}', [AccountManagementController::class, 'store']);
+        Route::put('/{role}/{account}', [AccountManagementController::class, 'update']);
+        Route::delete('/{role}/{account}', [AccountManagementController::class, 'destroy']);
     });
 });
 Route::get('/health', fn () => response()->json(['status' => 'ok', 'backend' => 'laravel']));

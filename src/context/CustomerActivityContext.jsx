@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { getSessionUser, isAssignedTo } from '../utils/session';
 import { CUSTOMER_ACTIVITY_CHANGED } from '../utils/customerProfileSync';
+import { calculateDeliveryFee, findDeliveryLocation } from '../utils/deliveryRates';
 
 const CustomerActivityContext = createContext(null);
 const STORAGE_KEY = 'otuzanCustomerActivity';
@@ -124,10 +125,12 @@ export const CustomerActivityProvider = ({ children }) => {
     updateAll(nextCart, orders, notifications);
   };
 
-  const placeOrder = ({ source, label, items = [], details = null, section = 'food' }) => {
-    const createdAt = new Date().toISOString();
+  const placeOrder = ({ source, label, items = [], details = null, section = 'food', deliveryLocation = '', customerType = '', orderTime = null }) => {
+    const createdAt = orderTime || new Date().toISOString();
     const estimatedWaitMinutes = calculateEstimatedWaitMinutes(items);
     const customer = getCustomerSnapshot();
+    const location = findDeliveryLocation(deliveryLocation || details?.deliveryLocation, customer.customerAddress);
+    const fee = calculateDeliveryFee(location, customerType || details?.customerType, createdAt);
     const order = {
       id: `ORD-${Date.now().toString().slice(-7)}`,
       source: source || 'Otu-Zan',
@@ -136,6 +139,13 @@ export const CustomerActivityProvider = ({ children }) => {
       details,
       section,
       ...customer,
+      deliveryLocation: location?.id || '',
+      deliveryLocationName: location?.name || '',
+      customerType: fee.customerType,
+      baseDeliveryFee: fee.baseFee,
+      nightDeliverySurcharge: fee.surcharge,
+      serviceFee: fee.serviceFee,
+      surchargeApplied: fee.surchargeApplied,
       estimatedWaitMinutes,
       status: 'pending_rider',
       createdAt
@@ -152,7 +162,7 @@ export const CustomerActivityProvider = ({ children }) => {
     return order;
   };
 
-  const placeCartOrder = (source = null) => {
+  const placeCartOrder = (source = null, deliveryLocation = '', customerType = '', orderTime = null) => {
     const orderItems = source ? cart.filter((item) => item.source === source) : cart;
     if (!orderItems.length) return null;
 
@@ -164,19 +174,31 @@ export const CustomerActivityProvider = ({ children }) => {
         return groups;
       }, {}));
 
-    const orderTime = Date.now();
+    const orderTimestamp = orderTime ? Date.parse(orderTime) : Date.now();
     const customer = getCustomerSnapshot();
-    const newOrders = groupedItems.map(([establishment, items], index) => ({
-      id: `ORD-${(orderTime + index).toString().slice(-7)}`,
+    const newOrders = groupedItems.map(([establishment, items], index) => {
+      const location = findDeliveryLocation(deliveryLocation || items[0]?.details?.deliveryLocation, customer.customerAddress);
+      const createdAt = new Date(orderTimestamp + index).toISOString();
+      const fee = calculateDeliveryFee(location, customerType || items[0]?.details?.customerType, createdAt);
+      return {
+      id: `ORD-${(orderTimestamp + index).toString().slice(-7)}`,
       source: establishment,
       label: getCartOrderLabel(items),
       items,
       section: items.every((item) => item.details?.serviceType === 'item') ? 'item' : 'food',
       ...customer,
+      deliveryLocation: location?.id || '',
+      deliveryLocationName: location?.name || '',
+      customerType: fee.customerType,
+      baseDeliveryFee: fee.baseFee,
+      nightDeliverySurcharge: fee.surcharge,
+      serviceFee: fee.serviceFee,
+      surchargeApplied: fee.surchargeApplied,
       estimatedWaitMinutes: calculateEstimatedWaitMinutes(items),
       status: 'pending_rider',
-      createdAt: new Date(orderTime + index).toISOString()
-    }));
+        createdAt
+      };
+    });
     const newNotifications = newOrders.map((order) => ({
       id: `NOT-${order.id}-${Math.random()}`,
       orderId: order.id,
@@ -269,6 +291,15 @@ export const useCustomerActivity = () => {
   const context = useContext(CustomerActivityContext);
   if (!context) throw new Error('useCustomerActivity must be used inside CustomerActivityProvider');
   const user = getSessionUser();
+  if (user?.role === 'customer') {
+    const orders = context.orders.filter((order) => String(order.customerId) === String(user.id));
+    const orderIds = new Set(orders.map((order) => order.id));
+    return {
+      ...context,
+      orders,
+      notifications: context.notifications.filter((notification) => orderIds.has(notification.orderId))
+    };
+  }
   if (user?.role === 'driver') {
     const orders = context.orders.filter((order) => isAssignedTo(order, user));
     const orderIds = new Set(orders.map((order) => order.id));

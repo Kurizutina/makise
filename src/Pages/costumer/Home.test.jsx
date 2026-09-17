@@ -18,6 +18,7 @@ test('home shows API brands and opens the current database product catalog', asy
   global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ services: [
     { ServiceID: 1, ServiceName: 'Food Delivery', ServiceType: 'food', brands: [
       { BrandID: 4, BrandName: "Manuela's", ImagePath: null, products_count: 185 },
+      { BrandID: 3, BrandName: 'Others (Food Delivery)', ImagePath: null, products_count: 0 },
       { BrandID: 1, BrandName: 'Jollibee', ImagePath: null, products_count: 0 },
     ] },
     { ServiceID: 2, ServiceName: 'Item Delivery', ServiceType: 'item', brands: [] },
@@ -26,6 +27,9 @@ test('home shows API brands and opens the current database product catalog', asy
   fireEvent.click(await screen.findByRole('button', { name: "Manuela's" }));
   expect(mockNavigate).toHaveBeenCalledWith('/catalog/brands/4');
   expect(screen.getByRole('button', { name: 'Jollibee' })).toBeInTheDocument();
+  expect(screen.getAllByRole('button').slice(2).map((button) => button.textContent)).toEqual([
+    "Manuela's", 'Jollibee', 'Others'
+  ]);
   fireEvent.click(screen.getByRole('button', { name: 'Item Delivery' }));
   expect(screen.queryByRole('button', { name: "Manuela's" })).not.toBeInTheDocument();
 });

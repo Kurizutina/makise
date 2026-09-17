@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FaUtensils } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerActivity } from '../../context/CustomerActivityContext';
+import { calculateDeliveryFee, CUSTOMER_TYPES, DELIVERY_LOCATIONS, deliveryRateLabel, findDeliveryLocation } from '../../utils/deliveryRates';
 import './JollibeeMenu.css';
 
 const formatPrice = (price) => new Intl.NumberFormat('en-PH', {
@@ -78,6 +79,8 @@ export const RestaurantMenu = ({
   const [showCustomItem, setShowCustomItem] = useState(false);
   const [notice, setNotice] = useState('');
   const [isLoading, setIsLoading] = useState(!menuItems);
+  const [deliveryLocation, setDeliveryLocation] = useState('');
+  const [customerType, setCustomerType] = useState('');
 
   useEffect(() => {
     if (menuItems) {
@@ -133,7 +136,11 @@ export const RestaurantMenu = ({
   };
 
   const placeProductOrder = (product) => {
-    placeOrder({ source: sourceKey, label: product.name, items: [{ ...product, quantity: 1 }], section: serviceType });
+    if (!deliveryLocation || !customerType) {
+      showNotice('Select your delivery location and customer type before placing your order.');
+      return;
+    }
+    placeOrder({ source: sourceKey, label: product.name, items: [{ ...product, quantity: 1 }], section: serviceType, deliveryLocation, customerType });
     showNotice(`Order placed for ${product.name}.`);
   };
 
@@ -153,9 +160,16 @@ export const RestaurantMenu = ({
 
   const checkoutCart = () => {
     if (!cart.length) return;
-    placeCartOrder(sourceKey);
+    if (!deliveryLocation || !customerType) {
+      showNotice('Select your delivery location and customer type before placing your order.');
+      return;
+    }
+    placeCartOrder(sourceKey, deliveryLocation, customerType);
     showNotice(`Order placed with ${itemCount} item${itemCount === 1 ? '' : 's'}.`);
   };
+
+  const selectedLocation = findDeliveryLocation(deliveryLocation);
+  const deliveryFee = calculateDeliveryFee(selectedLocation, customerType || 'non_student');
 
   return (
     <main className={`jollibee-page ${pageClass}`}>
@@ -254,6 +268,19 @@ export const RestaurantMenu = ({
               <strong>{formatPrice(cartSubtotal)}</strong>
             </div>
           )}
+          <label className="restaurant-delivery-location">
+            <span>Delivery location</span>
+            <select value={deliveryLocation} onChange={(event) => setDeliveryLocation(event.target.value)}>
+              <option value="">Select your location</option>
+              {DELIVERY_LOCATIONS.map((location) => <option value={location.id} key={location.id}>{location.name} — {deliveryRateLabel(location)}</option>)}
+            </select>
+            <span>Customer type</span>
+            <select value={customerType} onChange={(event) => setCustomerType(event.target.value)}>
+              <option value="">Select customer type</option>
+              {CUSTOMER_TYPES.map((type) => <option value={type.id} key={type.id}>{type.label}</option>)}
+            </select>
+            {selectedLocation && customerType && <small>Delivery/service fee: {formatPrice(deliveryFee.serviceFee)}{deliveryFee.surchargeApplied ? ' (includes 50% night surcharge)' : ''}</small>}
+          </label>
           <button type="button" className="jollibee-checkout" disabled={!cart.length} onClick={checkoutCart}>Place Order {itemCount > 0 && `(${itemCount})`}</button>
         </aside>
       </div>

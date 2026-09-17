@@ -48,12 +48,13 @@ const Home = () => {
   const getCurrentBrands = () => (currentService?.brands || [])
     .filter((brand) => brand.BrandName.toLowerCase().includes(search.trim().toLowerCase()))
     .map((brand) => ({
-    id: brand.BrandID,
-    name: brand.BrandName.startsWith('Others (') ? 'Others' : brand.BrandName,
-    image: catalogImageUrl(brand.ImagePath),
-    type: currentService.ServiceType,
-    productsCount: brand.products_count
-    }));
+      id: brand.BrandID,
+      name: brand.BrandName.startsWith('Others (') ? 'Others' : brand.BrandName,
+      image: catalogImageUrl(brand.ImagePath),
+      type: currentService.ServiceType,
+      productsCount: brand.products_count
+    }))
+    .sort((first, second) => Number(first.name === 'Others') - Number(second.name === 'Others'));
 
 
   // Change section title depending on service
@@ -122,7 +123,9 @@ const Home = () => {
               label: `${customOrderBrand.name} custom order`,
               items: order.items,
               details: order,
-              section: customOrderBrand.type
+              section: customOrderBrand.type,
+              deliveryLocation: order.deliveryLocation,
+              customerType: order.customerType
             });
             setCustomOrderBrand(null);
           }}

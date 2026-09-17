@@ -21,7 +21,9 @@ const NAV_ITEMS = [
   { key: 'history', label: 'History', title: 'Order Transaction History', icon: 'fa-clock-rotate-left' },
   { key: 'revenue', label: 'Revenue', title: 'Revenue Analytics', icon: 'fa-chart-column' },
   { key: 'payments', label: 'Payments', title: 'Pending Payment Requests', icon: 'fa-wallet' },
-  { key: 'catalog', label: 'Brands', title: 'Brand & Service Catalog', icon: 'fa-store' }
+  { key: 'catalog', label: 'Brands', title: 'Brand & Service Catalog', icon: 'fa-store' },
+  { key: 'riders', label: 'Riders', title: 'Rider Management', icon: 'fa-motorcycle' },
+  { key: 'customers', label: 'Customers', title: 'Customer Management', icon: 'fa-users' }
 ];
 
 const ACTIVE_STATUSES = ['confirmed', 'preparing', 'out_for_delivery'];
@@ -36,6 +38,8 @@ const getOrderTotal = (order) => (order.items || []).reduce(
   (total, item) => total + ((Number(item.price) || 0) * (Number(item.quantity) || 1)),
   0
 );
+
+const getOrderServiceFee = (order) => Number(order.serviceFee ?? order.details?.serviceFee ?? 0) || 0;
 
 const getItemSummary = (order) => {
   if (!order.items?.length) return order.details?.billReceiptName || 'Bill payment request';
@@ -90,7 +94,7 @@ const OrderCard = ({ order, onAssign, onStatus, riders }) => {
       <p className="admin-order-status">{STATUS_LABELS[order.status]}</p>
       {canAssign && order.assignedRider && riders.some((rider) => String(rider.id) === assignedRiderId) && <p role="status">Assigned to {order.assignedRider.name}</p>}
       <div className="admin-order-actions">
-        {order.status === 'pending_rider' && <><button className="primary" type="button" onClick={() => onStatus(order.id, 'confirmed')}>Accept</button><button type="button" onClick={() => onStatus(order.id, 'cancelled')}>Decline</button></>}
+        {order.status === 'pending_rider' && <button type="button" onClick={() => onStatus(order.id, 'cancelled')}>Decline</button>}
         {canAssign && <button className="primary" type="button" disabled={!selectedRider || selectedRiderId === assignedRiderId} onClick={() => onAssign(order.id, selectedRider)}>Assign</button>}
         {service === 'bills' && nextAction && <button className="primary" type="button" onClick={() => onStatus(order.id, nextAction[0])}>{nextAction[1]}</button>}
         {order.status === 'cancelled' && <span className="admin-cancelled-state"><i className="fa-solid fa-circle-xmark" /> Cancelled</span>}
@@ -132,13 +136,13 @@ const RevenueTab = ({ orders }) => {
   const accepted = orders.filter((order) => order.status !== 'cancelled');
   const totals = Object.keys(SERVICE_META).reduce((result, service) => ({
     ...result,
-    [service]: accepted.filter((order) => inferService(order) === service).reduce((sum, order) => sum + getOrderTotal(order), 0)
+    [service]: accepted.filter((order) => inferService(order) === service).reduce((sum, order) => sum + getOrderServiceFee(order), 0)
   }), {});
   const grandTotal = Object.values(totals).reduce((sum, value) => sum + value, 0);
   const maximum = Math.max(...Object.values(totals), 1);
   return <section>
     <div className="admin-stat-grid"><div className="admin-stat-card featured"><span>Total recorded revenue</span><strong>{formatCurrency(grandTotal)}</strong></div>{Object.entries(SERVICE_META).map(([key, meta]) => <div className="admin-stat-card" key={key}><span>{meta.label}</span><strong style={{ color: meta.color }}>{formatCurrency(totals[key])}</strong></div>)}</div>
-    <div className="admin-analytics-card"><h2>Revenue by service</h2><p>Calculated from priced items in active and completed customer orders.</p><div className="admin-revenue-bars">{Object.entries(SERVICE_META).map(([key, meta]) => <div key={key}><span>{meta.label}</span><div><i style={{ width: `${(totals[key] / maximum) * 100}%`, background: meta.color }} /></div><strong>{formatCurrency(totals[key])}</strong></div>)}</div></div>
+    <div className="admin-analytics-card"><h2>Revenue by service</h2><p>Calculated only from the delivery or service fee saved with each non-cancelled order.</p><div className="admin-revenue-bars">{Object.entries(SERVICE_META).map(([key, meta]) => <div key={key}><span>{meta.label}</span><div><i style={{ width: `${(totals[key] / maximum) * 100}%`, background: meta.color }} /></div><strong>{formatCurrency(totals[key])}</strong></div>)}</div></div>
   </section>;
 };
 
@@ -229,12 +233,71 @@ const CatalogTab = () => {
     </div></section>;
 };
 
+const AccountManagementTab = ({ role, onAccountsChanged }) => {
+  const api = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const label = role === 'driver' ? 'Rider' : 'Customer';
+  const [items, setItems] = useState([]);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ current_page: 1, last_page: 1, total: 0 });
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ UserName: '', Email: '', Contact: '', Address: '', password: '' });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const request = useCallback(async (path, options = {}) => {
+    const response = await fetch(`${api}/api/admin/accounts/${path}`, {
+      ...options,
+      headers: { Authorization: `Bearer ${sessionStorage.getItem('otuzanAuthenticated')}`, 'Content-Type': 'application/json', ...(options.headers || {}) }
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || Object.values(body.errors || {}).flat()[0] || `Unable to save ${label.toLowerCase()} accounts.`);
+    return body;
+  }, [api, label]);
+  const load = useCallback(async () => {
+    try {
+      setError('');
+      const params = new URLSearchParams({ page, per_page: 10 });
+      if (search.trim()) params.set('search', search.trim());
+      const data = await request(`${role}?${params}`);
+      setItems(data.data); setMeta(data);
+    } catch (e) { setError(e.message); }
+  }, [page, request, role, search]);
+  useEffect(() => { load(); }, [load]);
+  const resetForm = () => { setEditing(null); setForm({ UserName: '', Email: '', Contact: '', Address: '', password: '' }); };
+  const save = async (event) => {
+    event.preventDefault(); setSaving(true); setError('');
+    try {
+      const payload = { ...form };
+      if (editing && !payload.password) delete payload.password;
+      await request(editing ? `${role}/${editing.UserID}` : role, { method: editing ? 'PUT' : 'POST', body: JSON.stringify(payload) });
+      resetForm(); onAccountsChanged?.();
+      if (page !== 1) setPage(1); else await load();
+    } catch (e) { setError(e.message); } finally { setSaving(false); }
+  };
+  const remove = async (account) => {
+    if (!window.confirm(`Delete ${account.UserName}? This cannot be undone.`)) return;
+    try {
+      await request(`${role}/${account.UserID}`, { method: 'DELETE' }); onAccountsChanged?.();
+      if (page > 1 && items.length === 1) setPage(page - 1); else await load();
+    } catch (e) { setError(e.message); }
+  };
+  const beginEdit = (account) => { setEditing(account); setForm({ UserName: account.UserName || '', Email: account.Email || '', Contact: account.Contact || '', Address: account.Address || '', password: '' }); };
+  return <section className="admin-catalog-manager">
+    <div className="admin-catalog-toolbar"><input aria-label={`Search ${label.toLowerCase()}s`} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={`Search ${label.toLowerCase()}s...`} /><button type="button" className="primary" onClick={() => { resetForm(); setEditing({}); }}>+ Add {label}</button></div>
+    {error && <p className="admin-catalog-error" role="alert">{error}</p>}
+    <div className="admin-catalog-layout"><div className="admin-table-wrap"><table><thead><tr><th>{label}</th><th>Email</th><th>Contact</th><th>Address</th><th>Actions</th></tr></thead><tbody>{items.map((account) => <tr key={account.UserID}><td><strong>{account.UserName}</strong></td><td>{account.Email}</td><td>{account.Contact || '—'}</td><td><small className="admin-description">{account.Address || '—'}</small></td><td><button className="admin-edit-link" type="button" onClick={() => beginEdit(account)}>Edit</button><button className="admin-delete-link" type="button" onClick={() => remove(account)}>Delete</button></td></tr>)}</tbody></table>{!items.length && <div className="admin-table-empty">No {label.toLowerCase()}s found.</div>}<div className="admin-pagination"><span>{meta.total} total</span><button disabled={page <= 1} type="button" onClick={() => setPage(page - 1)}>Previous</button><span>Page {meta.current_page} of {meta.last_page}</span><button disabled={page >= meta.last_page} type="button" onClick={() => setPage(page + 1)}>Next</button></div></div>
+      <form className="admin-catalog-form" onSubmit={save}><div className="admin-form-heading"><div><span>{label} management</span><h2>{editing ? `${editing.UserID ? 'Edit' : 'Add'} ${label}` : `${label} accounts`}</h2></div></div>{editing ? <><label>Full name<input required maxLength="100" value={form.UserName} onChange={(e) => setForm({ ...form, UserName: e.target.value })} /></label><label>Email<input required type="email" maxLength="255" value={form.Email} onChange={(e) => setForm({ ...form, Email: e.target.value })} /></label><label>Contact number<input required maxLength="50" value={form.Contact} onChange={(e) => setForm({ ...form, Contact: e.target.value })} /></label><label>Address<textarea maxLength="2000" value={form.Address} onChange={(e) => setForm({ ...form, Address: e.target.value })} /></label><label>{editing.UserID ? 'New password (optional)' : 'Password'}<input required={!editing.UserID} minLength="6" maxLength="72" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label><div className="admin-form-actions"><button className="primary" disabled={saving} type="submit">{saving ? 'Saving...' : 'Save'}</button><button type="button" onClick={resetForm}>Cancel</button></div></> : <p>Create, update, search, and remove {label.toLowerCase()} accounts.</p>}</form>
+    </div>
+  </section>;
+};
+
 const DeliveryAdminDashboard = () => {
   const navigate = useNavigate();
   const { orders, updateOrderStatus, assignOrderToRider } = useCustomerActivity();
   const [activeTab, setActiveTab] = useState('live');
   const [riders, setRiders] = useState([]);
   const [riderError, setRiderError] = useState('');
+  const [riderRefresh, setRiderRefresh] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     const loadRiders = async () => {
@@ -252,7 +315,7 @@ const DeliveryAdminDashboard = () => {
     };
     loadRiders();
     return () => controller.abort();
-  }, []);
+  }, [riderRefresh]);
   const pendingCount = orders.filter((order) => order.status === 'pending_rider').length;
   const activeNav = useMemo(() => NAV_ITEMS.find((item) => item.key === activeTab), [activeTab]);
 
@@ -274,6 +337,8 @@ const DeliveryAdminDashboard = () => {
       {activeTab === 'revenue' && <RevenueTab orders={orders} />}
       {activeTab === 'payments' && <PaymentsTab orders={orders} onStatus={updateOrderStatus} />}
       {activeTab === 'catalog' && <CatalogTab />}
+      {activeTab === 'riders' && <AccountManagementTab role="driver" onAccountsChanged={() => setRiderRefresh((count) => count + 1)} />}
+      {activeTab === 'customers' && <AccountManagementTab role="customer" />}
     </section>
   </main>;
 };

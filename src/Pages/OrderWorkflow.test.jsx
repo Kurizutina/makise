@@ -55,15 +55,32 @@ test('profile sync never replaces another customer or an unlinked legacy order',
   expect(saved().orders).toEqual([other, legacy]);
 });
 
+test('a customer sees notifications only for orders linked to their account', () => {
+  signIn(42, 'customer');
+  const ownOrder = { ...order, customerId: 42, id: 'OWN-ORDER' };
+  const otherOrder = { ...order, customerId: 99, id: 'OTHER-ORDER' };
+  localStorage.setItem('otuzanCustomerActivity', JSON.stringify({
+    orders: [ownOrder, otherOrder],
+    cart: [],
+    notifications: [
+      { id: 'OWN-NOTIFICATION', orderId: 'OWN-ORDER' },
+      { id: 'OTHER-NOTIFICATION', orderId: 'OTHER-ORDER' }
+    ]
+  }));
+  render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
+  expect(actions.orders).toEqual([ownOrder]);
+  expect(actions.notifications).toEqual([{ id: 'OWN-NOTIFICATION', orderId: 'OWN-ORDER' }]);
+});
+
 test('direct and cart orders retain the signed-in customer account ID', () => {
   signIn(42, 'customer');
   localStorage.setItem('otuzanCustomerProfile', JSON.stringify({ id: 42, username: 'Full Name', address: 'Address', email: 'customer@example.com' }));
   render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
-  act(() => actions.placeOrder({ source: 'Shop', items: [] }));
-  expect(saved().orders[0]).toMatchObject({ customerId: 42, customerName: 'Full Name', customerEmail: 'customer@example.com' });
-  act(() => actions.addToCart({ id: 'item', source: 'Shop', name: 'Food' }));
+  act(() => actions.placeOrder({ source: 'Shop', items: [], deliveryLocation: 'villa-javier' }));
+  expect(saved().orders[0]).toMatchObject({ customerId: 42, customerName: 'Full Name', customerEmail: 'customer@example.com', serviceFee: 60, deliveryLocationName: 'Villa Javier' });
+  act(() => actions.addToCart({ id: 'item', source: 'Shop', name: 'Food', details: { deliveryLocation: 'bukang-liwayway' } }));
   act(() => actions.placeCartOrder());
-  expect(saved().orders[0]).toMatchObject({ customerId: 42, customerName: 'Full Name' });
+  expect(saved().orders[0]).toMatchObject({ customerId: 42, customerName: 'Full Name', serviceFee: 65, deliveryLocationName: 'Bukang Liwayway' });
 });
 
 test('admin explicitly assigns an active delivery and only the selected rider sees it', async () => {
@@ -155,4 +172,19 @@ test('backend rider lookup failure prevents assigning an unavailable rider', asy
   await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Unable to load registered riders'));
   expect(screen.getByRole('button', { name: 'Assign' })).toBeDisabled();
   expect(saved().orders[0].assignedRider).toBeUndefined();
+});
+
+test('revenue reports saved delivery fees rather than product prices', async () => {
+  signIn(1, 'admin');
+  localStorage.setItem('otuzanCustomerActivity', JSON.stringify({ orders: [{
+    ...order,
+    status: 'delivered',
+    serviceFee: 65,
+    items: [{ id: 'expensive-item', name: 'Large order', price: 950, quantity: 1 }]
+  }], cart: [], notifications: [] }));
+  render(<CustomerActivityProvider><DeliveryAdminDashboard /></CustomerActivityProvider>);
+  fireEvent.click(screen.getByRole('button', { name: 'Revenue' }));
+  const revenueCard = screen.getByText('Total recorded revenue').parentElement;
+  expect(revenueCard).toHaveTextContent('₱65.00');
+  expect(revenueCard).not.toHaveTextContent('₱950.00');
 });
