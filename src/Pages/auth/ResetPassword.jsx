@@ -12,8 +12,16 @@ const ResetPassword = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [message, setMessage] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const token = searchParams.get('token') || '';
   const email = searchParams.get('email') || '';
+  const passwordStrength = password.length >= 10 && /[A-Z]/.test(password) && /\d/.test(password)
+    ? 'Strong password'
+    : password.length >= 8 && /\d/.test(password)
+      ? 'Good password'
+      : password.length > 0
+        ? 'Use 8+ characters and a number'
+        : '';
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -65,13 +73,17 @@ const ResetPassword = () => {
             <div className="form-group">
               <div className="input-icon-wrapper">
                 <i className="fas fa-lock input-icon" />
-                <input className="input-field with-icon" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="New password" required minLength="6" autoComplete="new-password" />
+                <input className="input-field with-icon" type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="New password" required minLength="6" autoComplete="new-password" />
               </div>
+              <button type="button" className="toggle-password reset-toggle-password" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                <i className={showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'} />
+              </button>
             </div>
+            {passwordStrength && <p className={`password-strength ${passwordStrength === 'Strong password' ? 'strong' : ''}`}>{passwordStrength}</p>}
             <div className="form-group">
               <div className="input-icon-wrapper">
                 <i className="fas fa-lock input-icon" />
-                <input className="input-field with-icon" type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Confirm new password" required minLength="6" autoComplete="new-password" />
+                <input className="input-field with-icon" type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Confirm new password" required minLength="6" autoComplete="new-password" />
               </div>
             </div>
             <button className="action-btn" type="submit" disabled={isSubmitting}>

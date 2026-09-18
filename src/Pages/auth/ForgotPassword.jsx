@@ -10,10 +10,12 @@ const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setMessage(null);
+    if (cooldown > 0) return;
     setIsSubmitting(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
@@ -24,6 +26,7 @@ const ForgotPassword = () => {
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || result.error || 'Unable to send reset link.');
       setMessage({ type: 'success', text: result.message });
+      setCooldown(60);
     } catch (error) {
       setMessage({
         type: 'error',
@@ -35,6 +38,12 @@ const ForgotPassword = () => {
       setIsSubmitting(false);
     }
   };
+
+  React.useEffect(() => {
+    if (!cooldown) return undefined;
+    const timer = window.setInterval(() => setCooldown((current) => Math.max(0, current - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [cooldown]);
 
   return (
     <div className="login-page">
@@ -52,8 +61,8 @@ const ForgotPassword = () => {
               <input className="input-field with-icon" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email address" required autoComplete="email" />
             </div>
           </div>
-          <button className="action-btn" type="submit" disabled={isSubmitting}>
-            <i className="fas fa-paper-plane" /> {isSubmitting ? 'Sending...' : 'Send reset link'}
+          <button className="action-btn" type="submit" disabled={isSubmitting || cooldown > 0}>
+            <i className="fas fa-paper-plane" /> {isSubmitting ? 'Sending...' : cooldown > 0 ? `Try again in ${cooldown}s` : 'Send reset link'}
           </button>
         </form>
         <button type="button" className="auth-secondary-link" onClick={() => navigate('/login')}>
