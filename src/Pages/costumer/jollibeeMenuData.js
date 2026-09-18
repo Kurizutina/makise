@@ -55,7 +55,7 @@ const jollibeeMenu = [
     name: 'Y1 - Yumberger',
     description: 'Classic beef patty burger served with signature dressing.',
     price: 60,
-    image: null
+    image: '/images/Jollibee/Burgers/Y1%20-%20Yumberger.jpg'
   },
   {
     id: 'jollibee-burgers-y2-cheesy-yumberger',
@@ -63,7 +63,7 @@ const jollibeeMenu = [
     name: 'Y2 - Original Cheesy Yumburger',
     description: 'Classic Yumburger topped with a melted slice of cheese.',
     price: 85,
-    image: null
+    image: '/images/Jollibee/Burgers/Y2%20-%20Original%20Cheesy%20Yumburger.jpg'
   },
   {
     id: 'jollibee-burgers-y3-bacon-cheesy-yumburger',
@@ -71,7 +71,7 @@ const jollibeeMenu = [
     name: 'Y3 - Bacon Cheesy Yumburger',
     description: 'Yumburger topped with crispy bacon strips and melted cheese.',
     price: 110,
-    image: null
+    image: '/images/Jollibee/Burgers/Y3%20-Bacon%20Cheesy%20Yumburher.jpg'
   },
   {
     id: 'jollibee-burgers-y4-champ-jr',
@@ -79,7 +79,7 @@ const jollibeeMenu = [
     name: 'Y4 - Champ Jr.',
     description: 'Junior version of the iconic Champ burger with fresh lettuce, tomato, and cheese.',
     price: 130,
-    image: null
+    image: '/images/Jollibee/Burgers/Y4%20-%20Champ%20Jr..jpg'
   },
   {
     id: 'jollibee-burgers-y5-special-cheesy-yumburger',
@@ -87,7 +87,7 @@ const jollibeeMenu = [
     name: 'Y5 - Special Cheesy Yumburger',
     description: 'Special cheesy Yumburger loaded with extra savory toppings.',
     price: 105,
-    image: null
+    image: '/images/Jollibee/Burgers/Y5%20-%20Spacial%20Cheesy%20Yumburger.jpg'
   },
   {
     id: 'jollibee-burgers-y6-aloha-champ-jr',
@@ -95,7 +95,7 @@ const jollibeeMenu = [
     name: 'Y6 - Aloha Champ Jr.',
     description: 'Beef patty topped with a juicy pineapple ring, crispy bacon, and honey mustard dressing.',
     price: 150,
-    image: null
+    image: '/images/Jollibee/Burgers/Y6%20-%20Aloha%20Champ%20Jr..jpg'
   },
   {
     id: 'jollibee-burgers-crunchy-chicken-sandwich-fries-drink',
