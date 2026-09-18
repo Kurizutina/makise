@@ -7,7 +7,7 @@
   align-items: center;
   justify-content: flex-start;
 
-  width: auto;
+  width: fit-content;
   max-width: 100%;
   flex-shrink: 1;
   overflow-x: auto;
@@ -15,11 +15,11 @@
   gap: 6px;
 
   margin: 0;
-  padding: 5px;
+  padding: 4px 8px;
 
   background: rgba(176, 23, 72, 0.38);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
+  border-radius: 12px;
 }
 
 
@@ -38,9 +38,9 @@
 
   font-family: inherit;
 
-  padding: 8px 20px;
+  padding: 7px 15px;
 
-  min-width: 162px;
+  min-width: 116px;
 
   border-radius: 11px;
 
@@ -50,7 +50,7 @@
 
   gap: 10px;
 
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 600;
 
   transition:
@@ -110,6 +110,8 @@
 
   .service-navigation {
     width: 100%;
+    justify-content: center;
+    overflow: hidden;
     gap: 4px;
     margin-top: 2px;
     padding: 4px;
@@ -117,10 +119,10 @@
   }
 
   .service-tab {
-    min-width: 100px;
-    flex: 0 0 auto;
+    min-width: 0;
+    flex: 1 1 0;
 
-    padding: 9px 5px;
+    padding: 9px 4px;
 
     font-size: 12px;
 
@@ -135,7 +137,7 @@
 
 @media (min-width: 1024px) and (max-width: 1250px) {
   .service-tab {
-    min-width: 125px;
+    min-width: 116px;
     padding-inline: 12px;
     font-size: 13px;
   }
@@ -143,9 +145,8 @@
 
 @media (max-width: 420px) {
   .service-tab {
-    flex-direction: column;
-    gap: 3px;
-    padding: 6px 2px;
+    gap: 4px;
+    padding: 8px 2px;
     font-size: 10px;
   }
 }

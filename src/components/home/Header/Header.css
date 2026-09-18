@@ -1,504 +1,129 @@
-/* ==========================================
-   Otu-Zan Delivery - Home Header Styles
-   ========================================== */
-
 .home-header {
-  background-color: #DA1C5C;
-  width: 100%;
-
-  padding: 0 clamp(24px, 4vw, 64px);
-
-  box-sizing: border-box;
-
   position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
-
   z-index: 1000;
-
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-
-  overflow: visible;
+  width: 100%;
+  background: #e31b62;
+  box-shadow: 0 2px 10px rgba(74, 9, 35, 0.16);
 }
 
 .header-container {
-  width: 100%;
-  max-width: none;
-  margin: 0 auto;
-
-  display: flex;
-  align-items: center;
-
-  gap: 34px;
-
-  box-sizing: border-box;
-
-  overflow: visible;
-
-  min-height: 86px;
-}
-
-/* =========================
-   LOGO
-   ========================= */
-
-.header-logo {
-  display: flex;
-  align-items: center; /* Center logo vertically */
-  justify-content: flex-start;
-  align-self: center;
-  width: 68px;
-  height: 68px;
-  
-  flex-shrink: 0;
-  
-  position: relative;
-  z-index: 2;
-  
-  /* REMOVED: margin-top to prevent clipping */
-  /* Logo will now center properly */
-
-  margin-top: 0;
-  margin-right: 0;
-  transform: none;
-}
-
-/*
-   RESPONSIVE LOGO SIZE:
-   Using clamp() for fluid scaling
-   - Minimum size: 60px
-   - Preferred size: 10vw (10% of viewport width)
-   - Maximum size: 120px
-*/
-.header-logo .logo-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center; /* Center content */
-  
-  /* RESPONSIVE: Logo scales with screen size */
-  transform: none;
-  transform-origin: center center;
-  
-  position: relative;
-  
-  /* Ensure proper centering */
-  width: 100%;
-  height: 100%;
-  margin: 0;
-}
-
-/* Background circle behind logo */
-.header-logo .logo-container::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  
-  /* RESPONSIVE: Circle scales with logo */
-  width: 68px;
-  height: 68px;
-  
-  background-color: #ffffff;
-  border-radius: 50%;
-  
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  
-  z-index: -1;
-}
-
-.header-logo .logo-placeholder {
-  /* RESPONSIVE: Logo placeholder size */
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  
-  position: relative;
-  z-index: 1;
-  
-  /* Center image perfectly */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  
-  /* Remove any default padding */
-  padding: 0;
-  margin: 0;
-  
-  /* Ensure overflow is hidden */
-  overflow: hidden;
-}
-
-.header-logo .logo-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover; /* Changed from contain to cover for better centering */
-  object-position: center center; /* Center the image */
-  border-radius: 50%;
-  
-  /* Ensure image stays centered */
-  display: block;
-  margin: 0 auto;
-}
-
-/* Hidden logo text in header */
-.header-logo .logo-text {
-  display: none;
-}
-
-.header-logo .logo-sub {
-  display: none;
-}
-
-/* =========================
-   SEARCH BAR
-   ========================= */
-
-.header-search {
-  flex: 0 1 400px;
-  min-width: 0;
-  width: 400px;
-}
-
-.header-main {
-  flex: 1;
-  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  min-height: 58px;
+  padding: 0 clamp(16px, 3vw, 38px);
+  gap: 20px;
 }
 
-.header-tools {
-  min-width: 0;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 18px;
-}
-
-@media (min-width: 1251px) {
-  .header-tools {
-    margin-left: 40px;
-  }
-}
-
-/* =========================
-   MENU BUTTON
-   ========================= */
-
-.header-menu-button {
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-  
-  transition: all 0.3s ease;
-}
-
+.header-brand-lockup,
+.header-tools,
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
 }
+
+.header-brand-lockup { gap: 12px; flex-shrink: 0; }
+
+.header-logo,
+.header-logo .logo-container {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+}
+
+.header-logo { flex: 0 0 52px; }
+
+.header-logo .logo-container {
+  position: relative;
+}
+
+.header-logo .logo-container::before {
+  display: none;
+}
+
+.header-logo .logo-placeholder,
+.header-logo .logo-image {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+
+.header-logo .logo-placeholder {
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  background: #fff;
+}
+.header-logo .logo-image { display: block; object-fit: cover; }
+.header-logo .logo-text,
+.header-logo .logo-sub { display: none; }
+
+.header-brand-copy { display: grid; gap: 2px; color: #fff; font-family: Tahoma, sans-serif; }
+.header-brand-copy strong { font-size: clamp(18px, 1.7vw, 24px); font-weight: 700; line-height: 1; }
+.header-brand-copy span { font-size: 10px; font-weight: 400; }
+
+.header-tools { min-width: 0; gap: 14px; }
+.header-search { width: min(30vw, 280px); min-width: 180px; }
+.header-actions { gap: 8px; flex-shrink: 0; }
 
 .header-action-button,
 .header-menu-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
   border-radius: 50%;
-  border: none;
-  background: #B01748;
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  background: #c81752;
+  color: #fff;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .header-action-button:hover,
-.header-menu-button:hover {
-  background: #8F1239;
-  transform: scale(1.05);
-}
-
+.header-menu-button:hover { background: #a71243; transform: scale(1.05); }
 .header-action-button:focus-visible,
-.header-menu-button:focus-visible {
-  outline: 3px solid #ffffff;
-  outline-offset: 2px;
+.header-menu-button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+.header-service-nav {
+  padding: 7px clamp(16px, 7.8vw, 92px);
+  background: #f23d7b;
 }
 
-/* =========================
-   HEADER TOP ROW
-   ========================= */
-
-.header-top {
-  width: 100%;
-
-  height: 55px;
-
-  display: flex;
-  align-items: center;
-
-  gap: 25px;
-
-  box-sizing: border-box;
+@media (max-width: 900px) {
+  .header-container { gap: 14px; }
+  .header-search { width: min(34vw, 250px); min-width: 150px; }
+  .header-service-nav { padding-inline: clamp(16px, 5vw, 42px); }
 }
 
-/* =========================
-   RESPONSIVE BREAKPOINTS
-   ========================= */
-
-/* Large Desktop (1440px and up) */
-@media (min-width: 1440px) {
-  .header-logo .logo-container {
-    transform: none;
-  }
-  
-  .header-logo .logo-container::before {
-    width: 68px;
-    height: 68px;
-  }
-  
-  .header-logo .logo-placeholder {
-    width: 56px;
-    height: 56px;
-  }
-}
-
-/* Desktop (1024px - 1439px) */
-@media (min-width: 1024px) and (max-width: 1439px) {
-  .header-logo .logo-container {
-    transform: none;
-  }
-  
-  .header-logo .logo-container::before {
-    width: 68px;
-    height: 68px;
-  }
-  
-  .header-logo .logo-placeholder {
-    width: 56px;
-    height: 56px;
-  }
-}
-
-/* Tablet breakpoint (768px - 1023px) */
-@media (max-width: 1023px) {
-  .home-header {
-    padding: 12px 24px;
-  }
-  
-  .header-container {
-    min-height: 60px;
-    gap: 16px;
-  }
-
-  .header-logo {
-    margin-right: 4px;
-    transform: none;
-  }
-
-  .header-main {
-    flex-wrap: wrap;
-    gap: 8px 16px;
-  }
-
-  .header-tools {
-    flex: 1 1 100%;
-  }
-
-  .header-search {
-    width: auto;
-  }
-  
-  .header-logo .logo-container {
-    transform: scale(0.9);
-  }
-  
-  .header-logo .logo-container::before {
-    width: 80px;
-    height: 80px;
-  }
-  
-  .header-logo .logo-placeholder {
-    width: 65px;
-    height: 65px;
-  }
-  
+@media (max-width: 700px) {
+  .header-container { min-height: 62px; padding-inline: 12px; gap: 9px; }
+  .header-brand-lockup { gap: 7px; }
+  .header-logo,
+  .header-logo .logo-container { width: 46px; height: 46px; }
+  .header-logo { flex-basis: 46px; }
+  .header-logo .logo-placeholder,
+  .header-logo .logo-image { width: 42px; height: 42px; }
+  .header-brand-copy strong { font-size: 15px; }
+  .header-brand-copy span { font-size: 8px; }
+  .header-tools { flex: 1; gap: 7px; }
+  .header-search { flex: 1; width: auto; min-width: 0; }
+  .header-actions { gap: 5px; }
   .header-action-button,
-  .header-menu-button {
-    width: 50px;
-    height: 50px;
-  }
+  .header-menu-button { width: 35px; height: 35px; }
+  .header-service-nav { padding: 6px 12px; }
 }
 
-/* =========================
-   MOBILE (below 768px)
-   ========================= */
-
-@media (max-width: 767px) {
-  .home-header {
-    padding: 10px 16px 0;
-  }
-
-  .header-container {
-    height: auto;
-    align-items: center;
-    flex-wrap: nowrap;
-    gap: 4px 10px;
-  }
-
-  .header-logo {
-    transform: none;
-  }
-
-  /* Logo adjustments for mobile */
-  .header-logo .logo-container {
-    transform: scale(0.8);
-  }
-  
-  .header-logo .logo-container::before {
-    width: 65px;
-    height: 65px;
-  }
-  
-  .header-logo .logo-placeholder {
-    width: 55px;
-    height: 55px;
-  }
-
-  .header-main {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    width: 100%;
-  }
-
-  .header-tools {
-    width: 100%;
-    gap: 10px;
-  }
-
-  .header-search {
-    flex: 1 1 auto;
-  }
-
-  .header-actions {
-    gap: 6px;
-  }
-
+@media (max-width: 440px) {
+  .header-brand-copy span { display: none; }
+  .header-brand-copy strong { font-size: 13px; }
+  .header-logo,
+  .header-logo .logo-container { width: 40px; height: 40px; }
+  .header-logo { flex-basis: 40px; }
+  .header-logo .logo-placeholder,
+  .header-logo .logo-image { width: 36px; height: 36px; }
+  .header-container { gap: 6px; }
   .header-action-button,
-  .header-menu-button {
-    width: 45px;
-    height: 45px;
-  }
+  .header-menu-button { width: 32px; height: 32px; }
 }
-
-/* Small mobile breakpoint (below 480px) */
-@media (max-width: 479px) {
-  .home-header {
-    padding: 8px 12px 0;
-  }
-  
-  .header-container {
-    height: auto;
-  }
-  
-  .header-logo .logo-container {
-    transform: scale(0.68);
-  }
-  
-  .header-logo .logo-container::before {
-    width: 55px;
-    height: 55px;
-  }
-  
-  .header-logo .logo-placeholder {
-    width: 45px;
-    height: 45px;
-  }
-  
-  .header-actions {
-    gap: 4px;
-  }
-
-  .header-action-button,
-  .header-menu-button {
-    width: 38px;
-    height: 38px;
-  }
-
-  .header-action-button svg,
-  .header-menu-button svg {
-    width: 17px;
-    height: 17px;
-  }
-}
-
-@media (min-width: 1024px) and (max-width: 1250px) {
-  .home-header {
-    padding-inline: 24px;
-  }
-
-  .header-container {
-    gap: 26px;
-  }
-
-  .header-main {
-    gap: 16px;
-  }
-
-  .header-search {
-    flex-basis: 270px;
-    width: 270px;
-  }
-
-  .header-tools {
-    gap: 10px;
-  }
-
-  .header-actions {
-    gap: 7px;
-  }
-}
-
-/* ==========================================
-   CUSTOMIZATION GUIDE
-   ========================================== */
-/*
-  KEY AREAS TO CUSTOMIZE:
-  
-  1. RESPONSIVE LOGO SIZING:
-     Uses clamp() function for fluid scaling
-     - Minimum: clamp(0.8, 1.5vw, 1.3)
-     - Adjust middle value (1.5vw) for scaling rate
-     - Higher = more dramatic size change
-     
-  2. IMAGE CENTERING:
-     .header-logo .logo-image uses:
-     - object-fit: cover
-     - object-position: center center
-     - display: block
-     - margin: 0 auto
-     
-  3. PADDING FIX:
-     .home-header now has more top padding (20px)
-     .header-container has height 70px
-     Logo no longer clips at top
-     
-  4. BREAKPOINTS:
-     - 1440px+: Large desktop (max size)
-     - 1024-1439px: Desktop (medium)
-     - 768-1023px: Tablet (smaller)
-     - 768px below: Mobile (smallest)
-     - 480px below: Small mobile (tiny)
-     
-  5. CIRCLE SIZE:
-     Adjust clamp() values in ::before
-     Currently: clamp(80px, 12vw, 120px)
-*/

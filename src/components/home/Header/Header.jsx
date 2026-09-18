@@ -24,31 +24,35 @@ const Header = ({
   return (
     <header className="home-header">
       <div className="header-container">
-        <div className="header-logo">
-          <Logo />
+        <div className="header-brand-lockup">
+          <div className="header-logo">
+            <Logo />
+          </div>
+          <div className="header-brand-copy">
+            <strong>Otu Zan Delivery</strong>
+            <span>Let us help with your daily errands.</span>
+          </div>
         </div>
 
-        <div className="header-main">
-          <ServiceNavigation
-            selectedService={selectedService}
-            onServiceChange={onServiceChange}
-            services={services}
-          />
+        <div className="header-tools">
+          <div className="header-search">
+            <SearchBar onSearch={onSearch} />
+          </div>
 
-          <div className="header-tools">
-            <div className="header-search">
-              <SearchBar onSearch={onSearch} />
-            </div>
+          <div className="header-actions">
+            <CustomerActivity />
 
-            <div className="header-actions">
-              <CustomerActivity />
-
-              <CustomerMenu icon={<MenuIcon />} />
-            </div>
+            <CustomerMenu icon={<MenuIcon />} />
           </div>
         </div>
       </div>
-
+      <nav className="header-service-nav" aria-label="Customer services">
+        <ServiceNavigation
+          selectedService={selectedService}
+          onServiceChange={onServiceChange}
+          services={services}
+        />
+      </nav>
     </header>
   );
 };
