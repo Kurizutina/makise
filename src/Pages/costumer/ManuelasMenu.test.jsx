@@ -15,6 +15,9 @@ test('renders every individual dish and keeps serving sizes separate in cart and
   fireEvent.change(within(card).getByRole('combobox'), { target: { value: '1' } });
   fireEvent.click(within(card).getByRole('button', { name: 'Add to Cart' }));
   const cart = screen.getByRole('complementary');
+  const selects = within(cart).getAllByRole('combobox');
+  fireEvent.change(selects[0], { target: { value: 'clsu-main-campus' } });
+  fireEvent.change(selects[1], { target: { value: 'student' } });
   expect(within(cart).getByText('Chicken Caldereta — 20 pax')).toBeInTheDocument();
   expect(within(cart).getByText('Chicken Caldereta — 30 pax')).toBeInTheDocument();
   expect(within(cart).getByText('₱5,200')).toBeInTheDocument();
@@ -31,6 +34,10 @@ test('direct orders use the selected serving size and printed price', () => {
   render(<CustomerActivityProvider><ManuelasMenu /></CustomerActivityProvider>);
   const card = screen.getByRole('heading', { name: 'Crispy Sisig' }).closest('article');
   fireEvent.change(within(card).getByRole('combobox'), { target: { value: '4' } });
+  const cart = screen.getByRole('complementary');
+  const selects = within(cart).getAllByRole('combobox');
+  fireEvent.change(selects[0], { target: { value: 'clsu-main-campus' } });
+  fireEvent.change(selects[1], { target: { value: 'student' } });
   fireEvent.click(within(card).getByRole('button', { name: 'Place Order' }));
   const saved = JSON.parse(localStorage.getItem('otuzanCustomerActivity'));
   expect(saved.orders[0].items[0]).toMatchObject({
