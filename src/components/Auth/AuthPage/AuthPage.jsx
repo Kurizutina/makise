@@ -7,6 +7,7 @@ import '../Auth.css';
 
 import { ROLES } from '../../../config/roles';
 import { syncCustomerOrders } from '../../../utils/customerProfileSync';
+import { getDashboardPath, setSession } from '../../../utils/session';
 
 import {
   validateAccessCode,
@@ -210,8 +211,6 @@ const AuthPage = ({ mode }) => {
         throw new Error(result.error || `${roleName} authentication failed`);
       }
 
-      sessionStorage.setItem('otuzanAuthenticated', result.token);
-      sessionStorage.setItem('otuzanUser', JSON.stringify(result.user));
       const addressKey = `otuzanCustomerAddress:${result.user.email.toLowerCase()}`;
       let savedAddress = localStorage.getItem(addressKey) || '';
       if (!savedAddress) {
@@ -225,17 +224,21 @@ const AuthPage = ({ mode }) => {
         }
       }
       const customerAddress = result.user.address || (mode === 'register' ? address.trim() : savedAddress);
+      const sessionUser = result.user.role === 'customer'
+        ? { ...result.user, address: customerAddress }
+        : result.user;
+      setSession(result.token, sessionUser);
       if (result.user.role === 'customer' && customerAddress) {
         localStorage.setItem(addressKey, customerAddress);
+        localStorage.setItem('otuzanCustomerProfile', JSON.stringify({
+          id: result.user.id,
+          username: result.user.username || result.user.name || '',
+          address: customerAddress,
+          email: result.user.email,
+          contact: result.user.contact,
+          role: result.user.role
+        }));
       }
-      localStorage.setItem('otuzanCustomerProfile', JSON.stringify({
-        id: result.user.id,
-        username: result.user.username || result.user.name || '',
-        address: customerAddress,
-        email: result.user.email,
-        contact: result.user.contact,
-        role: result.user.role
-      }));
       syncCustomerOrders({ ...result.user, address: customerAddress });
 
       setMessage({
@@ -244,8 +247,7 @@ const AuthPage = ({ mode }) => {
           ? `Welcome to Otu-Zan, ${username || name}! Your ${roleName} account has been created.`
           : `Welcome back! Redirecting to your ${roleName} dashboard...`
       });
-      const destination = { driver: '/rider/orders', admin: '/admin/dashboard' }[result.user.role] || '/home';
-      navigate(destination, { replace: true });
+      navigate(getDashboardPath(result.user.role), { replace: true });
     } catch (error) {
       setMessage({
         type: 'error',

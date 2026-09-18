@@ -4,6 +4,7 @@ import { useCustomerActivity } from '../../context/CustomerActivityContext';
 import './DeliveryAdminDashboard.css';
 import OrderCustomerDetails from '../../components/common/OrderCustomerDetails/OrderCustomerDetails';
 import { catalogImageUrl } from '../../utils/catalog';
+import { clearSession } from '../../utils/session';
 
 const SERVICE_META = {
   food: { label: 'Food Delivery', icon: 'fa-utensils', color: '#f9c12f' },
@@ -319,7 +320,7 @@ const DeliveryAdminDashboard = () => {
   const pendingCount = orders.filter((order) => order.status === 'pending_rider').length;
   const activeNav = useMemo(() => NAV_ITEMS.find((item) => item.key === activeTab), [activeTab]);
 
-  const logout = () => { sessionStorage.removeItem('otuzanAuthenticated'); navigate('/login', { replace: true }); };
+  const logout = () => { clearSession(); navigate('/login', { replace: true }); };
 
   return <main className="admin-dashboard-page">
     <aside className="admin-sidebar">

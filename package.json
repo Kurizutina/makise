@@ -25,6 +25,7 @@
     "generate:mang-inasal-menu": "node scripts/generate-mang-inasal-manifest.js",
     "generate:manuelas-catalog": "node scripts/generate-manuelas-catalog.js",
     "generate:hongdae-chicken-menu": "node scripts/generate-hongdae-chicken-manifest.js",
+    "generate:kuya-dos-menu": "node scripts/generate-kuya-dos-manifest.js",
     "backend:start": "node scripts/start-local-backend.js --foreground",
     "backend:local": "node scripts/start-local-backend.js",
     "backend:db-check": "node scripts/start-local-backend.js --check",

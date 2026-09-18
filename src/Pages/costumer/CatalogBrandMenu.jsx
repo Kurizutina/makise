@@ -25,11 +25,14 @@ const CatalogBrandMenu = () => {
   if (error) return <main className="jollibee-page"><p role="alert">{error}</p><a href="/home">Back to Home</a></main>;
   if (!catalog) return <main className="jollibee-page" role="status">Loading products...</main>;
 
+  const brandLogo = catalog.brand.BrandName === "Manuela's"
+    ? catalogImageUrl(catalog.brand.ImagePath)
+    : null;
   const products = catalog.products.map((product) => ({
     id: `catalog-${product.ProductID}`,
     name: product.ProductName,
     price: Number(product.ProductPrice),
-    image: catalogImageUrl(product.ImagePath),
+    image: catalogImageUrl(product.ImagePath) || brandLogo,
     category: product.Description || 'Products'
   }));
   return <RestaurantMenu

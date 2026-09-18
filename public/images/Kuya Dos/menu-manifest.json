@@ -1,0 +1,200 @@
+[
+  {
+    "category": "Lauriat Meal",
+    "name": "Pork Lauriat",
+    "price": 230,
+    "image": "/images/Kuya Dos/Lauriat Meal/Pork Lauriat.webp"
+  },
+  {
+    "category": "Lauriat Meal",
+    "name": "Chicken Lauriat",
+    "price": 230,
+    "image": "/images/Kuya Dos/Lauriat Meal/Chicken Lauriat.webp"
+  },
+  {
+    "category": "Master Wok",
+    "name": "Pork Chow Fan",
+    "price": 115,
+    "image": "/images/Kuya Dos/Master Wok (Chinese Style Fried Rice)/Pork Chow Fan.webp"
+  },
+  {
+    "category": "Master Wok",
+    "name": "Kimchi Fried Rice",
+    "price": 128,
+    "image": "/images/Kuya Dos/Master Wok (Chinese Style Fried Rice)/Kimchi Fried Rice.webp"
+  },
+  {
+    "category": "Master Wok",
+    "name": "Beef Chow Fan",
+    "price": 128,
+    "image": "/images/Kuya Dos/Master Wok (Chinese Style Fried Rice)/Beef Chow Fan.webp"
+  },
+  {
+    "category": "Master Wok",
+    "name": "Spam Chow Rice",
+    "price": 115,
+    "image": "/images/Kuya Dos/Master Wok (Chinese Style Fried Rice)/Spam Chow Rice.webp"
+  },
+  {
+    "category": "Master Wok",
+    "name": "Yang Chow Fried Rice",
+    "price": 135,
+    "image": "/images/Kuya Dos/Master Wok (Chinese Style Fried Rice)/Yang Chow Fried Rice.webp"
+  },
+  {
+    "category": "Master Wok",
+    "name": "Sisig Chowrice",
+    "price": 125,
+    "image": "/images/Kuya Dos/Master Wok (Chinese Style Fried Rice)/Sisig Chowrice.webp"
+  },
+  {
+    "category": "Pansiteria",
+    "name": "Pansit Canton Guisado",
+    "price": 125,
+    "image": "/images/Kuya Dos/Pansiteria/Pansit CANTON Guisado.webp"
+  },
+  {
+    "category": "Pansiteria",
+    "name": "Pansit Bihon Guisado",
+    "price": 125,
+    "image": "/images/Kuya Dos/Pansiteria/Pansit BIHON Guisado.webp"
+  },
+  {
+    "category": "Pansiteria",
+    "name": "Batangas Lomi",
+    "price": 112,
+    "image": "/images/Kuya Dos/Pansiteria/Batangas Lomi.webp"
+  },
+  {
+    "category": "Pares and Wonton Mami",
+    "name": "Wonton Mami",
+    "price": 125,
+    "image": "/images/Kuya Dos/Pares and Wonton Mami/Wonton Mami.webp"
+  },
+  {
+    "category": "Pares and Wonton Mami",
+    "name": "Dos Pares Overload",
+    "price": 195,
+    "image": "/images/Kuya Dos/Pares and Wonton Mami/Dos Pares Overload.webp"
+  },
+  {
+    "category": "Pares and Wonton Mami",
+    "name": "TaPares (Beef Pares)",
+    "price": 125,
+    "image": "/images/Kuya Dos/Pares and Wonton Mami/TaPares (Beef Pares).webp"
+  },
+  {
+    "category": "Silog",
+    "name": "SisigSilog",
+    "price": 134,
+    "image": "/images/Kuya Dos/Silog/SisigSilog.webp"
+  },
+  {
+    "category": "Silog",
+    "name": "Dos Tapa",
+    "price": 149,
+    "image": "/images/Kuya Dos/Silog/Dos Tapa.webp"
+  },
+  {
+    "category": "Silog",
+    "name": "ChickSilog",
+    "price": 136,
+    "image": "/images/Kuya Dos/Silog/ChickSilog.webp"
+  },
+  {
+    "category": "Silog",
+    "name": "LongSilog",
+    "price": 125,
+    "image": "/images/Kuya Dos/Silog/LongSilog.webp"
+  },
+  {
+    "category": "Silog",
+    "name": "LiempoSilog",
+    "price": 135,
+    "image": "/images/Kuya Dos/Silog/Garlic Pepper Beef.webp"
+  },
+  {
+    "category": "Silog",
+    "name": "BacSilog",
+    "price": 125,
+    "image": "/images/Kuya Dos/Silog/BacSilog.webp"
+  },
+  {
+    "category": "Silog",
+    "name": "HotSilog",
+    "price": 95,
+    "image": "/images/Kuya Dos/Silog/HotSilog.webp"
+  },
+  {
+    "category": "Silog",
+    "name": "TapaWarma",
+    "price": 145,
+    "image": "/images/Kuya Dos/Silog/TapaWarma.webp"
+  },
+  {
+    "category": "Sizzlers",
+    "name": "Sizzling Dos Sisig",
+    "price": 148,
+    "image": "/images/Kuya Dos/Sizzlers/Sizzling Dos Sisig.webp"
+  },
+  {
+    "category": "Sizzlers",
+    "name": "Sizzling Garlic Pepper Beef",
+    "price": 159,
+    "image": "/images/Kuya Dos/Sizzlers/Sizzling Garlic Pepper Beef.webp"
+  },
+  {
+    "category": "Sizzlers",
+    "name": "Sizzling Tapawarma",
+    "price": 159,
+    "image": "/images/Kuya Dos/Sizzlers/Sizzling Tapawarma.webp"
+  },
+  {
+    "category": "Sizzlers",
+    "name": "Sizzling Dos Tapa",
+    "price": 159,
+    "image": "/images/Kuya Dos/Sizzlers/Sizzling Dos Tapa.webp"
+  },
+  {
+    "category": "Sizzlers",
+    "name": "Sizzling Pork Chop",
+    "price": 164,
+    "image": "/images/Kuya Dos/Sizzlers/Sizzling Pork Chop.webp"
+  },
+  {
+    "category": "Sizzlers",
+    "name": "Sizzling Dos Pares",
+    "price": 182,
+    "image": "/images/Kuya Dos/Sizzlers/Sizzling Dos Pares.webp"
+  },
+  {
+    "category": "Sizzlers",
+    "name": "Sizzling Hungarian",
+    "price": 155,
+    "image": "/images/Kuya Dos/Sizzlers/Sizzling Hungarian.webp"
+  },
+  {
+    "category": "Sizzlers",
+    "name": "Sizzling Liempo",
+    "price": 185,
+    "image": "/images/Kuya Dos/Sizzlers/Sizzling Liempo.webp"
+  },
+  {
+    "category": "Sizzling Overload",
+    "name": "Sizzling Overload (2 Ulam, 2 Rice)",
+    "price": 215,
+    "image": "/images/Kuya Dos/Sizzling Overload/Sizzling Overload (2 Ulam, 2 Rice and 1 egg).webp"
+  },
+  {
+    "category": "Student Avenue",
+    "name": "Fried Chicken ala Carte",
+    "price": 66,
+    "image": "/images/Kuya Dos/Student Avenue/Fried Chicken ala Carte.webp"
+  },
+  {
+    "category": "Student Avenue",
+    "name": "Fried Chicken with Rice",
+    "price": 87,
+    "image": "/images/Kuya Dos/Student Avenue/Fried Chicken ala Carte.webp"
+  }
+]

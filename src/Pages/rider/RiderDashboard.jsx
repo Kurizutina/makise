@@ -7,7 +7,7 @@ import {
 } from '../../context/CustomerActivityContext';
 import './RiderDashboard.css';
 import OrderCustomerDetails from '../../components/common/OrderCustomerDetails/OrderCustomerDetails';
-import { getSessionUser, isAssignedTo } from '../../utils/session';
+import { clearSession, getSessionUser, isAssignedTo } from '../../utils/session';
 
 const sections = [
   { key: 'food', label: 'Food Delivery', icon: 'fa-utensils' },
@@ -68,7 +68,7 @@ const RiderDashboard = () => {
   }, []);
 
   const logout = () => {
-    sessionStorage.removeItem('otuzanAuthenticated');
+    clearSession();
     navigate('/login', { replace: true });
   };
 

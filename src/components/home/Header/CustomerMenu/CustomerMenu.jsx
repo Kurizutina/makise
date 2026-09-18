@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './CustomerMenu.css';
 import { syncCustomerOrders } from '../../../../utils/customerProfileSync';
+import { clearSession } from '../../../../utils/session';
 
 const PROFILE_KEY = 'otuzanCustomerProfile';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -146,7 +147,7 @@ const CustomerMenu = ({ icon }) => {
   };
 
   const logout = () => {
-    sessionStorage.removeItem('otuzanAuthenticated');
+    clearSession();
     setIsMenuOpen(false);
     navigate('/login', { replace: true });
   };

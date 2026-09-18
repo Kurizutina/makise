@@ -619,12 +619,74 @@
     font-size: 17px;
   }
 
+  /* Keep menus efficient on narrow phones: every restaurant uses this shared
+     grid, so customers can compare two products without excessive scrolling. */
   .jollibee-product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .jollibee-category {
+    margin-bottom: 25px;
+  }
+
+  .jollibee-category-heading {
+    margin-bottom: 10px;
+    padding-bottom: 7px;
+  }
+
+  .jollibee-category-heading h2 {
+    font-size: 17px;
+  }
+
+  .jollibee-product-card {
+    border-radius: 12px;
+  }
+
+  .jollibee-product-image {
+    aspect-ratio: 1 / 0.82;
+  }
+
+  .jollibee-product-body {
+    min-height: 0;
+    padding: 9px;
+  }
+
+  .jollibee-product-body h3 {
+    display: -webkit-box;
+    overflow: hidden;
+    margin: 0 0 8px;
+    font-size: 12px;
+    line-height: 1.3;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  .restaurant-product-price {
+    margin: 0 0 9px;
+    font-size: 13px;
+  }
+
+  .restaurant-serving-size {
+    gap: 4px;
+    margin: 0 0 8px;
+    font-size: 10px;
+  }
+
+  .restaurant-serving-size select {
+    padding: 7px 5px;
+    font-size: 10px;
+  }
+
+  .jollibee-product-actions {
     grid-template-columns: 1fr;
+    gap: 6px;
   }
 
   .jollibee-product-actions button {
-    font-size: 12px;
+    min-height: 32px;
+    padding: 5px 4px;
+    font-size: 10px;
   }
 }
 .restaurant-serving-size {

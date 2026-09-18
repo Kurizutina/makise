@@ -37,7 +37,7 @@ const AppRoutes = () => {
           element={<Register />}
         />
 
-        <Route element={<ProtectedRoute />}>
+        <Route element={<ProtectedRoute role="customer" />}>
           <Route path="/food/manuelas" element={<CatalogNameRedirect brandName="Manuela's" />} />
           <Route path="/catalog/brands/:brandId" element={<CatalogBrandMenu />} />
           <Route
