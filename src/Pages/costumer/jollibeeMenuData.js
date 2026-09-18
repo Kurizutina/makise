@@ -5,7 +5,7 @@ const jollibeeMenu = [
     name: 'C1 - 1pc Chickenjoy',
     description: 'One piece of signature crispy, juicy fried chicken served with rice and savory gravy.',
     price: 99,
-    image: null
+    image: '/images/Jollibee/ChickenJoy/C1%20-%201p%20Chickenjoy.jpg'
   },
   {
     id: 'jollibee-chickenjoy-c2-2pc-drink',
@@ -13,7 +13,7 @@ const jollibeeMenu = [
     name: 'C2 - 2pc Chickenjoy w Drink',
     description: 'Two pieces of signature crispy fried chicken with rice, gravy, and a refreshing drink.',
     price: 215,
-    image: null
+    image: '/images/Jollibee/ChickenJoy/C2%20-%202pc%20Chickenjoy%20w%20Drink.jpg'
   },
   {
     id: 'jollibee-chickenjoy-c3-1pc-jolly-spaghetti-drink',
@@ -21,7 +21,7 @@ const jollibeeMenu = [
     name: 'C3 - 1pc Chickenjoy w Jolly Spaghetti w Drink',
     description: 'One piece Chickenjoy paired with sweet-style Jolly Spaghetti and a drink.',
     price: 165,
-    image: null
+    image: '/images/Jollibee/ChickenJoy/C3%20-%201%20pc%20Chickenjoy%20w%20Jolly%20Spaghetti%20w%20Drink.jpg'
   },
   {
     id: 'jollibee-chickenjoy-c4-1pc-fries-drink',
@@ -29,7 +29,7 @@ const jollibeeMenu = [
     name: 'C4 - 1pc Chickenjoy w Fries & Drink',
     description: 'One piece Chickenjoy served with golden Jolly Crispy Fries and a drink.',
     price: 175,
-    image: null
+    image: '/images/Jollibee/ChickenJoy/C4%20-%201pc.%20Chickenjoy%20w%20Fries%20%26%20Drink.jpg'
   },
   {
     id: 'jollibee-chickenjoy-c8-1pc-burger-steak-drink',
@@ -37,7 +37,7 @@ const jollibeeMenu = [
     name: 'C8 - 1pc Chickenjoy w Burger Steak & Drink',
     description: 'One piece Chickenjoy paired with a savory Burger Steak patty and a drink.',
     price: 195,
-    image: null
+    image: '/images/Jollibee/ChickenJoy/C8-%201pc%20Chickenjoy%20w%20Burger%20Steak%20%26%20Drink.jpg'
   },
   {
     id: 'jollibee-chickenjoy-1pc-mashed-potato-drink',
@@ -45,7 +45,7 @@ const jollibeeMenu = [
     name: '1pc Chickenjoy w Mashed Potato & Drink',
     description: 'One piece of crispy fried chicken served with creamy mashed potato and a drink.',
     price: 189,
-    image: null
+    image: '/images/Jollibee/ChickenJoy/1pc%20Chickenjoy%20w%20Mashed%20Potato%20%26%20Drink.jpg'
   },
 
   // --- BURGERS & SANDWICHES ---
@@ -103,7 +103,7 @@ const jollibeeMenu = [
     name: 'Crunchy Chicken Sandwich w Fries & Drink',
     description: 'Crispy chicken fillet sandwich served with Jolly Crispy Fries and a drink.',
     price: 185,
-    image: null
+    image: '/images/Jollibee/Sandwiches%20%26%20Snacks/Crunchy%20Chicken%20Sandwich%20w%20Fries%20%26%20Drink.jpg'
   },
   {
     id: 'jollibee-burgers-cheesy-classic-jolly-hotdog-fries-drink',
@@ -111,7 +111,7 @@ const jollibeeMenu = [
     name: 'Cheesy Classic Jolly Hotdog w Fries & Drink',
     description: 'Meaty hotdog in a soft bun topped with cheese sauce and shredded cheese, served with fries and a drink.',
     price: 140,
-    image: null
+    image: '/images/Jollibee/Sandwiches%20%26%20Snacks/Cheesy%20Classic%20Jolly%20Hotdog%20w%20Fries%20%26%20Drink.jpg'
   },
 
   // --- JOLLY SPAGHETTI & COMBOS ---
@@ -121,7 +121,7 @@ const jollibeeMenu = [
     name: 'S2 - Jolly Spaghetti w Fries & Drink',
     description: 'Sweet-style Jolly Spaghetti topped with ham and cheese, served with fries and a drink.',
     price: 135,
-    image: null
+    image: '/images/Jollibee/Jolly%20Sphagetti/S2%20-%20Jolly%20Spaghetti%20w%20Fries%20%26%20Drink.jpg'
   },
   {
     id: 'jollibee-spaghetti-s3-yumburger-drink',
@@ -129,7 +129,7 @@ const jollibeeMenu = [
     name: 'S3 - Jolly Spaghetti w Yumburger w Drink',
     description: 'Jolly Spaghetti paired with a classic Yumburger and a drink.',
     price: 145,
-    image: null
+    image: '/images/Jollibee/Jolly%20Sphagetti/S3%20-%20Jolly%20Spaghetti%20w%20Yumburger%20w%20Drink.jpg'
   },
   {
     id: 'jollibee-spaghetti-s4-cheesy-yumburger-drink',
@@ -137,7 +137,7 @@ const jollibeeMenu = [
     name: 'S4 - Jolly Spaghetti w Cheesy Yumburger w Drink',
     description: 'Jolly Spaghetti served alongside a Cheesy Yumburger and a drink.',
     price: 160,
-    image: null
+    image: '/images/Jollibee/Jolly%20Sphagetti/S4%20-%20Jolly%20Spaghetti%20w%20Cheesy%20Yumburger%20w%20Drink.jpg'
   },
   {
     id: 'jollibee-spaghetti-s5-1pc-burger-steak-solo',
@@ -145,7 +145,7 @@ const jollibeeMenu = [
     name: 'S5 - Jolly Spaghetti w 1pc Burger Steak Solo',
     description: 'Jolly Spaghetti paired with a single savory Burger Steak patty in mushroom gravy.',
     price: 140,
-    image: null
+    image: '/images/Jollibee/Jolly%20Sphagetti/S5%20-%20Jolly%20Spaghetti%20w%201pc%20Burger%20Steak%20Solo.jpg'
   },
 
   // --- BURGER STEAK & CHICKEN FILLETS ---
@@ -155,7 +155,7 @@ const jollibeeMenu = [
     name: '1pc Burger Steak w Drink',
     description: 'Savory beef patty topped with mushroom gravy and mushroom slices, served with rice and a drink.',
     price: 95,
-    image: null
+    image: '/images/Jollibee/Chicken%20Fillet%20%26%20Burger%20Steak/1pc%20Burger%20Steak%20w%20Drink.jpg'
   },
   {
     id: 'jollibee-rice-meals-1pc-burger-steak-fries-drink',
@@ -163,7 +163,7 @@ const jollibeeMenu = [
     name: '1pc Burger Steak w Fries & Drink',
     description: 'One piece Burger Steak with rice, mushroom gravy, Jolly Crispy Fries, and a drink.',
     price: 130,
-    image: null
+    image: '/images/Jollibee/Chicken%20Fillet%20%26%20Burger%20Steak/1pc%20Burger%20Steak%20w%20Fries%20%26%20Drink.jpg'
   },
   {
     id: 'jollibee-rice-meals-2pc-burger-steak-drink',
@@ -171,7 +171,7 @@ const jollibeeMenu = [
     name: '2pc Burger Steak w Drink',
     description: 'Two savory beef patties with mushroom gravy and mushroom slices, served with rice and a drink.',
     price: 145,
-    image: null
+    image: '/images/Jollibee/Chicken%20Fillet%20%26%20Burger%20Steak/2pc%20Burger%20Steak%20w%20Drink.jpg'
   },
   {
     id: 'jollibee-rice-meals-pepper-cream-chicken-fillet-drink',
@@ -179,7 +179,7 @@ const jollibeeMenu = [
     name: 'Pepper Cream Chicken Fillet w Drink',
     description: 'Crispy chicken fillet coated in savory pepper cream sauce, served with rice and a drink.',
     price: 110,
-    image: null
+    image: '/images/Jollibee/Chicken%20Fillet%20%26%20Burger%20Steak/Pepper%20Cream%20Chicken%20Fillet%20w%20Drink.jpg'
   },
   {
     id: 'jollibee-rice-meals-pepper-cream-chicken-fillet-fries-drink',
@@ -187,7 +187,7 @@ const jollibeeMenu = [
     name: 'Pepper Cream Chicken Fillet w Fries & Drink',
     description: 'Pepper Cream Chicken Fillet with rice, served alongside Jolly Crispy Fries and a drink.',
     price: 150,
-    image: null
+    image: '/images/Jollibee/Chicken%20Fillet%20%26%20Burger%20Steak/Pepper%20Cream%20Chicken%20Fillet%20w%20Fries%20%26%20Drink.jpg'
   },
   {
     id: 'jollibee-rice-meals-pepper-cream-jolly-spaghetti-drink',
@@ -195,7 +195,7 @@ const jollibeeMenu = [
     name: 'Pepper Cream w Jolly Spaghetti & Drink',
     description: 'Pepper Cream Chicken Fillet paired with sweet-style Jolly Spaghetti and a drink.',
     price: 165,
-    image: null
+    image: '/images/Jollibee/Chicken%20Fillet%20%26%20Burger%20Steak/Pepper%20Cream%20w%20Jolly%20Spaghetti%20%26%20Drink.jpg'
   },
 
   // --- NUGGETS ---
@@ -205,7 +205,7 @@ const jollibeeMenu = [
     name: '6pc Chicken Nuggets',
     description: 'Six pieces of tender, crispy chicken nuggets served with your choice of dipping sauce.',
     price: 120,
-    image: null
+    image: '/images/Jollibee/Sandwiches%20%26%20Snacks/6p%20Chicken%20Nuggets.jpg'
   },
   {
     id: 'jollibee-nuggets-10pc',
@@ -213,7 +213,7 @@ const jollibeeMenu = [
     name: '10pc Chicken Nuggets',
     description: 'Ten pieces of tender, crispy chicken nuggets ideal for sharing, served with dipping sauce.',
     price: 190,
-    image: null
+    image: '/images/Jollibee/Sandwiches%20%26%20Snacks/10p%20Chicken%20Nuggets.jpg'
   },
 
   // --- SIDES & DESSERTS ---
@@ -223,7 +223,7 @@ const jollibeeMenu = [
     name: 'Fries',
     description: 'Crispy, golden potato fries seasoned to perfection.',
     price: 50,
-    image: null
+    image: '/images/Jollibee/Sandwiches%20%26%20Snacks/Fries.jpg'
   },
   {
     id: 'jollibee-sides-jolly-crispy-fries-bucket',
@@ -231,7 +231,7 @@ const jollibeeMenu = [
     name: 'Jolly Crispy Fries Bucket',
     description: 'Large sharing bucket of golden Jolly Crispy Fries.',
     price: 175,
-    image: null
+    image: '/images/Jollibee/Sandwiches%20%26%20Snacks/Jolly%20Crispy%20Fries%20Bucket.jpg'
   },
   {
     id: 'jollibee-desserts-peach-mango-pie',
@@ -239,7 +239,7 @@ const jollibeeMenu = [
     name: 'Peach Mango Pie',
     description: 'Crispy, flaky crust filled with sweet peaches and real mangoes.',
     price: 45,
-    image: null
+    image: '/images/Jollibee/Sandwiches%20%26%20Snacks/Peach%20Mango%20Pie.jpg'
   },
   {
     id: 'jollibee-desserts-tuna-pie',
@@ -247,7 +247,7 @@ const jollibeeMenu = [
     name: 'Tuna Pie',
     description: 'Crispy, golden pie filled with creamy tuna and vegetables.',
     price: 50,
-    image: null
+    image: '/images/Jollibee/Sandwiches%20%26%20Snacks/Tuna%20Pie.jpg'
   }
 ];
 
