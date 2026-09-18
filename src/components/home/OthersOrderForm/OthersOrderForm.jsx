@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import './OthersOrderForm.css';
-import { calculateDeliveryFee, CUSTOMER_TYPES, DELIVERY_LOCATIONS, deliveryRateLabel, findDeliveryLocation } from '../../../utils/deliveryRates';
+import { CUSTOMER_TYPES, DELIVERY_LOCATIONS } from '../../../utils/deliveryRates';
 
 const serviceNames = {
   food: 'Food Delivery',
@@ -118,14 +118,13 @@ const OthersOrderForm = ({
             <span>Delivery location</span>
             <select required value={deliveryLocation} onChange={(event) => setDeliveryLocation(event.target.value)}>
               <option value="">Select your location</option>
-              {DELIVERY_LOCATIONS.map((location) => <option value={location.id} key={location.id}>{location.name} — {deliveryRateLabel(location)}</option>)}
+              {DELIVERY_LOCATIONS.map((location) => <option value={location.id} key={location.id}>{location.name}</option>)}
             </select>
             <span>Customer type</span>
             <select required value={customerType} onChange={(event) => setCustomerType(event.target.value)}>
               <option value="">Select customer type</option>
               {CUSTOMER_TYPES.map((type) => <option value={type.id} key={type.id}>{type.label}</option>)}
             </select>
-            {deliveryLocation && customerType && <small>Delivery/service fee: ₱{calculateDeliveryFee(findDeliveryLocation(deliveryLocation), customerType).serviceFee.toFixed(2)}{calculateDeliveryFee(findDeliveryLocation(deliveryLocation), customerType).surchargeApplied ? ' (includes 50% night surcharge)' : ''}</small>}
           </label>}
 
           {serviceType === 'item' && allowPickup && (

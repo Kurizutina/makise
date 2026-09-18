@@ -511,6 +511,21 @@
   font-size: 17px;
 }
 
+.restaurant-cart-service-fee {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -6px 0 15px;
+  color: #786b71;
+  font-size: 12px;
+}
+
+.restaurant-cart-service-fee strong {
+  color: #da1c5c;
+  font-size: 15px;
+}
+
 .restaurant-delivery-location {
   display: grid;
   gap: 6px;

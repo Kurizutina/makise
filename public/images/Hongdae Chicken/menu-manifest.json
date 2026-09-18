@@ -1,0 +1,200 @@
+[
+  {
+    "category": "Boneless Chicken",
+    "name": "Signature Boneless Chicken With Rice Ala Carte (1 Pc With Rice)",
+    "price": 144,
+    "image": "/images/Hongdae Chicken/Boneless Chicken/Signature Boneless Chicken With Rice Ala Carte.webp"
+  },
+  {
+    "category": "Boneless Chicken",
+    "name": "Signature Boneless Chicken With Rice Ala Carte (2 Pcs With Rice)",
+    "price": 216,
+    "image": "/images/Hongdae Chicken/Boneless Chicken/Signature Boneless Chicken With Rice Ala Carte.webp"
+  },
+  {
+    "category": "Boneless Chicken",
+    "name": "Signature Boneless Chicken With Rice Ala Carte (3 Pcs With Rice)",
+    "price": 287,
+    "image": "/images/Hongdae Chicken/Boneless Chicken/Signature Boneless Chicken With Rice Ala Carte.webp"
+  },
+  {
+    "category": "Boneless Chicken",
+    "name": "Premium Boneless Chicken With Rice Ala Carte (1 Pc With Rice)",
+    "price": 151,
+    "image": "/images/Hongdae Chicken/Boneless Chicken/Premium Boneless Chicken With Rice Ala Carte.webp"
+  },
+  {
+    "category": "Boneless Chicken",
+    "name": "Premium Boneless Chicken With Rice Ala Carte (2 Pcs With Rice)",
+    "price": 226,
+    "image": "/images/Hongdae Chicken/Boneless Chicken/Premium Boneless Chicken With Rice Ala Carte.webp"
+  },
+  {
+    "category": "Boneless Chicken",
+    "name": "Premium Boneless Chicken With Rice Ala Carte (3 Pcs With Rice)",
+    "price": 297,
+    "image": "/images/Hongdae Chicken/Boneless Chicken/Premium Boneless Chicken With Rice Ala Carte.webp"
+  },
+  {
+    "category": "Boneless Chicken",
+    "name": "Signature Chicken (Half – 6–7 Pcs)",
+    "price": 476,
+    "image": "/images/Hongdae Chicken/Boneless Chicken/Signature Chicken.webp"
+  },
+  {
+    "category": "Boneless Chicken",
+    "name": "Signature Chicken (Whole – 12–14 Pcs)",
+    "price": 898,
+    "image": "/images/Hongdae Chicken/Boneless Chicken/Signature Chicken.webp"
+  },
+  {
+    "category": "Boneless Chicken",
+    "name": "Premium Chicken (Half – 6–7 Pcs)",
+    "price": 492,
+    "image": "/images/Hongdae Chicken/Boneless Chicken/Premium Chicken.webp"
+  },
+  {
+    "category": "Boneless Chicken",
+    "name": "Premium Chicken (Whole – 12–14 Pcs)",
+    "price": 968,
+    "image": "/images/Hongdae Chicken/Boneless Chicken/Premium Chicken.webp"
+  },
+  {
+    "category": "Combo Meal",
+    "name": "2 Flavors – 2 Signature (Half – 6–7 Pcs)",
+    "price": 494,
+    "image": "/images/Hongdae Chicken/Combo Meal/2 Signature.webp"
+  },
+  {
+    "category": "Combo Meal",
+    "name": "2 Flavors – 2 Signature (Whole – 12–14 Pcs)",
+    "price": 925,
+    "image": "/images/Hongdae Chicken/Combo Meal/2 Signature.webp"
+  },
+  {
+    "category": "Combo Meal",
+    "name": "2 Flavors – 2 Premium (Half – 6–7 Pcs)",
+    "price": 518,
+    "image": "/images/Hongdae Chicken/Combo Meal/2 Premium.webp"
+  },
+  {
+    "category": "Combo Meal",
+    "name": "2 Flavors – 2 Premium (Whole – 12–14 Pcs)",
+    "price": 958,
+    "image": "/images/Hongdae Chicken/Combo Meal/2 Premium.webp"
+  },
+  {
+    "category": "Combo Meal",
+    "name": "2 Flavors – 1 Signature & 1 Premium (Half – 6–7 Pcs)",
+    "price": 503,
+    "image": "/images/Hongdae Chicken/Combo Meal/1 Signature & 1 Premium.webp"
+  },
+  {
+    "category": "Combo Meal",
+    "name": "2 Flavors – 1 Signature & 1 Premium (Whole – 12–14 Pcs)",
+    "price": 958,
+    "image": "/images/Hongdae Chicken/Combo Meal/1 Signature & 1 Premium.webp"
+  },
+  {
+    "category": "Popcorn Chicken",
+    "name": "Popcorn Chicken (Half Order – No Rice)",
+    "price": 583,
+    "image": "/images/Hongdae Chicken/Popcorn Chicken/Popcorn Chicken.webp"
+  },
+  {
+    "category": "Popcorn Chicken",
+    "name": "Popcorn Chicken (Budget Meal)",
+    "price": 182,
+    "image": "/images/Hongdae Chicken/Popcorn Chicken/Popcorn Chicken.webp"
+  },
+  {
+    "category": "Popcorn Chicken",
+    "name": "Popcorn Chicken (Solo Meal)",
+    "price": 258,
+    "image": "/images/Hongdae Chicken/Popcorn Chicken/Popcorn Chicken.webp"
+  },
+  {
+    "category": "Popcorn Chicken",
+    "name": "Popcorn Chicken (Full Meal)",
+    "price": 335,
+    "image": "/images/Hongdae Chicken/Popcorn Chicken/Popcorn Chicken.webp"
+  },
+  {
+    "category": "Extras",
+    "name": "Extra Rice",
+    "price": 60,
+    "image": "/images/Hongdae Chicken/Extras/Extra Rice.webp"
+  },
+  {
+    "category": "Extras",
+    "name": "Flavored Fries",
+    "price": 100,
+    "image": "/images/Hongdae Chicken/Extras/Flavored Fries.jpg"
+  },
+  {
+    "category": "Extras",
+    "name": "Kimchi",
+    "price": 50,
+    "image": "/images/Hongdae Chicken/Extras/Kimchi.webp"
+  },
+  {
+    "category": "Extras",
+    "name": "Pickled Radish",
+    "price": 50,
+    "image": "/images/Hongdae Chicken/Extras/Pickled Radish.webp"
+  },
+  {
+    "category": "Extras",
+    "name": "Pickled Cucumber",
+    "price": 50,
+    "image": "/images/Hongdae Chicken/Extras/Pickled Cucumber.webp"
+  },
+  {
+    "category": "Extras",
+    "name": "Kimchi in a Tub (300g)",
+    "price": 190,
+    "image": "/images/Hongdae Chicken/Extras/Kimchi in a Tub 300g.webp"
+  },
+  {
+    "category": "Extras",
+    "name": "Extra Sauce",
+    "price": 45,
+    "image": "/images/Hongdae Chicken/Extras/Extra Sauce.webp"
+  },
+  {
+    "category": "Beverages",
+    "name": "Raspberry Tea",
+    "price": 60,
+    "image": "/images/Hongdae Chicken/Beverages/Raspberry Tea.webp"
+  },
+  {
+    "category": "Beverages",
+    "name": "Iced Tea",
+    "price": 60,
+    "image": "/images/Hongdae Chicken/Beverages/Iced Tea.webp"
+  },
+  {
+    "category": "Beverages",
+    "name": "Bottled Water",
+    "price": 45,
+    "image": "/images/Hongdae Chicken/Beverages/Bottled Water.webp"
+  },
+  {
+    "category": "Beverages",
+    "name": "Coke (1.5 Liter)",
+    "price": 230,
+    "image": "/images/Hongdae Chicken/Beverages/Coke.webp"
+  },
+  {
+    "category": "Beverages",
+    "name": "Soft Beverages in Can",
+    "price": 85,
+    "image": "/images/Hongdae Chicken/Beverages/SoftBeverage in Can.webp"
+  },
+  {
+    "category": "Beverages",
+    "name": "Soda Pop",
+    "price": 112,
+    "image": "/images/Hongdae Chicken/Beverages/Soda Pop.webp"
+  }
+]

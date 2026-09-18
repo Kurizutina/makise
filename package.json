@@ -24,6 +24,7 @@
     "generate:mcdo-menu": "node scripts/generate-mcdo-manifest.js",
     "generate:mang-inasal-menu": "node scripts/generate-mang-inasal-manifest.js",
     "generate:manuelas-catalog": "node scripts/generate-manuelas-catalog.js",
+    "generate:hongdae-chicken-menu": "node scripts/generate-hongdae-chicken-manifest.js",
     "backend:start": "node scripts/start-local-backend.js --foreground",
     "backend:local": "node scripts/start-local-backend.js",
     "backend:db-check": "node scripts/start-local-backend.js --check",

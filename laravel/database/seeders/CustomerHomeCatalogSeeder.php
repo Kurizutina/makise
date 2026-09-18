@@ -13,7 +13,7 @@ class CustomerHomeCatalogSeeder extends Seeder
     {
         $catalog = [
             'Food Delivery' => [
-                ['Jollibee', '/images/jollibee_logo.jpg'], ["McDonald's", "/images/mcdonald's_logo.png"],
+                ['Hongdae Chicken', '/images/Hongdae Chicken/Boneless Chicken/Signature Chicken.webp'], ['Jollibee', '/images/jollibee_logo.jpg'], ["McDonald's", "/images/mcdonald's_logo.png"],
                 ['Mang Inasal', '/images/mang_inasal_logo.png'], ["Manuela's", '/images/maluelas_logo.jpg'],
                 ["Elena's", "/images/elenas's_logo.jpg"], ['Kuya Dos', '/images/kuya_dos_logo.jpg'],
                 ['ButterLand', '/images/butterland_logo.jpg'], ['Others', null],
@@ -45,6 +45,7 @@ class CustomerHomeCatalogSeeder extends Seeder
 
         $this->importManifest($brands["McDonald's"], base_path('../public/images/Mcdo (Mega Meal)/menu-manifest.json'));
         $this->importManifest($brands['Mang Inasal'], base_path('../public/images/Mang Inasal/menu-manifest.json'));
+        $this->importManifest($brands['Hongdae Chicken'], base_path('../public/images/Hongdae Chicken/menu-manifest.json'));
     }
 
     private function importManifest(?Brand $brand, string $path): void

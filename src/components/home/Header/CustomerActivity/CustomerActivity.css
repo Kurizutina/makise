@@ -71,6 +71,8 @@
 .global-cart-summary { display: flex; justify-content: space-between; margin: 20px 0 14px; padding-top: 16px; border-top: 1px solid #eee6e9; }
 .global-cart-summary span { color: #786b71; font-size: 12px; }
 .global-cart-summary strong { color: #da1c5c; }
+.global-cart-service-fee { display:flex; justify-content:space-between; margin:-4px 0 14px; color:#786b71; font-size:12px; }
+.global-cart-service-fee strong { color:#da1c5c; font-size:14px; }
 .global-cart-place { width: 100%; padding: 13px; border: 0; border-radius: 11px; background: #da1c5c; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
 .global-cart-place:disabled { background: #e5dce0; color: #9a8e94; cursor: not-allowed; }
 .global-cart-location { display:grid; gap:6px; margin:0 0 14px; color:#64575d; font-size:12px; font-weight:700; }

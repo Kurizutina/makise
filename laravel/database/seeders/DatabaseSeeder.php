@@ -16,10 +16,8 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // Create accounts through registration; do not seed shared credentials.
-        if (\App\Models\Brand::count() === 0) {
-            $this->call(CustomerHomeCatalogSeeder::class);
-            $this->call(ManuelasProductsSeeder::class);
-        }
+        $this->call(CustomerHomeCatalogSeeder::class);
+        $this->call(ManuelasProductsSeeder::class);
         $this->call(CatalogProductImagesSeeder::class);
     }
 }

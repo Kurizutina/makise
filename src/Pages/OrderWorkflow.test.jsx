@@ -77,10 +77,10 @@ test('direct and cart orders retain the signed-in customer account ID', () => {
   localStorage.setItem('otuzanCustomerProfile', JSON.stringify({ id: 42, username: 'Full Name', address: 'Address', email: 'customer@example.com' }));
   render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
   act(() => actions.placeOrder({ source: 'Shop', items: [], deliveryLocation: 'villa-javier' }));
-  expect(saved().orders[0]).toMatchObject({ customerId: 42, customerName: 'Full Name', customerEmail: 'customer@example.com', serviceFee: 60, deliveryLocationName: 'Villa Javier' });
+  expect(saved().orders[0]).toMatchObject({ customerId: 42, customerName: 'Full Name', customerEmail: 'customer@example.com', serviceFee: 75, deliveryLocationName: 'Villa Javier' });
   act(() => actions.addToCart({ id: 'item', source: 'Shop', name: 'Food', details: { deliveryLocation: 'bukang-liwayway' } }));
   act(() => actions.placeCartOrder());
-  expect(saved().orders[0]).toMatchObject({ customerId: 42, customerName: 'Full Name', serviceFee: 65, deliveryLocationName: 'Bukang Liwayway' });
+  expect(saved().orders[0]).toMatchObject({ customerId: 42, customerName: 'Full Name', serviceFee: 75, deliveryLocationName: 'Bukang Liwayway' });
 });
 
 test('admin explicitly assigns an active delivery and only the selected rider sees it', async () => {

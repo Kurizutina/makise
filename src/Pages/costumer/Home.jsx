@@ -54,7 +54,11 @@ const Home = () => {
       type: currentService.ServiceType,
       productsCount: brand.products_count
     }))
-    .sort((first, second) => Number(first.name === 'Others') - Number(second.name === 'Others'));
+    .sort((first, second) => {
+      if (first.name === 'Hongdae Chicken') return -1;
+      if (second.name === 'Hongdae Chicken') return 1;
+      return Number(first.name === 'Others') - Number(second.name === 'Others');
+    });
 
 
   // Change section title depending on service
