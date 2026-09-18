@@ -24,6 +24,7 @@ const AuthCard = ({
 
   onRoleChange,
   onToggleMode,
+  onForgotPassword,
 
   onEmailChange,
   onPasswordChange,
@@ -213,6 +214,12 @@ const AuthCard = ({
 
 
           <hr className="divider" />
+
+          {mode === 'login' && (
+            <button type="button" className="auth-secondary-link" onClick={onForgotPassword}>
+              Forgot password?
+            </button>
+          )}
 
 
           {/* LOGIN / REGISTER TOGGLE */}

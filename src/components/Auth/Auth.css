@@ -478,6 +478,56 @@
   text-decoration: underline;
 }
 
+.auth-secondary-link {
+  display: block;
+  margin: 0.8rem auto 1.35rem;
+  padding: 0.15rem 0.35rem;
+  border: 0;
+  background: transparent;
+  color: #8b3158;
+  font: 600 0.85rem Tahoma, sans-serif;
+  cursor: pointer;
+}
+
+.auth-secondary-link:hover {
+  color: #F15A29;
+  text-decoration: underline;
+}
+
+.auth-simple-card {
+  width: min(100%, 460px);
+  padding: 2.5rem;
+  background: #fff;
+  border: 2px solid #f0f0f0;
+  border-radius: 2rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.auth-simple-card .logo-container {
+  margin-bottom: 1.5rem;
+}
+
+.auth-simple-header {
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.auth-simple-header h1 {
+  margin-bottom: 0.5rem;
+  color: #1a1a1a;
+  font: 700 1.6rem Tahoma, sans-serif;
+}
+
+.auth-simple-header p {
+  color: #666;
+  font: 0.9rem/1.5 Tahoma, sans-serif;
+}
+
+.action-btn:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 /* Responsive Design */
 @media (max-width: 900px) {
   .auth-layout {

@@ -8,6 +8,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
@@ -58,6 +60,59 @@ class AuthController extends Controller
             return response()->json(['error' => 'invalid credentials'], 401);
         }
         return $this->authenticated($user);
+    }
+
+    public function requestPasswordReset(Request $request): JsonResponse
+    {
+        $data = $request->validate(['email' => ['required', 'email', 'max:255']]);
+        $email = strtolower(trim($data['email']));
+        $user = User::where('Email', $email)->first();
+
+        if ($user) {
+            $token = Str::random(64);
+            DB::table('password_reset_tokens')->where('email', $email)->delete();
+            DB::table('password_reset_tokens')->insert([
+                'email' => $email,
+                'token' => hash('sha256', $token),
+                'created_at' => now(),
+            ]);
+
+            $resetUrl = rtrim((string) config('otuzan.frontend_url'), '/')
+                .'/reset-password?token='.urlencode($token).'&email='.urlencode($email);
+            Mail::raw("Use this link to reset your Otu-Zan password:\n\n{$resetUrl}\n\nThis link expires in 60 minutes.", function ($message) use ($email) {
+                $message->to($email)->subject('Reset your Otu-Zan password');
+            });
+        }
+
+        return response()->json([
+            'message' => 'If an account exists for that email, a password reset link has been sent.',
+        ]);
+    }
+
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+            'token' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:6', 'max:72'],
+        ]);
+        $email = strtolower(trim($data['email']));
+        $reset = DB::table('password_reset_tokens')->where('email', $email)->first();
+
+        if (!$reset || now()->subMinutes(60)->greaterThan($reset->created_at)
+            || !hash_equals($reset->token, hash('sha256', $data['token']))) {
+            return response()->json(['error' => 'This password reset link is invalid or expired.'], 422);
+        }
+
+        $user = User::where('Email', $email)->first();
+        if (!$user) {
+            return response()->json(['error' => 'This password reset link is invalid or expired.'], 422);
+        }
+
+        $user->update(['PasswordHash' => Hash::make($data['password'])]);
+        DB::table('password_reset_tokens')->where('email', $email)->delete();
+
+        return response()->json(['message' => 'Your password has been reset. You can now sign in.']);
     }
 
     private function authenticated(User $user, int $status = 200): JsonResponse
