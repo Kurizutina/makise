@@ -246,14 +246,23 @@ const AccountManagementTab = ({ role, onAccountsChanged }) => {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const request = useCallback(async (path, options = {}) => {
-    const response = await fetch(`${api}/api/admin/accounts/${path}`, {
+    const token = sessionStorage.getItem('otuzanAuthenticated');
+    if (!token) throw new Error('Your admin session has expired. Sign in again.');
+    const requestUrl = `${api}/api/admin/accounts/${path}`;
+    const response = await fetch(requestUrl, {
       ...options,
-      headers: { Authorization: `Bearer ${sessionStorage.getItem('otuzanAuthenticated')}`, 'Content-Type': 'application/json', ...(options.headers || {}) }
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', 'Content-Type': 'application/json', ...(options.headers || {}) }
     });
-    const body = await response.json();
-    if (!response.ok) throw new Error(body.error || Object.values(body.errors || {}).flat()[0] || `Unable to save ${label.toLowerCase()} accounts.`);
+    const contentType = response.headers.get('content-type') || '';
+    const body = contentType.includes('application/json') ? await response.json() : null;
+    if (!response.ok) {
+      const validationError = body?.errors ? Object.values(body.errors).flat()[0] : null;
+      if (response.status === 401) throw new Error('Your admin session has expired. Sign in again.');
+      const responseText = body ? '' : (await response.text()).slice(0, 160).replace(/\s+/g, ' ').trim();
+      throw new Error(body?.error || validationError || `Server returned HTTP ${response.status} for ${requestUrl}.${responseText ? ` Response: ${responseText}` : ''}`);
+    }
     return body;
-  }, [api, label]);
+  }, [api]);
   const load = useCallback(async () => {
     try {
       setError('');
@@ -269,8 +278,9 @@ const AccountManagementTab = ({ role, onAccountsChanged }) => {
     event.preventDefault(); setSaving(true); setError('');
     try {
       const payload = { ...form };
-      if (editing && !payload.password) delete payload.password;
-      await request(editing ? `${role}/${editing.UserID}` : role, { method: editing ? 'PUT' : 'POST', body: JSON.stringify(payload) });
+      const isEditing = Boolean(editing?.UserID);
+      if (isEditing && !payload.password) delete payload.password;
+      await request(isEditing ? `${role}/${editing.UserID}` : role, { method: isEditing ? 'PUT' : 'POST', body: JSON.stringify(payload) });
       resetForm(); onAccountsChanged?.();
       if (page !== 1) setPage(1); else await load();
     } catch (e) { setError(e.message); } finally { setSaving(false); }
