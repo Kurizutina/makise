@@ -33,6 +33,7 @@ const RestaurantProductCard = ({ product, onAddToCart, onPlaceOrder, showFoodIco
       )}
       <div className="jollibee-product-body">
         <h3>{product.name}</h3>
+        {product.description && <p className="jollibee-product-description">{product.description}</p>}
         {product.variants && (
           <label className="restaurant-serving-size">
             <span>Serving size</span>
