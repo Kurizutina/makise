@@ -19,7 +19,7 @@ class AuthController extends Controller
         $data = $request->validate([
             'email' => ['required', 'email', 'max:255'],
             'password' => ['required', 'string', 'min:6', 'max:72'],
-            'role' => ['required', Rule::in(['customer', 'driver', 'admin'])],
+            'role' => ['required', Rule::in(['customer', 'admin'])],
             'username' => ['required', 'string', 'max:100'],
             'contact' => ['required', 'string', 'max:50'],
             'address' => ['nullable', 'string', 'max:2000'],

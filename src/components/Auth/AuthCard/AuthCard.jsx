@@ -96,6 +96,7 @@ const AuthCard = ({
         <div className="hover-animate form-card">
 
           <RoleSelector
+            mode={mode}
             selectedRole={selectedRole}
             onRoleChange={onRoleChange}
             roles={roles}

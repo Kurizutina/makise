@@ -60,6 +60,10 @@ const AuthPage = ({ mode }) => {
    */
   useEffect(() => {
 
+    if (mode === 'register' && selectedRole === 'rider') {
+      setSelectedRole(ROLES.CUSTOMER.key);
+    }
+
     setConfirmPassword('');
     setAccessCode('');
 

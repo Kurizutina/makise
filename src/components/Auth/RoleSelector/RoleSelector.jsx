@@ -3,11 +3,14 @@ import React from 'react';
 const RoleSelector = ({
   selectedRole,
   onRoleChange,
-  roles
+  roles,
+  mode
 }) => {
   return (
     <div className="role-tabs">
-      {Object.values(roles).map((role) => (
+      {Object.values(roles)
+        .filter((role) => mode !== 'register' || role.key !== 'rider')
+        .map((role) => (
         <button
           key={role.key}
           type="button"
@@ -39,7 +42,7 @@ const RoleSelector = ({
             <i className="fas fa-lock role-lock-icon"></i>
           )}
         </button>
-      ))}
+        ))}
     </div>
   );
 };
