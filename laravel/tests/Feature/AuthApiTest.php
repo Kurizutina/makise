@@ -52,15 +52,60 @@ class AuthApiTest extends TestCase
         ])->assertUnauthorized();
     }
 
-    public function test_staff_registration_requires_correct_access_code(): void
+    public function test_public_rider_registration_is_blocked_and_admin_created_rider_can_login(): void
     {
         $data = ['username' => 'Rider', 'email' => 'rider@example.com', 'password' => 'secret123',
             'role' => 'driver', 'contact' => '09123456789'];
-        $this->postJson('/api/auth/register', $data)->assertStatus(400);
-        $this->postJson('/api/auth/register', $data + ['accessCode' => config('otuzan.access_codes.driver')])
-            ->assertCreated()->assertJsonPath('user.role', 'driver');
+        $this->postJson('/api/auth/register', $data)->assertUnprocessable();
+
+        $admin = $this->account('admin');
+        $adminToken = $admin->createToken('test')->plainTextToken;
+        $rider = $this->withToken($adminToken)->postJson('/api/admin/accounts/driver', [
+            'UserName' => 'Rider', 'Email' => 'rider@example.com', 'Contact' => '09123456789',
+            'password' => 'secret123',
+        ])->assertCreated()->assertJsonPath('Role', 'driver')->json();
+
+        $this->app['auth']->forgetGuards();
+        $this->postJson('/api/auth/login', [
+            'email' => $rider['Email'], 'password' => 'secret123', 'role' => 'driver',
+        ])->assertOk()->assertJsonPath('user.role', 'driver');
         $this->postJson('/api/auth/register', ['role' => 'superadmin'])->assertUnprocessable()
             ->assertJsonStructure(['error']);
+    }
+
+    public function test_admin_created_rider_must_change_temporary_password(): void
+    {
+        $admin = $this->account('admin');
+        $token = $admin->createToken('test')->plainTextToken;
+        $rider = $this->withToken($token)->postJson('/api/admin/accounts/driver', [
+            'UserName' => 'Temporary Rider', 'Email' => 'temporary-rider@example.com',
+            'Contact' => '09123456789', 'password' => 'temporary123',
+        ])->assertCreated()->json();
+
+        $this->postJson('/api/auth/login', [
+            'email' => $rider['Email'], 'password' => 'temporary123', 'role' => 'driver',
+        ])->assertOk()->assertJsonPath('mustChangePassword', true);
+
+        $this->app['auth']->forgetGuards();
+        $riderUser = User::where('Email', $rider['Email'])->firstOrFail();
+        $riderToken = $riderUser->createToken('test')->plainTextToken;
+        $this->withToken($riderToken)->postJson('/api/auth/change-password', [
+            'currentPassword' => 'temporary123', 'password' => 'permanent123',
+        ])->assertOk();
+        $this->postJson('/api/auth/login', [
+            'email' => $rider['Email'], 'password' => 'permanent123', 'role' => 'driver',
+        ])->assertOk()->assertJsonPath('mustChangePassword', false);
+    }
+
+    public function test_password_reset_request_sends_a_generic_reset_message(): void
+    {
+        $user = $this->account();
+
+        $this->postJson('/api/auth/forgot-password', ['email' => $user->Email])
+            ->assertOk()
+            ->assertJsonPath('message', 'If an account exists for that email, a password reset link has been sent.');
+
+        $this->assertDatabaseHas('password_reset_tokens', ['email' => $user->Email]);
     }
 
     public function test_only_admin_can_list_registered_drivers(): void

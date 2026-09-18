@@ -118,7 +118,11 @@ class AuthController extends Controller
     private function authenticated(User $user, int $status = 200): JsonResponse
     {
         $token = $user->createToken('dashboard', ['*'], now()->addHours(2))->plainTextToken;
-        return response()->json(['user' => $user->profile(), 'token' => $token], $status);
+        return response()->json([
+            'user' => $user->profile(),
+            'token' => $token,
+            'mustChangePassword' => (bool) $user->MustChangePassword,
+        ], $status);
     }
 
     public function me(Request $request): JsonResponse
@@ -130,6 +134,20 @@ class AuthController extends Controller
     {
         $request->user()->currentAccessToken()->delete();
         return response()->json(['status' => 'ok']);
+    }
+
+    public function changePassword(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'currentPassword' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:8', 'max:72'],
+        ]);
+        $user = $request->user();
+        if (!password_verify($data['currentPassword'], $user->PasswordHash)) {
+            return response()->json(['error' => 'The current password is incorrect.'], 422);
+        }
+        $user->update(['PasswordHash' => Hash::make($data['password']), 'MustChangePassword' => false]);
+        return response()->json(['message' => 'Your password has been changed.']);
     }
 
     public function updateProfile(Request $request): JsonResponse

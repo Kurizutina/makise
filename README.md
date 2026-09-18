@@ -29,6 +29,8 @@ Requires Node.js, PHP 8.2+, Composer, and MySQL/MariaDB (XAMPP includes PHP, Mar
 5. Inside `laravel`, run `php artisan key:generate` and `php artisan migrate`.
 6. Copy root `.env.example` to `.env`, then start the backend and frontend as above.
 
+For real Forgot Password emails, configure the `MAIL_*` values in `laravel/.env` for your SMTP provider. The default `MAIL_MAILER=log` keeps local development safe by writing reset links to `laravel/storage/logs/laravel.log`; never commit `laravel/.env` or SMTP credentials.
+
 Laravel migrations adopt existing Users records and add the address and API-token storage. Existing bcrypt passwords and account IDs are preserved. Staff accounts use backend roles `driver` and `admin`; local default access codes are `DRIVER2024` and `ADMIN2024`.
 
 ## Backend and verification

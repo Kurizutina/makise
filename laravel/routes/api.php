@@ -17,15 +17,13 @@ Route::get('/catalog/brands/{brand}/products', [CatalogController::class, 'publi
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::patch('/auth/me', [AuthController::class, 'updateProfile']);
+    Route::post('/auth/change-password', [AuthController::class, 'changePassword']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
-    Route::get('/riders', function (Request $request) {
-        if ($request->user()->Role !== 'admin') {
-            return response()->json(['error' => 'admin access required'], 403);
-        }
+    Route::middleware('permission:riders.view')->get('/riders', function (Request $request) {
         return response()->json(['riders' => User::where('Role', 'driver')
             ->orderBy('UserName')->orderBy('UserID')->get(['UserID as id', 'UserName as name'])]);
     });
-    Route::middleware('admin')->prefix('admin/catalog')->group(function () {
+    Route::middleware('permission:catalog.manage')->prefix('admin/catalog')->group(function () {
         Route::get('/options', [CatalogController::class, 'options']);
         Route::get('/services', [CatalogController::class, 'services']);
         Route::post('/services', [CatalogController::class, 'storeService']);
@@ -40,7 +38,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/products/{product}', [CatalogController::class, 'updateProduct']);
         Route::delete('/products/{product}', [CatalogController::class, 'destroyProduct']);
     });
-    Route::middleware('admin')->prefix('admin/accounts')->group(function () {
+    Route::middleware('permission:accounts.manage')->prefix('admin/accounts')->group(function () {
         Route::get('/{role}', [AccountManagementController::class, 'index']);
         Route::post('/{role}', [AccountManagementController::class, 'store']);
         Route::put('/{role}/{account}', [AccountManagementController::class, 'update']);

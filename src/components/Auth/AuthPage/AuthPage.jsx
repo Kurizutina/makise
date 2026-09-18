@@ -232,6 +232,10 @@ const AuthPage = ({ mode }) => {
         ? { ...result.user, address: customerAddress }
         : result.user;
       setSession(result.token, sessionUser);
+      if (mode === 'login' && result.mustChangePassword) {
+        navigate('/change-password', { replace: true });
+        return;
+      }
       if (result.user.role === 'customer' && customerAddress) {
         localStorage.setItem(addressKey, customerAddress);
         localStorage.setItem('otuzanCustomerProfile', JSON.stringify({

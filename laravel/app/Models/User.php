@@ -13,7 +13,8 @@ class User extends Authenticatable
     protected $table = 'Users';
     protected $primaryKey = 'UserID';
     public $timestamps = false;
-    protected $fillable = ['UserName', 'Contact', 'Role', 'Email', 'PasswordHash', 'Address'];
+    protected $fillable = ['UserName', 'Contact', 'Role', 'Email', 'PasswordHash', 'Address', 'MustChangePassword'];
+    protected $casts = ['MustChangePassword' => 'boolean'];
     protected $hidden = ['PasswordHash'];
     protected $authPasswordName = 'PasswordHash';
 

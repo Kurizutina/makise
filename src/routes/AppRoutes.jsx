@@ -10,6 +10,7 @@ import Login from '../Pages/auth/Login';
 import Register from '../Pages/auth/Register';
 import ForgotPassword from '../Pages/auth/ForgotPassword';
 import ResetPassword from '../Pages/auth/ResetPassword';
+import ChangePassword from '../Pages/auth/ChangePassword';
 import Home from '../Pages/costumer/Home';
 import JollibeeMenu from '../Pages/costumer/JollibeeMenu';
 import CatalogNameRedirect from '../Pages/costumer/CatalogNameRedirect';
@@ -41,6 +42,7 @@ const AppRoutes = () => {
 
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/change-password" element={<ChangePassword />} />
 
         <Route element={<ProtectedRoute role="customer" />}>
           <Route path="/food/manuelas" element={<CatalogNameRedirect brandName="Manuela's" />} />

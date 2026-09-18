@@ -91,11 +91,6 @@ const Home = () => {
             navigate(`/catalog/brands/${brand.id}`);
             return;
           }
-          if (brand.type === 'food' && brand.name === 'Jollibee') {
-            navigate('/food/jollibee');
-            return;
-          }
-
           if (brand.type === 'bills') {
             setPaymentBrand(brand);
           } else {

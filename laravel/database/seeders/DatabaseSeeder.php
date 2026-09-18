@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
     {
         // Create accounts through registration; do not seed shared credentials.
         $this->call(CustomerHomeCatalogSeeder::class);
+        $this->call(JollibeeProductsSeeder::class);
         $this->call(ManuelasProductsSeeder::class);
         $this->call(CatalogProductImagesSeeder::class);
     }
