@@ -18,6 +18,7 @@ class CatalogController extends Controller
             ->with(['brands' => fn ($query) => $query->where('IsActive', true)
                 ->whereNotNull('BrandName')->where('BrandName', '<>', '')
                 ->withCount(['products' => fn ($products) => $products->where('IsActive', true)])
+                ->orderByRaw("CASE WHEN BrandName LIKE 'Others%' THEN 1 ELSE 0 END")
                 ->orderBy('BrandName')])
             ->orderBy('ServiceID')->get()]);
     }
@@ -35,7 +36,8 @@ class CatalogController extends Controller
     {
         return response()->json([
             'services' => Service::orderBy('ServiceName')->get(['ServiceID', 'ServiceName']),
-            'brands' => Brand::orderBy('BrandName')->get(['BrandID', 'BrandName', 'ServiceID']),
+            'brands' => Brand::orderByRaw("CASE WHEN BrandName LIKE 'Others%' THEN 1 ELSE 0 END")
+                ->orderBy('BrandName')->get(['BrandID', 'BrandName', 'ServiceID']),
         ]);
     }
 
@@ -53,7 +55,9 @@ class CatalogController extends Controller
     public function brands(Request $request): JsonResponse
     {
         $query = Brand::with('service:ServiceID,ServiceName')->withCount('products')
-            ->whereNotNull('BrandName')->where('BrandName', '<>', '')->orderBy('BrandName');
+            ->whereNotNull('BrandName')->where('BrandName', '<>', '')
+            ->orderByRaw("CASE WHEN BrandName LIKE 'Others%' THEN 1 ELSE 0 END")
+            ->orderBy('BrandName');
         if ($request->filled('service_id')) $query->where('ServiceID', $request->integer('service_id'));
         return $this->page($request, $query, ['BrandName', 'Description']);
     }
@@ -62,6 +66,15 @@ class CatalogController extends Controller
         $query = Product::with('brand:BrandID,BrandName,ServiceID')->orderBy('ProductName');
         if ($request->filled('brand_id')) $query->where('BrandID', $request->integer('brand_id'));
         return $this->page($request, $query, ['ProductName', 'Description']);
+    }
+
+    public function categories(Request $request): JsonResponse
+    {
+        $request->validate(['brand_id' => ['required', 'integer', 'exists:Brands,BrandID']]);
+        $categories = Product::query()->where('BrandID', $request->integer('brand_id'))
+            ->whereNotNull('Description')->where('Description', '<>', '')
+            ->distinct()->orderBy('Description')->pluck('Description')->values();
+        return response()->json(['categories' => $categories]);
     }
 
     public function storeService(Request $request): JsonResponse { $item = Service::create($this->serviceData($request)); return response()->json($item, 201); }

@@ -60,10 +60,20 @@ const loadActivity = () => {
 };
 
 export const CustomerActivityProvider = ({ children }) => {
-  const saved = loadActivity();
+  const saved = useMemo(() => loadActivity(), []);
   const [cart, setCart] = useState(saved.cart || []);
-  const [orders, setOrders] = useState(saved.orders || []);
+  const [orders, setOrders] = useState((saved.orders || []).filter((order) => {
+    const riderName = String(order.assignedRider?.name || '').trim().toLowerCase();
+    return riderName !== 'jayson deguzman';
+  }));
   const [notifications, setNotifications] = useState(saved.notifications || []);
+
+  useEffect(() => {
+    const cleanedOrders = (saved.orders || []).filter((order) => String(order.assignedRider?.name || '').trim().toLowerCase() !== 'jayson deguzman');
+    if (cleanedOrders.length !== (saved.orders || []).length) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ cart: saved.cart || [], orders: cleanedOrders, notifications: saved.notifications || [] }));
+    }
+  }, [saved]);
 
   useEffect(() => {
     const syncActivity = (event) => {
@@ -71,7 +81,7 @@ export const CustomerActivityProvider = ({ children }) => {
       try {
         const next = JSON.parse(event.newValue);
         setCart(next.cart || []);
-        setOrders(next.orders || []);
+        setOrders((next.orders || []).filter((order) => String(order.assignedRider?.name || '').trim().toLowerCase() !== 'jayson deguzman'));
         setNotifications(next.notifications || []);
       } catch {
         // Ignore malformed browser storage values.
@@ -80,7 +90,7 @@ export const CustomerActivityProvider = ({ children }) => {
     window.addEventListener('storage', syncActivity);
     const syncProfileOrders = (event) => {
       setCart(event.detail.cart || []);
-      setOrders(event.detail.orders || []);
+      setOrders((event.detail.orders || []).filter((order) => String(order.assignedRider?.name || '').trim().toLowerCase() !== 'jayson deguzman'));
       setNotifications(event.detail.notifications || []);
     };
     window.addEventListener(CUSTOMER_ACTIVITY_CHANGED, syncProfileOrders);

@@ -105,22 +105,37 @@ const OrderCard = ({ order, onAssign, onStatus, riders }) => {
 };
 
 const LiveOrdersTab = ({ orders, onAssign, onStatus, riders }) => {
+  const [statusFilter, setStatusFilter] = useState('all');
   const columns = [
     { key: 'ongoing', label: 'Ongoing', color: '#34b875', matches: (order) => ACTIVE_STATUSES.includes(order.status) },
     { key: 'pending', label: 'Pending', color: '#f9c12f', matches: (order) => order.status === 'pending_rider' },
     { key: 'cancelled', label: 'Cancelled', color: '#f15a29', matches: (order) => order.status === 'cancelled' }
   ];
+  const visibleColumns = statusFilter === 'all' ? columns : columns.filter((column) => column.key === statusFilter);
 
-  return <div className="admin-order-columns">{columns.map((column) => {
-    const list = orders.filter(column.matches);
-    return <section className="admin-order-column" key={column.key}>
-      <div className="admin-column-heading"><i style={{ background: column.color }} /><h2>{column.label}</h2><span>{list.length}</span></div>
-      <div className="admin-column-list">{list.length
-        ? list.map((order) => <OrderCard order={order} onAssign={onAssign} onStatus={onStatus} riders={riders} key={order.id} />)
-        : <div className="admin-empty-column">No {column.label.toLowerCase()} orders</div>}
-      </div>
-    </section>;
-  })}</div>;
+  return <section className="admin-live-orders">
+    <div className="admin-live-toolbar">
+      <label>
+        <span>Filter orders</span>
+        <select aria-label="Filter live orders by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <option value="all">All Orders</option>
+          <option value="ongoing">Ongoing Orders</option>
+          <option value="pending">Pending Orders</option>
+          <option value="cancelled">Cancelled Orders</option>
+        </select>
+      </label>
+    </div>
+    <div className="admin-order-columns">{visibleColumns.map((column) => {
+      const list = orders.filter(column.matches);
+      return <section className="admin-order-column" key={column.key}>
+        <div className="admin-column-heading"><i style={{ background: column.color }} /><h2>{column.label}</h2><span>{list.length}</span></div>
+        <div className="admin-column-list">{list.length
+          ? list.map((order) => <OrderCard order={order} onAssign={onAssign} onStatus={onStatus} riders={riders} key={order.id} />)
+          : <div className="admin-empty-column">No {column.label.toLowerCase()} orders</div>}
+        </div>
+      </section>;
+    })}</div>
+  </section>;
 };
 
 const HistoryTab = ({ orders }) => {
@@ -163,6 +178,7 @@ const CatalogTab = () => {
   const [items, setItems] = useState([]);
   const [services, setServices] = useState([]);
   const [brands, setBrands] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('');
   const [page, setPage] = useState(1);
@@ -205,6 +221,14 @@ const CatalogTab = () => {
     } catch (e) { if (activeModule.current === requestedModule && requestId === latestCatalogRequest.current) setError(e.message); }
   }, [filter, module, page, request, search]);
   useEffect(() => { loadOptions(); }, [loadOptions]);
+  useEffect(() => {
+    if (module !== 'products' || !form.BrandID) { setCategories([]); return undefined; }
+    let active = true;
+    request(`categories?brand_id=${form.BrandID}`).then((data) => {
+      if (active) setCategories(data.categories || []);
+    }).catch(() => { if (active) setCategories([]); });
+    return () => { active = false; };
+  }, [form.BrandID, module, request]);
   useEffect(() => { setPage(1); setItems([]); setEditing(null); setLogoFile(null); setProductImageFile(null); setForm(blank()); }, [blank, module]);
   useEffect(() => { load(); }, [load]);
   const key = module === 'services' ? 'ServiceID' : module === 'brands' ? 'BrandID' : 'ProductID';
@@ -226,6 +250,7 @@ const CatalogTab = () => {
   const beginEdit = (item) => { setEditing(item); setLogoFile(null); setProductImageFile(null); setForm({ ...blank(), ...item, ServiceID: item.ServiceID || '', BrandID: item.BrandID || '' }); };
   const filterOptions = module === 'products' ? brands : services;
   const switchModule = (value) => { activeModule.current = value; latestCatalogRequest.current += 1; setModule(value); setFilter(''); };
+  const categoryOptions = [...new Set([...categories, 'Food', 'Beverages', 'Desserts', 'Rice Meals', 'Snacks'])].sort();
   return <section className="admin-catalog-manager"><div className="admin-catalog-tabs">{[['brands', 'Brands'], ['services', 'Services'], ['products', 'Products']].map(([value, label]) => <button type="button" className={module === value ? 'active' : ''} onClick={() => switchModule(value)} key={value}>{label}</button>)}</div>
     <div className="admin-catalog-toolbar"><input aria-label="Search catalog" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${module}...`} />{module !== 'services' && <select aria-label="Filter catalog" value={filter} onChange={(e) => { setFilter(e.target.value); setPage(1); }}><option value="">All {module === 'products' ? 'brands' : 'services'}</option>{filterOptions.map((item) => <option key={item[module === 'products' ? 'BrandID' : 'ServiceID']} value={item[module === 'products' ? 'BrandID' : 'ServiceID']}>{item[module === 'products' ? 'BrandName' : 'ServiceName']}</option>)}</select>}<button type="button" className="primary" onClick={() => { setEditing({}); setLogoFile(null); setProductImageFile(null); setForm(blank()); }}>+ Add {module.slice(0, -1)}</button></div>
     {error && <p className="admin-catalog-error" role="alert">{error}</p>}
@@ -306,6 +331,7 @@ const DeliveryAdminDashboard = () => {
   const navigate = useNavigate();
   const { orders, updateOrderStatus, assignOrderToRider } = useCustomerActivity();
   const [activeTab, setActiveTab] = useState('live');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [riders, setRiders] = useState([]);
   const [riderError, setRiderError] = useState('');
   const [riderRefresh, setRiderRefresh] = useState(0);
@@ -331,13 +357,29 @@ const DeliveryAdminDashboard = () => {
   const activeNav = useMemo(() => NAV_ITEMS.find((item) => item.key === activeTab), [activeTab]);
 
   const logout = () => { clearSession(); navigate('/login', { replace: true }); };
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setIsMobileMenuOpen(false);
+  };
 
   return <main className="admin-dashboard-page">
-    <aside className="admin-sidebar">
+    <aside className={`admin-sidebar ${isMobileMenuOpen ? 'menu-open' : ''}`}>
       <div className="admin-brand"><img src="/images/otu-zan-logo.jpg" alt="Otu-Zan" /><div><strong>Otu-Zan</strong><span>Admin Console</span></div></div>
-      <nav>{NAV_ITEMS.map((item) => <button className={activeTab === item.key ? 'active' : ''} type="button" onClick={() => setActiveTab(item.key)} key={item.key}><i className={`fa-solid ${item.icon}`} /><span>{item.label}</span>{item.key === 'live' && pendingCount > 0 && <b>{pendingCount}</b>}</button>)}</nav>
-      <div className="admin-account"><span>OA</span><div><strong>Operations Admin</strong><small>Otu-Zan management</small></div></div>
-      <button className="admin-logout" type="button" onClick={logout}><i className="fa-solid fa-arrow-right-from-bracket" /> Log Out</button>
+      <button
+        className="admin-menu-toggle"
+        type="button"
+        aria-label={isMobileMenuOpen ? 'Close admin navigation' : 'Open admin navigation'}
+        aria-controls="admin-navigation"
+        aria-expanded={isMobileMenuOpen}
+        onClick={() => setIsMobileMenuOpen((open) => !open)}
+      >
+        <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars'}`} />
+      </button>
+      <div className="admin-sidebar-menu" id="admin-navigation">
+        <nav>{NAV_ITEMS.map((item) => <button className={activeTab === item.key ? 'active' : ''} type="button" onClick={() => handleTabChange(item.key)} key={item.key}><i className={`fa-solid ${item.icon}`} /><span>{item.label}</span>{item.key === 'live' && pendingCount > 0 && <b>{pendingCount}</b>}</button>)}</nav>
+        <div className="admin-account"><span>OA</span><div><strong>Operations Admin</strong><small>Otu-Zan management</small></div></div>
+        <button className="admin-logout" type="button" onClick={logout}><i className="fa-solid fa-arrow-right-from-bracket" /> Log Out</button>
+      </div>
     </aside>
 
     <section className="admin-main">
