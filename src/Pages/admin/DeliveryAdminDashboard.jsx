@@ -14,7 +14,8 @@ const SERVICE_META = {
 
 const STATUS_LABELS = {
   pending_rider: 'Pending', confirmed: 'Confirmed', preparing: 'Preparing',
-  out_for_delivery: 'Out for Delivery', delivered: 'Delivered', cancelled: 'Cancelled'
+  out_for_delivery: 'Out for Delivery', delivered: 'Delivered', cancelled: 'Cancelled',
+  pending: 'Pending', to_be_assigned: 'Pending assignment', to_be_assign: 'Pending assignment', unassigned: 'Pending assignment'
 };
 
 const NAV_ITEMS = [
@@ -28,6 +29,13 @@ const NAV_ITEMS = [
 ];
 
 const ACTIVE_STATUSES = ['confirmed', 'preparing', 'out_for_delivery'];
+const FINAL_STATUSES = ['delivered', 'cancelled'];
+const PENDING_ASSIGNMENT_STATUSES = ['pending_rider', 'pending', 'to_be_assigned', 'to_be_assign', 'unassigned'];
+const hasAssignedRider = (order) => Boolean(order.assignedRider?.id);
+const needsRiderAssignment = (order) => (
+  !FINAL_STATUSES.includes(order.status)
+  && (PENDING_ASSIGNMENT_STATUSES.includes(order.status) || !hasAssignedRider(order))
+);
 
 const inferService = (order) => {
   if (order.section && SERVICE_META[order.section]) return order.section;
@@ -63,7 +71,7 @@ const OrderCard = ({ order, onAssign, onStatus, riders }) => {
   const [selectedRiderId, setSelectedRiderId] = useState(assignedRiderId);
   useEffect(() => setSelectedRiderId(assignedRiderId), [assignedRiderId]);
   const selectedRider = riders.find((rider) => String(rider.id) === selectedRiderId);
-  const canAssign = service !== 'bills' && !['delivered', 'cancelled'].includes(order.status);
+  const canAssign = !['delivered', 'cancelled'].includes(order.status);
   const nextAction = {
     confirmed: ['preparing', 'Start preparing'],
     preparing: ['out_for_delivery', 'Out for delivery'],
@@ -92,7 +100,7 @@ const OrderCard = ({ order, onAssign, onStatus, riders }) => {
         </label>
       )}
 
-      <p className="admin-order-status">{STATUS_LABELS[order.status]}</p>
+      <p className="admin-order-status">{STATUS_LABELS[order.status] || 'Pending assignment'}</p>
       {canAssign && order.assignedRider && riders.some((rider) => String(rider.id) === assignedRiderId) && <p role="status">Assigned to {order.assignedRider.name}</p>}
       <div className="admin-order-actions">
         {order.status === 'pending_rider' && <button type="button" onClick={() => onStatus(order.id, 'cancelled')}>Decline</button>}
@@ -107,8 +115,8 @@ const OrderCard = ({ order, onAssign, onStatus, riders }) => {
 const LiveOrdersTab = ({ orders, onAssign, onStatus, riders }) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const columns = [
-    { key: 'ongoing', label: 'Ongoing', color: '#34b875', matches: (order) => ACTIVE_STATUSES.includes(order.status) },
-    { key: 'pending', label: 'Pending', color: '#f9c12f', matches: (order) => order.status === 'pending_rider' },
+    { key: 'pending', label: 'Pending', color: '#f9c12f', matches: needsRiderAssignment },
+    { key: 'ongoing', label: 'Ongoing', color: '#34b875', matches: (order) => ACTIVE_STATUSES.includes(order.status) && hasAssignedRider(order) },
     { key: 'cancelled', label: 'Cancelled', color: '#f15a29', matches: (order) => order.status === 'cancelled' }
   ];
   const visibleColumns = statusFilter === 'all' ? columns : columns.filter((column) => column.key === statusFilter);
@@ -162,13 +170,13 @@ const RevenueTab = ({ orders }) => {
   </section>;
 };
 
-const PaymentsTab = ({ orders, onStatus }) => {
+const PaymentsTab = ({ orders, onPaymentStatus }) => {
   const payments = orders.filter((order) => inferService(order) === 'bills');
   return <div className="admin-payment-list">{payments.map((order) => <article className="admin-payment-card" key={order.id}>
     <div><small>{order.id}</small><OrderCustomerDetails order={order} /><span>{order.source}</span></div>
-    <div><small>Uploaded bill</small><strong>{order.details?.billReceiptName || 'No receipt uploaded'}</strong><span>{order.details?.transferProofName || 'No transfer proof'}</span></div>
-    <span className={`admin-payment-status ${order.status}`}>{order.status.replaceAll('_', ' ')}</span>
-    {order.status === 'pending_rider' && <div className="admin-payment-actions"><button className="primary" type="button" onClick={() => onStatus(order.id, 'confirmed')}>Approve</button><button type="button" onClick={() => onStatus(order.id, 'cancelled')}>Reject</button></div>}
+    <div><small>Uploaded bill</small><strong>{order.details?.billReceiptName || 'No receipt uploaded'}</strong><span>{order.details?.transferProofName || 'No transfer proof'}</span><div className="admin-payment-documents">{order.details?.billReceiptUrl && <a href={order.details.billReceiptUrl} target="_blank" rel="noreferrer"><img src={order.details.billReceiptUrl} alt="Uploaded bill receipt" /><span>View receipt</span></a>}{order.details?.transferProofUrl && <a href={order.details.transferProofUrl} target="_blank" rel="noreferrer"><img src={order.details.transferProofUrl} alt="Uploaded proof of payment" /><span>View proof</span></a>}{order.details?.billReceiptUrl && <a className="admin-payment-download" href={order.details.billReceiptUrl} download={order.details.billReceiptName || true}>Download receipt</a>}{order.details?.transferProofUrl && <a className="admin-payment-download" href={order.details.transferProofUrl} download={order.details.transferProofName || true}>Download proof</a>}</div></div>
+    <span className={`admin-payment-status ${order.details?.paymentStatus || 'pending'}`}>{order.details?.paymentStatus || 'pending'}</span>
+    {(order.details?.paymentStatus || 'pending') === 'pending' && <div className="admin-payment-actions"><button className="primary" type="button" onClick={() => onPaymentStatus(order.id, 'verified')}>Verify</button><button type="button" onClick={() => onPaymentStatus(order.id, 'rejected')}>Reject</button></div>}
   </article>)}{!payments.length && <div className="admin-page-empty"><i className="fa-solid fa-file-invoice" /><h2>No payment requests</h2><p>Customer bill-payment submissions will appear here.</p></div>}</div>;
 };
 
@@ -329,7 +337,7 @@ const AccountManagementTab = ({ role, onAccountsChanged }) => {
 
 const DeliveryAdminDashboard = () => {
   const navigate = useNavigate();
-  const { orders, updateOrderStatus, assignOrderToRider } = useCustomerActivity();
+  const { orders, updateOrderStatus, assignOrderToRider, updatePaymentStatus } = useCustomerActivity();
   const [activeTab, setActiveTab] = useState('live');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [riders, setRiders] = useState([]);
@@ -353,7 +361,7 @@ const DeliveryAdminDashboard = () => {
     loadRiders();
     return () => controller.abort();
   }, [riderRefresh]);
-  const pendingCount = orders.filter((order) => order.status === 'pending_rider').length;
+  const pendingCount = orders.filter(needsRiderAssignment).length;
   const activeNav = useMemo(() => NAV_ITEMS.find((item) => item.key === activeTab), [activeTab]);
 
   const logout = () => { clearSession(); navigate('/login', { replace: true }); };
@@ -388,7 +396,7 @@ const DeliveryAdminDashboard = () => {
       {activeTab === 'live' && <LiveOrdersTab orders={orders} onAssign={assignOrderToRider} onStatus={updateOrderStatus} riders={riders} />}
       {activeTab === 'history' && <HistoryTab orders={orders} />}
       {activeTab === 'revenue' && <RevenueTab orders={orders} />}
-      {activeTab === 'payments' && <PaymentsTab orders={orders} onStatus={updateOrderStatus} />}
+      {activeTab === 'payments' && <PaymentsTab orders={orders} onPaymentStatus={updatePaymentStatus} />}
       {activeTab === 'catalog' && <CatalogTab />}
       {activeTab === 'riders' && <AccountManagementTab role="driver" onAccountsChanged={() => setRiderRefresh((count) => count + 1)} />}
       {activeTab === 'customers' && <AccountManagementTab role="customer" />}

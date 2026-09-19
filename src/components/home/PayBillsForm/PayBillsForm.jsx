@@ -1,13 +1,33 @@
 import React, { useEffect, useState } from 'react';
 import './PayBillsForm.css';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const uploadDocument = async (file) => {
+  const body = new FormData();
+  body.append('document', file);
+  const response = await fetch(`${API_BASE_URL}/api/uploads/bill-documents`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${sessionStorage.getItem('otuzanAuthenticated')}` },
+    body
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'Unable to upload the payment document.');
+  return { ...data, url: data.url.startsWith('http') ? data.url : `${API_BASE_URL}${data.url}` };
+};
+const embedDocument = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve({ url: reader.result, name: file.name });
+  reader.onerror = () => reject(new Error('The selected image could not be read.'));
+  reader.readAsDataURL(file);
+});
+
 const ImageUpload = ({ id, label, hint, file, onChange }) => (
   <label className={`payment-upload ${file ? 'has-file' : ''}`} htmlFor={id}>
     <input
       id={id}
       required
       type="file"
-      accept="image/*"
+      accept="image/*,application/pdf"
       onChange={(event) => onChange(event.target.files[0] || null)}
     />
     <span className="payment-upload-icon" aria-hidden="true">
@@ -31,6 +51,7 @@ const PayBillsForm = ({
   const [billReceipt, setBillReceipt] = useState(null);
   const [transferProof, setTransferProof] = useState(null);
   const [isQrExpanded, setIsQrExpanded] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
   useEffect(() => {
     const handleEscape = (event) => {
@@ -52,13 +73,24 @@ const PayBillsForm = ({
     };
   }, [isQrExpanded, onCancel]);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    onSubmit({
-      establishment: establishment.trim(),
-      billReceipt,
-      transferProof
-    });
+    setUploadError('');
+    try {
+      const [uploadedBill, uploadedProof] = await Promise.all([
+        uploadDocument(billReceipt).catch(() => embedDocument(billReceipt)),
+        uploadDocument(transferProof).catch(() => embedDocument(transferProof))
+      ]);
+      onSubmit({
+        establishment: establishment.trim(),
+        billReceipt: { name: uploadedBill.name || billReceipt.name, type: billReceipt.type },
+        transferProof: { name: uploadedProof.name || transferProof.name, type: transferProof.type },
+        billReceiptUrl: uploadedBill.url,
+        transferProofUrl: uploadedProof.url
+      });
+    } catch {
+      setUploadError('The documents could not be read. Choose the images again and retry.');
+    }
   };
 
   return (
@@ -133,6 +165,7 @@ const PayBillsForm = ({
           </div>
 
           <div className="payment-form-actions">
+            {uploadError && <p className="payment-upload-error" role="alert">{uploadError}</p>}
             <button className="payment-cancel" type="button" onClick={onCancel}>Cancel</button>
             <button className="payment-place" type="submit">Place</button>
           </div>

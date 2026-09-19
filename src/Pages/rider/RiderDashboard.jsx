@@ -26,6 +26,12 @@ const statusLabels = {
   out_for_delivery: 'Out for delivery', delivered: 'Delivered', cancelled: 'Cancelled'
 };
 
+const PaymentDocument = ({ url, name, type, label }) => {
+  if (!url) return null;
+  const isPdf = type === 'application/pdf' || /\.pdf(?:$|\?)/i.test(url);
+  return <a className="rider-payment-image" href={url} target="_blank" rel="noreferrer" download={name || true}>{isPdf ? <span className="rider-payment-file"><i className="fa-solid fa-file-pdf" /></span> : <img src={url} alt={`Uploaded ${label}: ${name || 'document'}`} />}<span>{label}: {name || 'View document'}<small>Open or download</small></span></a>;
+};
+
 const formatEstimatedWait = (order, now) => {
   const estimatedMinutes = order.estimatedWaitMinutes
     || calculateEstimatedWaitMinutes(order.items);
@@ -123,7 +129,7 @@ const RiderDashboard = () => {
             {!!selectedOrder.items?.length ? (
               <div className="rider-detail-items"><h3>Items placed</h3><ul>{selectedOrder.items.map((item, index) => <li key={item.cartId || item.id || index}><div><strong>{item.name || `Item ${index + 1}`}</strong>{item.selectedOption && <span>{item.selectedOption}</span>}</div><b>×{item.quantity || 1}</b></li>)}</ul></div>
             ) : (
-              <div className="rider-detail-items"><h3>Payment request</h3><p>Review the uploaded bill and transfer proof for {selectedOrder.details?.establishment || selectedOrder.source}.</p>{selectedOrder.details?.billReceiptName && <span>Bill: {selectedOrder.details.billReceiptName}</span>}{selectedOrder.details?.transferProofName && <span>Proof: {selectedOrder.details.transferProofName}</span>}</div>
+              <div className="rider-detail-items"><h3>Payment request</h3><p>Payment status: <strong>{selectedOrder.details?.paymentStatus || 'pending'}</strong>. Review the uploaded documents before proceeding.</p><PaymentDocument url={selectedOrder.details?.billReceiptUrl} name={selectedOrder.details?.billReceiptName} type={selectedOrder.details?.billReceiptType} label="Receipt" /><PaymentDocument url={selectedOrder.details?.transferProofUrl} name={selectedOrder.details?.transferProofName} type={selectedOrder.details?.transferProofType} label="Proof of payment" /></div>
             )}
 
             {selectedOrder.details?.fulfillmentMethod === 'pickup' && <div className="rider-recipient"><h3>Pick Up recipient</h3><p><strong>{selectedOrder.details.recipientName}</strong> · {selectedOrder.details.recipientContact}</p><span>{selectedOrder.details.deliveryAddress}</span></div>}

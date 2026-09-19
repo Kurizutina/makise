@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FaUtensils } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerActivity } from '../../context/CustomerActivityContext';
-import { calculateDeliveryFee, CUSTOMER_TYPES, DELIVERY_LOCATIONS, findDeliveryLocation } from '../../utils/deliveryRates';
+import { calculateDeliveryFee, DELIVERY_LOCATIONS, findDeliveryLocation } from '../../utils/deliveryRates';
+import { getSessionUser } from '../../utils/session';
 import './JollibeeMenu.css';
 
 const formatPrice = (price) => new Intl.NumberFormat('en-PH', {
@@ -81,7 +82,7 @@ export const RestaurantMenu = ({
   const [notice, setNotice] = useState('');
   const [isLoading, setIsLoading] = useState(!menuItems);
   const [deliveryLocation, setDeliveryLocation] = useState('');
-  const [customerType, setCustomerType] = useState('');
+  const customerType = getSessionUser()?.userType || 'non_student';
 
   useEffect(() => {
     if (menuItems) {
@@ -137,8 +138,8 @@ export const RestaurantMenu = ({
   };
 
   const placeProductOrder = (product) => {
-    if (!deliveryLocation || !customerType) {
-      showNotice('Select your delivery location and customer type before placing your order.');
+    if (!deliveryLocation) {
+      showNotice('Select your delivery location before placing your order.');
       return;
     }
     placeOrder({ source: sourceKey, label: product.name, items: [{ ...product, quantity: 1 }], section: serviceType, deliveryLocation, customerType });
@@ -161,8 +162,8 @@ export const RestaurantMenu = ({
 
   const checkoutCart = () => {
     if (!cart.length) return;
-    if (!deliveryLocation || !customerType) {
-      showNotice('Select your delivery location and customer type before placing your order.');
+    if (!deliveryLocation) {
+      showNotice('Select your delivery location before placing your order.');
       return;
     }
     placeCartOrder(sourceKey, deliveryLocation, customerType);
@@ -277,11 +278,6 @@ export const RestaurantMenu = ({
             <select value={deliveryLocation} onChange={(event) => setDeliveryLocation(event.target.value)}>
               <option value="">Select your location</option>
               {DELIVERY_LOCATIONS.map((location) => <option value={location.id} key={location.id}>{location.name}</option>)}
-            </select>
-            <span>Customer type</span>
-            <select value={customerType} onChange={(event) => setCustomerType(event.target.value)}>
-              <option value="">Select customer type</option>
-              {CUSTOMER_TYPES.map((type) => <option value={type.id} key={type.id}>{type.label}</option>)}
             </select>
           </label>
           <button type="button" className="jollibee-checkout" disabled={!cart.length} onClick={checkoutCart}>Place Order {itemCount > 0 && `(${itemCount})`}</button>

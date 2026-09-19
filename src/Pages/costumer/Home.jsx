@@ -144,7 +144,12 @@ const Home = () => {
               details: {
                 establishment: payment.establishment,
                 billReceiptName: payment.billReceipt?.name,
-                transferProofName: payment.transferProof?.name
+                billReceiptUrl: payment.billReceiptUrl,
+                billReceiptType: payment.billReceipt?.type,
+                transferProofName: payment.transferProof?.name,
+                transferProofUrl: payment.transferProofUrl,
+                transferProofType: payment.transferProof?.type,
+                paymentStatus: 'pending'
               }
             });
             setPaymentBrand(null);

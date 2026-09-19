@@ -9,6 +9,8 @@
   backdrop-filter: blur(4px);
 }
 
+.payment-upload-error { width:100%; margin:0 0 10px; color:#b83242; font-size:12px; font-weight:700; }
+
 .payment-modal {
   width: min(100%, 760px);
   max-height: calc(100vh - 48px);

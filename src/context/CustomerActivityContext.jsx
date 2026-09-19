@@ -18,7 +18,8 @@ const getCustomerSnapshot = () => {
       customerId: user?.role === 'customer' ? user.id : null,
       customerEmail: customer.email || '',
       customerName: customer.username || 'Customer',
-      customerAddress: customer.address || ''
+      customerAddress: customer.address || '',
+      customerType: customer.userType || 'non_student'
     };
   } catch {
     return { customerName: 'Customer', customerAddress: '' };
@@ -136,6 +137,7 @@ export const CustomerActivityProvider = ({ children }) => {
   };
 
   const placeOrder = ({ source, label, items = [], details = null, section = 'food', deliveryLocation = '', customerType = '', orderTime = null }) => {
+    customerType = customerType || getCustomerSnapshot().customerType;
     const createdAt = orderTime || new Date().toISOString();
     const estimatedWaitMinutes = calculateEstimatedWaitMinutes(items);
     const customer = getCustomerSnapshot();
@@ -173,6 +175,7 @@ export const CustomerActivityProvider = ({ children }) => {
   };
 
   const placeCartOrder = (source = null, deliveryLocation = '', customerType = '', orderTime = null) => {
+    customerType = customerType || getCustomerSnapshot().customerType;
     const orderItems = source ? cart.filter((item) => item.source === source) : cart;
     if (!orderItems.length) return null;
 
@@ -279,6 +282,18 @@ export const CustomerActivityProvider = ({ children }) => {
     updateAll(latest.cart || cart, nextOrders, latest.notifications || notifications);
   };
 
+  const updatePaymentStatus = (orderId, paymentStatus) => {
+    if (getSessionUser()?.role !== 'admin' || !['verified', 'rejected'].includes(paymentStatus)) return;
+    const latest = loadActivity();
+    const currentOrder = (latest.orders || orders).find((order) => order.id === orderId);
+    if (!currentOrder || currentOrder.section !== 'bills') return;
+    const nextOrders = (latest.orders || orders).map((order) => order.id === orderId
+      ? { ...order, details: { ...order.details, paymentStatus }, updatedAt: new Date().toISOString() }
+      : order);
+    const notification = { id: `NOT-${Date.now()}-${Math.random()}`, orderId, title: `Payment ${paymentStatus}`, message: `Your payment for ${currentOrder.source} was ${paymentStatus}.`, createdAt: new Date().toISOString(), read: false, type: paymentStatus === 'rejected' ? 'cancelled' : 'status' };
+    updateAll(latest.cart || cart, nextOrders, [notification, ...(latest.notifications || notifications)]);
+  };
+
   const value = useMemo(() => ({
     cart,
     orders,
@@ -289,7 +304,8 @@ export const CustomerActivityProvider = ({ children }) => {
     placeCartOrder,
     markNotificationsRead,
     updateOrderStatus,
-    assignOrderToRider
+    assignOrderToRider,
+    updatePaymentStatus
   // State is intentionally included so consumers always receive current actions.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [cart, orders, notifications]);

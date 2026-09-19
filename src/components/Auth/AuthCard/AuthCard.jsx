@@ -1,7 +1,6 @@
 import React from 'react';
 
 import Logo from '../../common/Logo/Logo';
-import RoleSelector from '../RoleSelector/RoleSelector';
 import AuthForm from '../AuthForm/AuthForm';
 
 const AuthCard = ({
@@ -21,6 +20,7 @@ const AuthCard = ({
   name,
   address,
   contactNumber,
+  userType,
 
   onRoleChange,
   onToggleMode,
@@ -35,6 +35,7 @@ const AuthCard = ({
   onNameChange,
   onAddressChange,
   onContactNumberChange,
+  onUserTypeChange,
 
   onTogglePassword,
   onSubmit
@@ -95,13 +96,6 @@ const AuthCard = ({
 
         <div className="hover-animate form-card">
 
-          <RoleSelector
-            mode={mode}
-            selectedRole={selectedRole}
-            onRoleChange={onRoleChange}
-            roles={roles}
-          />
-
           <div className="auth-header">
 
             <h2>
@@ -110,15 +104,6 @@ const AuthCard = ({
                 : 'Create Account'}
             </h2>
 
-            <span
-              className="role-badge"
-              style={{
-                background:
-                  currentRoleObj.color
-              }}
-            >
-              {currentRoleObj.label}
-            </span>
 
           </div>
 
@@ -185,6 +170,7 @@ const AuthCard = ({
             name={name}
             address={address}
             contactNumber={contactNumber}
+            userType={userType}
 
             onEmailChange={onEmailChange}
             onPasswordChange={onPasswordChange}
@@ -205,6 +191,7 @@ const AuthCard = ({
             onContactNumberChange={
               onContactNumberChange
             }
+            onUserTypeChange={onUserTypeChange}
 
             onTogglePassword={
               onTogglePassword

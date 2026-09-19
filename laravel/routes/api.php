@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 
 Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
 Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
@@ -19,6 +20,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/auth/me', [AuthController::class, 'updateProfile']);
     Route::post('/auth/change-password', [AuthController::class, 'changePassword']);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
+    Route::post('/uploads/bill-documents', function (Request $request) {
+        abort_unless($request->user()->Role === 'customer', 403);
+        $data = $request->validate(['document' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,gif,pdf', 'max:10240']]);
+        $file = $data['document'];
+        $directory = public_path('uploads/bill-documents');
+        if (!is_dir($directory)) mkdir($directory, 0755, true);
+        $filename = Str::uuid()->toString().'.'.$file->extension();
+        $file->move($directory, $filename);
+        return response()->json(['url' => '/uploads/bill-documents/'.$filename, 'name' => $file->getClientOriginalName()], 201);
+    });
     Route::middleware('permission:riders.view')->get('/riders', function (Request $request) {
         return response()->json(['riders' => User::where('Role', 'driver')
             ->orderBy('UserName')->orderBy('UserID')->get(['UserID as id', 'UserName as name'])]);

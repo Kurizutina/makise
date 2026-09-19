@@ -53,6 +53,9 @@ const AuthPage = ({ mode }) => {
   const [contactNumber, setContactNumber] =
     useState('');
 
+  const [userType, setUserType] = useState('');
+
+
 
   /*
    * Reset form-specific fields
@@ -71,6 +74,7 @@ const AuthPage = ({ mode }) => {
     setName('');
     setAddress('');
     setContactNumber('');
+    setUserType('');
 
     setMessage(null);
 
@@ -195,7 +199,8 @@ const AuthPage = ({ mode }) => {
           accessCode: accessCode.trim(),
           username: (username || name).trim(),
           address: address.trim(),
-          contact: contactNumber.trim()
+          contact: contactNumber.trim(),
+          userType
         }
       : {
           email: email.trim(),
@@ -232,10 +237,6 @@ const AuthPage = ({ mode }) => {
         ? { ...result.user, address: customerAddress }
         : result.user;
       setSession(result.token, sessionUser);
-      if (mode === 'login' && result.mustChangePassword) {
-        navigate('/change-password', { replace: true });
-        return;
-      }
       if (result.user.role === 'customer' && customerAddress) {
         localStorage.setItem(addressKey, customerAddress);
         localStorage.setItem('otuzanCustomerProfile', JSON.stringify({
@@ -245,6 +246,7 @@ const AuthPage = ({ mode }) => {
           email: result.user.email,
           contact: result.user.contact,
           role: result.user.role
+          , userType: result.user.userType
         }));
       }
       syncCustomerOrders({ ...result.user, address: customerAddress });
@@ -292,6 +294,7 @@ const AuthPage = ({ mode }) => {
       name={name}
       address={address}
       contactNumber={contactNumber}
+      userType={userType}
 
       onRoleChange={handleRoleChange}
 
@@ -330,6 +333,11 @@ const AuthPage = ({ mode }) => {
       onContactNumberChange={(e) =>
         setContactNumber(e.target.value)
       }
+
+      onUserTypeChange={(e) =>
+        setUserType(e.target.value)
+      }
+
 
       onTogglePassword={() =>
         setShowPassword(

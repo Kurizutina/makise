@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
@@ -19,17 +18,11 @@ class AuthController extends Controller
         $data = $request->validate([
             'email' => ['required', 'email', 'max:255'],
             'password' => ['required', 'string', 'min:6', 'max:72'],
-            'role' => ['required', Rule::in(['customer', 'admin'])],
+            'userType' => ['required', 'in:student,non_student'],
             'username' => ['required', 'string', 'max:100'],
             'contact' => ['required', 'string', 'max:50'],
             'address' => ['nullable', 'string', 'max:2000'],
-            'accessCode' => ['nullable', 'string'],
         ]);
-        if ($data['role'] !== 'customer' && !hash_equals(
-            (string) config('otuzan.access_codes.'.$data['role']), (string) ($data['accessCode'] ?? '')
-        )) {
-            return response()->json(['error' => 'invalid access code'], 400);
-        }
         $email = strtolower(trim($data['email']));
         if (User::where('Email', $email)->exists()) {
             return response()->json(['error' => 'email is already registered'], 409);
@@ -38,7 +31,7 @@ class AuthController extends Controller
             return DB::transaction(function () use ($data, $email) {
                 $user = User::create([
                     'UserName' => trim($data['username']), 'Contact' => trim($data['contact']),
-                    'Role' => $data['role'], 'Email' => $email,
+                    'Role' => 'customer', 'UserType' => $data['userType'], 'Email' => $email,
                     'PasswordHash' => Hash::make($data['password']), 'Address' => $data['address'] ?? null,
                 ]);
                 return $this->authenticated($user, 201);
@@ -52,11 +45,10 @@ class AuthController extends Controller
     {
         $data = $request->validate([
             'email' => ['required', 'email'], 'password' => ['required', 'string'],
-            'role' => ['required', Rule::in(['customer', 'driver', 'admin'])],
         ]);
         $user = User::where('Email', strtolower(trim($data['email'])))->first();
         // Accept existing bcryptjs $2b$ hashes as well as Laravel hashes.
-        if (!$user || $user->Role !== $data['role'] || !password_verify($data['password'], $user->PasswordHash)) {
+        if (!$user || !password_verify($data['password'], $user->PasswordHash)) {
             return response()->json(['error' => 'invalid credentials'], 401);
         }
         return $this->authenticated($user);

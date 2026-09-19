@@ -368,6 +368,11 @@
   font-family: Tahoma, sans-serif;
 }
 
+.input-field select,
+select.input-field {
+  color: #888;
+}
+
 .input-field.with-icon {
   padding-left: 2.8rem;
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import './OthersOrderForm.css';
-import { CUSTOMER_TYPES, DELIVERY_LOCATIONS } from '../../../utils/deliveryRates';
+import { DELIVERY_LOCATIONS } from '../../../utils/deliveryRates';
+import { getSessionUser } from '../../../utils/session';
 
 const serviceNames = {
   food: 'Food Delivery',
@@ -26,7 +27,7 @@ const OthersOrderForm = ({
   const [recipientName, setRecipientName] = useState('');
   const [recipientContact, setRecipientContact] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState('');
-  const [customerType, setCustomerType] = useState('');
+  const customerType = getSessionUser()?.userType || 'non_student';
 
   useEffect(() => {
     const handleEscape = (event) => {
@@ -119,11 +120,6 @@ const OthersOrderForm = ({
             <select required value={deliveryLocation} onChange={(event) => setDeliveryLocation(event.target.value)}>
               <option value="">Select your location</option>
               {DELIVERY_LOCATIONS.map((location) => <option value={location.id} key={location.id}>{location.name}</option>)}
-            </select>
-            <span>Customer type</span>
-            <select required value={customerType} onChange={(event) => setCustomerType(event.target.value)}>
-              <option value="">Select customer type</option>
-              {CUSTOMER_TYPES.map((type) => <option value={type.id} key={type.id}>{type.label}</option>)}
             </select>
           </label>}
 

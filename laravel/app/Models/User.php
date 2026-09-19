@@ -13,7 +13,7 @@ class User extends Authenticatable
     protected $table = 'Users';
     protected $primaryKey = 'UserID';
     public $timestamps = false;
-    protected $fillable = ['UserName', 'Contact', 'Role', 'Email', 'PasswordHash', 'Address', 'MustChangePassword'];
+    protected $fillable = ['UserName', 'Contact', 'Role', 'UserType', 'Email', 'PasswordHash', 'Address', 'MustChangePassword'];
     protected $casts = ['MustChangePassword' => 'boolean'];
     protected $hidden = ['PasswordHash'];
     protected $authPasswordName = 'PasswordHash';
@@ -21,7 +21,7 @@ class User extends Authenticatable
     public function profile(): array
     {
         return [
-            'id' => $this->UserID, 'username' => $this->UserName, 'contact' => $this->Contact,
+            'id' => $this->UserID, 'username' => $this->UserName, 'contact' => $this->Contact, 'userType' => $this->UserType,
             'role' => $this->Role, 'email' => $this->Email, 'address' => $this->Address ?? '',
         ];
     }

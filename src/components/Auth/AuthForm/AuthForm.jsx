@@ -13,6 +13,7 @@ const AuthForm = ({
   name,
   address,
   contactNumber,
+  userType,
 
   onEmailChange,
   onPasswordChange,
@@ -22,6 +23,7 @@ const AuthForm = ({
   onNameChange,
   onAddressChange,
   onContactNumberChange,
+  onUserTypeChange,
   onTogglePassword,
   onSubmit
 }) => {
@@ -53,6 +55,13 @@ const AuthForm = ({
 
     return (
       <>
+        <div className="form-group">
+          <select id="user-type" className="input-field" aria-label="User type" value={userType} onChange={onUserTypeChange} required>
+            <option value="">Select user type</option>
+            <option value="student">Student</option>
+            <option value="non_student">Non-Student</option>
+          </select>
+        </div>
         <div className="form-group">
           <div className="input-icon-wrapper">
             <i className="fas fa-user-circle input-icon"></i>
