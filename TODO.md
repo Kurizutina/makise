@@ -25,14 +25,17 @@ items off as they land.
       the request). Same scoping as 1c: only fires for orders with a `backendOrderId`.
       Verified live through the real admin/rider dashboards, not just tests. (`82dc93e`)
       **Does not by itself close the fraud hole** — see the new Critical item below.
-- [ ] **Close the client-trust fraud hole (read side)** — 1d added the *write* path,
-      but rider/admin dashboards still *read* orders from `localStorage`
-      (`useCustomerActivity`), not the backend. A customer directly editing their own
-      `localStorage` can still show a fake status/payment-verified state to whoever's
-      dashboard is looking, regardless of what the backend correctly stores. Actually
-      closing this requires migrating the rider/admin dashboards to read from
-      `GET /api/orders` / `GET /api/admin/orders` instead — the real "step 1d" outcome,
-      split out once the gap became clear mid-implementation.
+- [x] **Close the client-trust fraud hole (read side)** — rider/admin dashboards now
+      poll `GET /api/orders` / `GET /api/admin/orders` and override any locally-stored
+      order's status/rider with the backend's version wherever it has a
+      `backendOrderId`. Verified with a real exploit attempt: placed an order, edited
+      its `localStorage` entry directly to fake `DeliveryStatus: 'delivered'`, confirmed
+      the admin dashboard displayed the real "Pending" status instead once the backend
+      fetch resolved (~1s). Known limitation: that ~1s window before the fetch resolves
+      can still show the tampered value briefly — self-corrects, not a full bypass, but
+      not instant. Still only covers orders with a `backendOrderId` (catalog-backed
+      brands) — Jollibee/custom items/bills remain fully client-trusted until they're
+      migrated too. (`0de0804`)
 - [ ] **Step 1e** — Migrate payment confirmation to the backend.
 - [ ] **Step 1f** — Wire the real `Queue` table (position, status) instead of the
       client-side fake wait-time formula.
