@@ -6,6 +6,19 @@ items off as they land.
 
 ## Critical
 
+- [x] **Fix 500 error (with leaked stack trace) on expired/missing auth tokens**
+      (found 9/21 while verifying frontend-backend routing health) — pre-existing,
+      not introduced this session (confirmed against `/api/auth/me`, a route that
+      predates everything done today). Root cause: Laravel's default auth
+      middleware tried to redirect to a non-existent "login" route whenever a
+      request didn't send `Accept: application/json` — which the frontend's fetch
+      calls never do — causing an uncaught exception (500, full stack trace leaked
+      to the client) instead of a clean 401. Practical impact: any user whose
+      session expired mid-use (2hr tokens) hit a broken error screen instead of
+      being logged out, on every protected endpoint. Fixed with
+      `redirectGuestsTo(fn () => null)` in `bootstrap/app.php`. Verified via the
+      browser's actual `fetch()` before/after, across old and new routes alike.
+      (`6c2b9d1`)
 - [x] **Step 1a** — Add Eloquent models for Order, OrderItem, Payment, Queue,
       Notification matching the existing (unused) ordering-tables migration. (`841bbf4`)
 - [x] **Step 1b** — Backend endpoints: create an order (customer), list own orders
