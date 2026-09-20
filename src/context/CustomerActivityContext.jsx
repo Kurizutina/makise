@@ -8,30 +8,73 @@ const STORAGE_KEY = 'otuzanCustomerActivity';
 const PROFILE_KEY = 'otuzanCustomerProfile';
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
+const authHeaders = () => {
+  const token = sessionStorage.getItem('otuzanAuthenticated');
+  return token ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } : null;
+};
+
+// Patches a single field onto one order in localStorage directly, without
+// touching cart/notifications or requiring the calling component to still be
+// mounted. Used only for background metadata (backendOrderId) that nothing
+// renders - real user-facing order edits go through updateAll instead.
+const patchStoredOrder = (localOrderId, patch) => {
+  const latest = loadActivity();
+  const nextOrders = (latest.orders || []).map((order) => order.id === localOrderId
+    ? { ...order, ...patch }
+    : order);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...latest, orders: nextOrders }));
+};
+
 // Best-effort sync to the real backend order API. Only fires for orders made
 // up entirely of real catalog products (i.e. a productId on every line) -
 // static-menu brands, custom items, and bill payments stay localStorage-only
 // for now. Never awaited by callers and never throws: the localStorage write
 // already happened and is what the UI actually reflects, so a failure here
 // (offline, backend down, brand not yet migrated) changes nothing the
-// customer sees.
-const syncOrderToBackend = (items, deliveryAddress) => {
+// customer sees. On success, patches the returned backend OrderID onto the
+// local order so later status/assignment changes can also be synced.
+const syncOrderToBackend = (localOrderId, items, deliveryAddress) => {
   try {
     if (!items?.length || !items.every((item) => Number.isInteger(item.productId))) return;
-    const token = sessionStorage.getItem('otuzanAuthenticated');
-    if (!token || getSessionUser()?.role !== 'customer') return;
+    const headers = authHeaders();
+    if (!headers || getSessionUser()?.role !== 'customer') return;
     fetch(`${API_BASE_URL}/api/orders`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers,
       body: JSON.stringify({
         items: items.map((item) => ({ ProductID: item.productId, quantity: item.quantity || 1 })),
         deliveryAddress: deliveryAddress || 'Not provided'
       })
-    }).catch(() => {});
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => {
+        const backendOrderId = body?.order?.OrderID;
+        if (backendOrderId) patchStoredOrder(localOrderId, { backendOrderId });
+      })
+      .catch(() => {});
   } catch {
     // Swallow anything unexpected - this is a background sync, never the
     // source of truth for what the customer sees.
   }
+};
+
+// Same best-effort philosophy: only fires when the order already has a
+// backendOrderId (i.e. syncOrderToBackend succeeded for it earlier). Orders
+// without one - static-menu brands, custom items, bills - are unaffected.
+const syncStatusToBackend = (backendOrderId, status) => {
+  const headers = authHeaders();
+  if (!backendOrderId || !headers) return;
+  fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/status`, {
+    method: 'PATCH', headers, body: JSON.stringify({ status })
+  }).catch(() => {});
+};
+
+const syncAssignmentToBackend = (backendOrderId, riderId) => {
+  const headers = authHeaders();
+  if (!backendOrderId || !headers) return;
+  fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/assign`, {
+    method: 'PATCH', headers, body: JSON.stringify({ riderId: riderId || null })
+  }).catch(() => {});
 };
 
 const getCustomerSnapshot = () => {
@@ -215,7 +258,7 @@ export const CustomerActivityProvider = ({ children }) => {
       read: false
     };
     updateAll(cart, [order, ...orders], [notification, ...notifications]);
-    syncOrderToBackend(items, customer.customerAddress);
+    syncOrderToBackend(order.id, items, customer.customerAddress);
     return order;
   };
 
@@ -267,7 +310,7 @@ export const CustomerActivityProvider = ({ children }) => {
     }));
     const nextCart = source ? cart.filter((item) => item.source !== source) : [];
     updateAll(nextCart, [...newOrders, ...orders], [...newNotifications, ...notifications]);
-    newOrders.forEach((order) => syncOrderToBackend(order.items, customer.customerAddress));
+    newOrders.forEach((order) => syncOrderToBackend(order.id, order.items, customer.customerAddress));
     return newOrders[0];
   };
 
@@ -317,15 +360,18 @@ export const CustomerActivityProvider = ({ children }) => {
       type: status === 'cancelled' ? 'cancelled' : 'status'
     };
     updateAll(latest.cart || cart, nextOrders, [notification, ...(latest.notifications || notifications)]);
+    syncStatusToBackend(currentOrder.backendOrderId, status);
   };
 
   const assignOrderToRider = (orderId, rider) => {
     if (getSessionUser()?.role !== 'admin') return;
     const latest = loadActivity();
+    const currentOrder = (latest.orders || orders).find((order) => order.id === orderId);
     const nextOrders = (latest.orders || orders).map((order) => order.id === orderId
       ? { ...order, assignedRider: rider || null, updatedAt: new Date().toISOString() }
       : order);
     updateAll(latest.cart || cart, nextOrders, latest.notifications || notifications);
+    syncAssignmentToBackend(currentOrder?.backendOrderId, rider?.id);
   };
 
   const updatePaymentStatus = (orderId, paymentStatus) => {

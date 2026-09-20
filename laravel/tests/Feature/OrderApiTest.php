@@ -126,4 +126,97 @@ class OrderApiTest extends TestCase
         $response = $this->withToken($this->token($admin))->getJson('/api/admin/orders')->assertOk();
         $this->assertCount(2, $response->json('data'));
     }
+
+    public function test_admin_can_assign_and_unassign_a_rider(): void
+    {
+        $customer = $this->user('customer');
+        $rider = $this->user('driver');
+        $order = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'DeliveryStatus' => 'pending_rider']);
+        $admin = $this->user('admin');
+
+        $this->withToken($this->token($admin))->patchJson("/api/orders/{$order->OrderID}/assign", [
+            'riderId' => $rider->UserID,
+        ])->assertOk()->assertJsonPath('order.AssignedRiderID', $rider->UserID);
+
+        $this->withToken($this->token($admin))->patchJson("/api/orders/{$order->OrderID}/assign", [
+            'riderId' => null,
+        ])->assertOk()->assertJsonPath('order.AssignedRiderID', null);
+    }
+
+    public function test_only_admin_can_assign_a_rider(): void
+    {
+        $customer = $this->user('customer');
+        $rider = $this->user('driver');
+        $order = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'DeliveryStatus' => 'pending_rider']);
+
+        $this->withToken($this->token($customer))->patchJson("/api/orders/{$order->OrderID}/assign", [
+            'riderId' => $rider->UserID,
+        ])->assertForbidden();
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token($rider))->patchJson("/api/orders/{$order->OrderID}/assign", [
+            'riderId' => $rider->UserID,
+        ])->assertForbidden();
+    }
+
+    public function test_assign_rejects_a_non_rider_user(): void
+    {
+        $customer = $this->user('customer');
+        $otherCustomer = $this->user('customer', 'other@example.com');
+        $order = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'DeliveryStatus' => 'pending_rider']);
+        $admin = $this->user('admin');
+
+        $this->withToken($this->token($admin))->patchJson("/api/orders/{$order->OrderID}/assign", [
+            'riderId' => $otherCustomer->UserID,
+        ])->assertUnprocessable();
+    }
+
+    public function test_admin_and_assigned_rider_can_update_status(): void
+    {
+        $customer = $this->user('customer');
+        $rider = $this->user('driver');
+        $order = Order::create([
+            'UserID' => $customer->UserID, 'AssignedRiderID' => $rider->UserID,
+            'TotalPrice' => 100, 'DeliveryStatus' => 'pending_rider',
+        ]);
+
+        $this->withToken($this->token($rider))->patchJson("/api/orders/{$order->OrderID}/status", [
+            'status' => 'confirmed',
+        ])->assertOk()->assertJsonPath('order.DeliveryStatus', 'confirmed');
+
+        $admin = $this->user('admin');
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token($admin))->patchJson("/api/orders/{$order->OrderID}/status", [
+            'status' => 'delivered',
+        ])->assertOk()->assertJsonPath('order.DeliveryStatus', 'delivered');
+    }
+
+    public function test_unassigned_rider_and_customer_cannot_update_status(): void
+    {
+        $customer = $this->user('customer');
+        $assignedRider = $this->user('driver', 'assigned@example.com');
+        $otherRider = $this->user('driver', 'other@example.com');
+        $order = Order::create([
+            'UserID' => $customer->UserID, 'AssignedRiderID' => $assignedRider->UserID,
+            'TotalPrice' => 100, 'DeliveryStatus' => 'pending_rider',
+        ]);
+
+        $this->withToken($this->token($otherRider))->patchJson("/api/orders/{$order->OrderID}/status", [
+            'status' => 'confirmed',
+        ])->assertForbidden();
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token($customer))->patchJson("/api/orders/{$order->OrderID}/status", [
+            'status' => 'confirmed',
+        ])->assertForbidden();
+    }
+
+    public function test_finalized_order_status_cannot_be_changed(): void
+    {
+        $customer = $this->user('customer');
+        $order = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'DeliveryStatus' => 'delivered']);
+        $admin = $this->user('admin');
+
+        $this->withToken($this->token($admin))->patchJson("/api/orders/{$order->OrderID}/status", [
+            'status' => 'cancelled',
+        ])->assertUnprocessable();
+    }
 }

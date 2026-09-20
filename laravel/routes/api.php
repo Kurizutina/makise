@@ -33,7 +33,11 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:20,1');
     Route::get('/orders', [OrderController::class, 'index']);
-    Route::middleware('permission:orders.manage')->get('/admin/orders', [OrderController::class, 'indexAll']);
+    Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus']);
+    Route::middleware('permission:orders.manage')->group(function () {
+        Route::get('/admin/orders', [OrderController::class, 'indexAll']);
+        Route::patch('/orders/{order}/assign', [OrderController::class, 'assign']);
+    });
     Route::middleware('permission:riders.view')->get('/riders', function (Request $request) {
         return response()->json(['riders' => User::where('Role', 'driver')
             ->orderBy('UserName')->orderBy('UserID')->get(['UserID as id', 'UserName as name'])]);

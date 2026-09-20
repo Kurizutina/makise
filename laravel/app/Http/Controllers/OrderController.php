@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
@@ -77,5 +79,36 @@ class OrderController extends Controller
 
         $perPage = min(max((int) $request->query('per_page', 10), 1), 50);
         return response()->json($query->paginate($perPage));
+    }
+
+    public function updateStatus(Request $request, Order $order): JsonResponse
+    {
+        $user = $request->user();
+        $isAdmin = $user->Role === 'admin';
+        $isAssignedRider = $user->Role === 'driver' && $order->AssignedRiderID === $user->UserID;
+        abort_unless($isAdmin || $isAssignedRider, 403);
+        abort_if(in_array($order->DeliveryStatus, ['delivered', 'cancelled'], true), 422, 'This order is already finalized.');
+
+        $data = $request->validate([
+            'status' => ['required', Rule::in(['confirmed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled'])],
+        ]);
+
+        $order->update(['DeliveryStatus' => $data['status']]);
+        return response()->json(['order' => $order->fresh(['items.product', 'rider'])]);
+    }
+
+    public function assign(Request $request, Order $order): JsonResponse
+    {
+        $data = $request->validate([
+            'riderId' => ['nullable', 'integer', 'exists:Users,UserID'],
+        ]);
+
+        if ($data['riderId'] ?? null) {
+            $rider = User::find($data['riderId']);
+            abort_unless($rider && $rider->Role === 'driver', 422, 'That user is not a rider.');
+        }
+
+        $order->update(['AssignedRiderID' => $data['riderId'] ?? null]);
+        return response()->json(['order' => $order->fresh(['items.product', 'rider'])]);
     }
 }
