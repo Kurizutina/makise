@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AccountManagementController;
 use App\Http\Controllers\CatalogController;
+use App\Http\Controllers\OrderController;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,9 @@ Route::middleware('auth:sanctum')->group(function () {
         $file->move($directory, $filename);
         return response()->json(['url' => '/uploads/bill-documents/'.$filename, 'name' => $file->getClientOriginalName()], 201);
     });
+    Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:20,1');
+    Route::get('/orders', [OrderController::class, 'index']);
+    Route::middleware('permission:orders.manage')->get('/admin/orders', [OrderController::class, 'indexAll']);
     Route::middleware('permission:riders.view')->get('/riders', function (Request $request) {
         return response()->json(['riders' => User::where('Role', 'driver')
             ->orderBy('UserName')->orderBy('UserID')->get(['UserID as id', 'UserName as name'])]);

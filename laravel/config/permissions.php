@@ -6,6 +6,7 @@ return [
             'catalog.manage',
             'accounts.manage',
             'riders.view',
+            'orders.manage',
         ],
         'driver' => [],
         'customer' => [],
