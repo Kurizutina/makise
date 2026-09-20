@@ -6,6 +6,33 @@ import { calculateDeliveryFee, findDeliveryLocation } from '../utils/deliveryRat
 const CustomerActivityContext = createContext(null);
 const STORAGE_KEY = 'otuzanCustomerActivity';
 const PROFILE_KEY = 'otuzanCustomerProfile';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+// Best-effort sync to the real backend order API. Only fires for orders made
+// up entirely of real catalog products (i.e. a productId on every line) -
+// static-menu brands, custom items, and bill payments stay localStorage-only
+// for now. Never awaited by callers and never throws: the localStorage write
+// already happened and is what the UI actually reflects, so a failure here
+// (offline, backend down, brand not yet migrated) changes nothing the
+// customer sees.
+const syncOrderToBackend = (items, deliveryAddress) => {
+  try {
+    if (!items?.length || !items.every((item) => Number.isInteger(item.productId))) return;
+    const token = sessionStorage.getItem('otuzanAuthenticated');
+    if (!token || getSessionUser()?.role !== 'customer') return;
+    fetch(`${API_BASE_URL}/api/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        items: items.map((item) => ({ ProductID: item.productId, quantity: item.quantity || 1 })),
+        deliveryAddress: deliveryAddress || 'Not provided'
+      })
+    }).catch(() => {});
+  } catch {
+    // Swallow anything unexpected - this is a background sync, never the
+    // source of truth for what the customer sees.
+  }
+};
 
 const getCustomerSnapshot = () => {
   try {
@@ -188,6 +215,7 @@ export const CustomerActivityProvider = ({ children }) => {
       read: false
     };
     updateAll(cart, [order, ...orders], [notification, ...notifications]);
+    syncOrderToBackend(items, customer.customerAddress);
     return order;
   };
 
@@ -239,6 +267,7 @@ export const CustomerActivityProvider = ({ children }) => {
     }));
     const nextCart = source ? cart.filter((item) => item.source !== source) : [];
     updateAll(nextCart, [...newOrders, ...orders], [...newNotifications, ...notifications]);
+    newOrders.forEach((order) => syncOrderToBackend(order.items, customer.customerAddress));
     return newOrders[0];
   };
 

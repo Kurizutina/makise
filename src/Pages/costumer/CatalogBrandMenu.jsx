@@ -30,6 +30,7 @@ const CatalogBrandMenu = () => {
     : null;
   const products = catalog.products.map((product) => ({
     id: `catalog-${product.ProductID}`,
+    productId: product.ProductID,
     name: product.ProductName,
     price: Number(product.ProductPrice),
     image: catalogImageUrl(product.ImagePath) || brandLogo,
