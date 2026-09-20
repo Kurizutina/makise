@@ -8,6 +8,7 @@ import {
 import './RiderDashboard.css';
 import OrderCustomerDetails from '../../components/common/OrderCustomerDetails/OrderCustomerDetails';
 import { clearSession, getSessionUser, isAssignedTo } from '../../utils/session';
+import { applyBackendTruth, useBackendOrders } from '../../hooks/useBackendOrders';
 
 const sections = [
   { key: 'food', label: 'Food Delivery', icon: 'fa-utensils' },
@@ -59,7 +60,9 @@ const RiderDashboard = () => {
   const navigate = useNavigate();
   const { orders: allOrders, updateOrderStatus } = useCustomerActivity();
   const user = getSessionUser();
-  const orders = allOrders.filter((order) => user?.role === 'driver' && isAssignedTo(order, user));
+  const backendOrdersById = useBackendOrders('/api/orders?per_page=50');
+  const localOrders = allOrders.filter((order) => user?.role === 'driver' && isAssignedTo(order, user));
+  const orders = useMemo(() => applyBackendTruth(localOrders, backendOrdersById), [localOrders, backendOrdersById]);
   const [activeSection, setActiveSection] = useState('food');
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [now, setNow] = useState(Date.now());

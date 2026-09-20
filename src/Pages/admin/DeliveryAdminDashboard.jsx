@@ -5,6 +5,7 @@ import './DeliveryAdminDashboard.css';
 import OrderCustomerDetails from '../../components/common/OrderCustomerDetails/OrderCustomerDetails';
 import { catalogImageUrl } from '../../utils/catalog';
 import { clearSession } from '../../utils/session';
+import { applyBackendTruth, useBackendOrders } from '../../hooks/useBackendOrders';
 
 const SERVICE_META = {
   food: { label: 'Food Delivery', icon: 'fa-utensils', color: '#f9c12f' },
@@ -337,7 +338,9 @@ const AccountManagementTab = ({ role, onAccountsChanged }) => {
 
 const DeliveryAdminDashboard = () => {
   const navigate = useNavigate();
-  const { orders, updateOrderStatus, assignOrderToRider, updatePaymentStatus } = useCustomerActivity();
+  const { orders: localOrders, updateOrderStatus, assignOrderToRider, updatePaymentStatus } = useCustomerActivity();
+  const backendOrdersById = useBackendOrders('/api/admin/orders?per_page=50');
+  const orders = useMemo(() => applyBackendTruth(localOrders, backendOrdersById), [localOrders, backendOrdersById]);
   const [activeTab, setActiveTab] = useState('live');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [riders, setRiders] = useState([]);
