@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\PasswordResetMail;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
@@ -71,9 +72,7 @@ class AuthController extends Controller
 
             $resetUrl = rtrim((string) config('otuzan.frontend_url'), '/')
                 .'/reset-password?token='.urlencode($token).'&email='.urlencode($email);
-            Mail::raw("Use this link to reset your Otu-Zan password:\n\n{$resetUrl}\n\nThis link expires in 60 minutes.", function ($message) use ($email) {
-                $message->to($email)->subject('Reset your Otu-Zan password');
-            });
+            Mail::to($email)->send(new PasswordResetMail($resetUrl));
         }
 
         return response()->json([
