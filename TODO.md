@@ -53,20 +53,19 @@ items off as they land.
 - [ ] Real queue system (depends on 1f)
 - [ ] Server-driven live status updates / polling (depends on 1c/1d)
 - [ ] Backend-persisted notifications (depends on 1g)
-- [ ] **Redundant per-item CTAs (UX)** — every product card has both "Add to Cart"
-      and "Place Order." Standard apps have one action per item (add); checkout only
-      happens at the cart level. Drop the per-item "Place Order." Confirmed this is a
-      real, not just theoretical, problem — walked through it live on 9/21: user
-      wanted to order 2 items together, got confused about why they couldn't combine
-      them, root cause was clicking per-item "Place Order" instead of "Add to Cart."
-      External validation (web search, 9/21): published UX guidance recommends
-      exactly one solid-color primary action per product card ("Add to Cart") with
-      secondary actions outlined/de-emphasized, specifically to avoid this kind of
-      confusion — [Toptal: Keep It Tasteful, A Guide to Food App
-      Design](https://www.toptal.com/designers/ux/food-app-design). Cart abandonment
-      from bad checkout UX runs ~70% industry-wide per the same research; food
-      delivery users are especially time-pressed, so checkout friction matters more
-      here than most app categories.
+- [x] **Redundant per-item CTAs (UX)** — every product card had both "Add to Cart"
+      and "Place Order." Confirmed this was a real, not just theoretical, problem —
+      walked through it live on 9/21: user wanted to order 2 items together, got
+      confused about why they couldn't combine them, root cause was clicking
+      per-item "Place Order" instead of "Add to Cart." External validation (web
+      search, 9/21): published UX guidance recommends exactly one solid-color
+      primary action per product card, specifically to avoid this kind of confusion
+      — [Toptal: Keep It Tasteful, A Guide to Food App
+      Design](https://www.toptal.com/designers/ux/food-app-design). Fixed: removed
+      the per-item "Place Order" button (and its now-dead handler code); "Add to
+      Cart" is now the one full-width, solid-styled action per card. Applies to
+      every brand — Food and Item Delivery both, since they share the same
+      `RestaurantMenu` component. (`1ecc172`)
 - [ ] **Customer–rider communication** (teammate request, 9/20) — no chat/messaging
       exists between customer and rider today. Real feature, not a quick fix; needs
       its own design pass (in-app chat vs. just exposing contact numbers, etc.)
