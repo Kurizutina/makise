@@ -19,10 +19,20 @@ items off as they land.
       payments stay localStorage-only too, no real product to back them yet.
       `localStorage` is still the source of truth for everything the UI shows -
       this is additive, not a swap. (`f55c138`)
-- [ ] **Step 1d** — Migrate order *status updates* (`updateOrderStatus`,
-      `assignOrderToRider`) to the backend — closes the client-trust fraud hole
-      (customer could otherwise fake `status: 'delivered'` or a "verified" payment by
-      editing browser storage).
+- [x] **Step 1d** — `updateOrderStatus`/`assignOrderToRider` now also sync to
+      `PATCH /api/orders/{id}/status` and `/assign`, server-side authorized (admin,
+      or the order's actually-assigned rider per `AssignedRiderID` — not trusted from
+      the request). Same scoping as 1c: only fires for orders with a `backendOrderId`.
+      Verified live through the real admin/rider dashboards, not just tests. (`82dc93e`)
+      **Does not by itself close the fraud hole** — see the new Critical item below.
+- [ ] **Close the client-trust fraud hole (read side)** — 1d added the *write* path,
+      but rider/admin dashboards still *read* orders from `localStorage`
+      (`useCustomerActivity`), not the backend. A customer directly editing their own
+      `localStorage` can still show a fake status/payment-verified state to whoever's
+      dashboard is looking, regardless of what the backend correctly stores. Actually
+      closing this requires migrating the rider/admin dashboards to read from
+      `GET /api/orders` / `GET /api/admin/orders` instead — the real "step 1d" outcome,
+      split out once the gap became clear mid-implementation.
 - [ ] **Step 1e** — Migrate payment confirmation to the backend.
 - [ ] **Step 1f** — Wire the real `Queue` table (position, status) instead of the
       client-side fake wait-time formula.
@@ -107,6 +117,19 @@ items off as they land.
       and the expected `serviceFee` no longer matches). Fix: pass an explicit
       `orderTime` in the test instead of relying on `new Date()`. Pre-existing,
       unrelated to any work this session.
+- [ ] **Test-suite teardown warning** — since step 1d, `npx react-scripts test` prints
+      "A worker process has failed to exit gracefully... tests leaking due to
+      improper teardown" (confirmed via `git stash` that it didn't happen before).
+      Caused by the fire-and-forget backend-sync `fetch` calls (`syncOrderToBackend`,
+      `syncStatusToBackend`, `syncAssignmentToBackend`) not being awaited or mocked
+      per-test, so their promise chains can still be in flight at teardown. All test
+      assertions still pass — this is a harmless warning, not a failure — but worth
+      cleaning up (e.g. mock `fetch` more precisely per test, or expose a way to flush
+      pending syncs in tests) so real leaks don't get lost in the noise later.
+- [ ] **Add `.gitignore` entry for test artifacts** — 4 stray images sit untracked in
+      `laravel/public/uploads/bill-documents/` from earlier live-testing this session.
+      Same fix as the existing `.gitignore` item above; just a reminder they're still
+      there.
 
 ## Non-code / academic
 
