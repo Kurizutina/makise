@@ -13,7 +13,7 @@ const formatPrice = (price) => new Intl.NumberFormat('en-PH', {
   maximumFractionDigits: 2
 }).format(price);
 
-const RestaurantProductCard = ({ product, onAddToCart, onPlaceOrder, showFoodIcons }) => {
+const RestaurantProductCard = ({ product, onAddToCart, showFoodIcons }) => {
   const [variantIndex, setVariantIndex] = useState(0);
   const variant = product.variants?.[variantIndex];
   const selectedProduct = variant ? {
@@ -48,7 +48,6 @@ const RestaurantProductCard = ({ product, onAddToCart, onPlaceOrder, showFoodIco
           <button type="button" className="product-cart-button" onClick={() => onAddToCart(selectedProduct)}>
             <i className="fa-solid fa-cart-plus" aria-hidden="true" /> Add to Cart
           </button>
-          <button type="button" className="product-order-button" onClick={() => onPlaceOrder(selectedProduct)}>Place Order</button>
         </div>
       </div>
     </article>
@@ -71,7 +70,6 @@ export const RestaurantMenu = ({
     cart: sharedCart,
     addToCart: addSharedCartItem,
     updateCartQuantity,
-    placeOrder,
     placeCartOrder
   } = useCustomerActivity();
   const [products, setProducts] = useState(menuItems || []);
@@ -135,15 +133,6 @@ export const RestaurantMenu = ({
   const updateQuantity = (id, amount) => {
     const item = cart.find((entry) => entry.id === id);
     if (item) updateCartQuantity(item.cartId, amount);
-  };
-
-  const placeProductOrder = (product) => {
-    if (!deliveryLocation) {
-      showNotice('Select your delivery location before placing your order.');
-      return;
-    }
-    placeOrder({ source: sourceKey, label: product.name, items: [{ ...product, quantity: 1 }], section: serviceType, deliveryLocation, customerType });
-    showNotice(`Order placed for ${product.name}.`);
   };
 
   const addCustomItem = (event) => {
@@ -230,7 +219,7 @@ export const RestaurantMenu = ({
               </div>
               <div className="jollibee-product-grid">
                 {categoryProducts.map((product) => (
-                  <RestaurantProductCard key={product.id} product={product} onAddToCart={addToCart} onPlaceOrder={placeProductOrder} showFoodIcons={showFoodIcons} />
+                  <RestaurantProductCard key={product.id} product={product} onAddToCart={addToCart} showFoodIcons={showFoodIcons} />
                 ))}
               </div>
             </section>

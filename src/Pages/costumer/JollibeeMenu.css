@@ -341,7 +341,7 @@
 
 .jollibee-product-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 8px;
   margin-top: auto;
 }
@@ -357,12 +357,6 @@
 }
 
 .product-cart-button {
-  border: 1px solid #da1c5c;
-  background: #fff5f8;
-  color: #c21751;
-}
-
-.product-order-button {
   border: 1px solid #da1c5c;
   background: #da1c5c;
   color: #fff;
