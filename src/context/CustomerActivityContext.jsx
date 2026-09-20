@@ -19,6 +19,7 @@ const getCustomerSnapshot = () => {
       customerEmail: customer.email || '',
       customerName: customer.username || 'Customer',
       customerAddress: customer.address || '',
+      customerContact: customer.contact || '',
       customerType: customer.userType || 'non_student'
     };
   } catch {
@@ -101,19 +102,35 @@ export const CustomerActivityProvider = ({ children }) => {
     };
   }, []);
 
+  // Merges by id instead of blindly overwriting, so a write from this tab can't
+  // erase an order/notification another tab wrote to localStorage in the meantime.
+  const mergeById = (ours = [], latest = []) => {
+    const getTime = (entry) => Date.parse(entry.updatedAt || entry.createdAt || 0) || 0;
+    const byId = new Map(ours.map((entry) => [entry.id, entry]));
+    latest.forEach((entry) => {
+      const existing = byId.get(entry.id);
+      if (!existing || getTime(entry) > getTime(existing)) byId.set(entry.id, entry);
+    });
+    return Array.from(byId.values()).sort((a, b) => getTime(b) - getTime(a));
+  };
+
   const persist = (nextCart, nextOrders, nextNotifications) => {
+    const latest = loadActivity();
+    const mergedOrders = mergeById(nextOrders, latest.orders || []);
+    const mergedNotifications = mergeById(nextNotifications, latest.notifications || []);
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       cart: nextCart,
-      orders: nextOrders,
-      notifications: nextNotifications
+      orders: mergedOrders,
+      notifications: mergedNotifications
     }));
+    return { orders: mergedOrders, notifications: mergedNotifications };
   };
 
   const updateAll = (nextCart, nextOrders, nextNotifications) => {
+    const merged = persist(nextCart, nextOrders, nextNotifications);
     setCart(nextCart);
-    setOrders(nextOrders);
-    setNotifications(nextNotifications);
-    persist(nextCart, nextOrders, nextNotifications);
+    setOrders(merged.orders);
+    setNotifications(merged.notifications);
   };
 
   const addToCart = (item) => {
@@ -277,7 +294,7 @@ export const CustomerActivityProvider = ({ children }) => {
     if (getSessionUser()?.role !== 'admin') return;
     const latest = loadActivity();
     const nextOrders = (latest.orders || orders).map((order) => order.id === orderId
-      ? { ...order, assignedRider: rider || null }
+      ? { ...order, assignedRider: rider || null, updatedAt: new Date().toISOString() }
       : order);
     updateAll(latest.cart || cart, nextOrders, latest.notifications || notifications);
   };

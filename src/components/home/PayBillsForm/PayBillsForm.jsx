@@ -2,6 +2,37 @@ import React, { useEffect, useState } from 'react';
 import './PayBillsForm.css';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+const MAX_IMAGE_DIMENSION = 1280;
+const compressImage = (file) => new Promise((resolve) => {
+  if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
+    resolve(file);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(img.width, img.height));
+      if (scale === 1) {
+        resolve(file);
+        return;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        resolve(blob ? new File([blob], file.name, { type: 'image/jpeg' }) : file);
+      }, 'image/jpeg', 0.8);
+    };
+    img.onerror = () => resolve(file);
+    img.src = reader.result;
+  };
+  reader.onerror = () => resolve(file);
+  reader.readAsDataURL(file);
+});
+
 const uploadDocument = async (file) => {
   const body = new FormData();
   body.append('document', file);
@@ -77,9 +108,13 @@ const PayBillsForm = ({
     event.preventDefault();
     setUploadError('');
     try {
+      const [compressedBill, compressedProof] = await Promise.all([
+        compressImage(billReceipt),
+        compressImage(transferProof)
+      ]);
       const [uploadedBill, uploadedProof] = await Promise.all([
-        uploadDocument(billReceipt).catch(() => embedDocument(billReceipt)),
-        uploadDocument(transferProof).catch(() => embedDocument(transferProof))
+        uploadDocument(compressedBill).catch(() => embedDocument(compressedBill)),
+        uploadDocument(compressedProof).catch(() => embedDocument(compressedProof))
       ]);
       onSubmit({
         establishment: establishment.trim(),
