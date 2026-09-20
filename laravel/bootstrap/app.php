@@ -16,6 +16,16 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\EnsureAdmin::class,
             'permission' => \App\Http\Middleware\EnsurePermission::class,
         ]);
+        // This is a pure API backend (routes/web.php has no login page), so an
+        // unauthenticated request should never be redirected anywhere. Without
+        // this, Laravel's default Authenticate middleware tries to build a URL
+        // for a route named "login" whenever the request doesn't explicitly ask
+        // for JSON (no Accept: application/json header) - which the frontend
+        // never sends - and since no such route exists, that redirect attempt
+        // itself throws an uncaught RouteNotFoundException (500, with a full
+        // stack trace leaked to the client) instead of the clean 401 the
+        // exception handler below is already set up to return.
+        $middleware->redirectGuestsTo(fn () => null);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn ($request) => $request->is('api/*') || $request->expectsJson());
