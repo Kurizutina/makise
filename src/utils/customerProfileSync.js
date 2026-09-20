@@ -10,9 +10,9 @@ export const syncCustomerOrders = (profile) => {
   let changed = false;
   const orders = activity.orders.map((order) => {
     if (order.customerId == null || String(order.customerId) !== String(profile.id)) return order;
-    if (order.customerName === profile.username && order.customerAddress === (profile.address || '') && order.customerEmail === profile.email) return order;
+    if (order.customerName === profile.username && order.customerAddress === (profile.address || '') && order.customerEmail === profile.email && order.customerContact === (profile.contact || '')) return order;
     changed = true;
-    return { ...order, customerName: profile.username, customerAddress: profile.address || '', customerEmail: profile.email };
+    return { ...order, customerName: profile.username, customerAddress: profile.address || '', customerEmail: profile.email, customerContact: profile.contact || '' };
   });
   if (!changed) return;
   const next = { ...activity, orders };
