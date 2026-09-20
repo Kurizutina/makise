@@ -29,7 +29,7 @@ const statusLabels = {
 const PaymentDocument = ({ url, name, type, label }) => {
   if (!url) return null;
   const isPdf = type === 'application/pdf' || /\.pdf(?:$|\?)/i.test(url);
-  return <a className="rider-payment-image" href={url} target="_blank" rel="noreferrer" download={name || true}>{isPdf ? <span className="rider-payment-file"><i className="fa-solid fa-file-pdf" /></span> : <img src={url} alt={`Uploaded ${label}: ${name || 'document'}`} />}<span>{label}: {name || 'View document'}<small>Open or download</small></span></a>;
+  return <a className="rider-payment-image" href={url} target="_blank" rel="noreferrer">{isPdf ? <span className="rider-payment-file"><i className="fa-solid fa-file-pdf" /></span> : <img src={url} alt={`Uploaded ${label}: ${name || 'document'}`} />}<span>{label}: {name || 'View document'}<small>Open to view</small></span></a>;
 };
 
 const formatEstimatedWait = (order, now) => {
