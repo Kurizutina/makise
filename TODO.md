@@ -74,6 +74,44 @@ items off as they land.
 
 ## Medium
 
+- [ ] **Let customers browse without logging in** (user request, 9/21, noticed while
+      browsing foodpanda themselves) — confirmed highly feasible: the backend
+      catalog API (`GET /api/catalog`, `GET /api/catalog/brands/{id}/products`) is
+      *already* public with zero auth required (verified with a bare `curl` request,
+      no token, works fine). The only thing blocking guest browsing today is the
+      frontend's `ProtectedRoute` wrapper on `/home`, `/food/*`, and
+      `/catalog/brands/:id` — it unconditionally redirects anyone not logged in to
+      `/login` before they can see a single menu. Matches how foodpanda/Grab
+      actually work: browse everything freely, only prompt login at
+      cart/checkout when the customer is ready to place an order. This is one of
+      the most well-documented conversion killers in e-commerce UX — forcing
+      signup before letting people see what's for sale. Scope: relax the route
+      guard for browsing pages only; keep cart placement/checkout gated behind
+      login as it already effectively needs to be (orders are tied to a customer
+      account).
+- [ ] **Sticky category navigation within a menu page** (user request, 9/21,
+      noticed on foodpanda) — this is a known, named UX pattern: category "chips"
+      (e.g. Chickenjoy, Burgers, Sides) stick below the header once you scroll past
+      it, tapping one jumps the page to that section, and the active chip highlights
+      as you scroll
+      ([Smashing Magazine: Designing Sticky
+      Menus](https://www.smashingmagazine.com/2023/05/sticky-menus-ux-guidelines/);
+      [example implementation
+      discussion](https://github.com/hedonarc/foodio/issues/169)). Directly
+      addresses Otu-Zan's long single-scroll category-grouped menus (Jollibee,
+      McDonald's, Manuela's, etc.) — customers currently have no way to jump
+      straight to "Burgers" without scrolling past everything above it. Technical
+      note from the research: use `scroll-padding-top` in CSS so the jump doesn't
+      hide the section title behind the sticky chip row. Caveat also noted: skip the
+      chips entirely for brands with only one or two categories — the row only
+      earns its place when there's somewhere meaningful to jump to.
+- [ ] **"Similar brands" section before the footer** (user request, 9/21, noticed on
+      foodpanda) — a discovery/cross-sell section at the bottom of a brand's menu
+      page suggesting other brands in the same category (e.g. viewing Jollibee
+      suggests McDonald's, Mang Inasal — other Food Delivery brands). Standard
+      pattern across delivery and e-commerce apps generally. Lower priority than the
+      two items above — more of a "keep browsing" nudge than something blocking an
+      order, and needs a "same service/category" grouping rule decided first.
 - [x] Make the customer contact number visible on both the Admin and Rider
       dashboards (teammate request, 9/20) — already done this session before the
       request came in (`9cc3ac0`).
