@@ -55,7 +55,18 @@ items off as they land.
 - [ ] Backend-persisted notifications (depends on 1g)
 - [ ] **Redundant per-item CTAs (UX)** — every product card has both "Add to Cart"
       and "Place Order." Standard apps have one action per item (add); checkout only
-      happens at the cart level. Drop the per-item "Place Order."
+      happens at the cart level. Drop the per-item "Place Order." Confirmed this is a
+      real, not just theoretical, problem — walked through it live on 9/21: user
+      wanted to order 2 items together, got confused about why they couldn't combine
+      them, root cause was clicking per-item "Place Order" instead of "Add to Cart."
+      External validation (web search, 9/21): published UX guidance recommends
+      exactly one solid-color primary action per product card ("Add to Cart") with
+      secondary actions outlined/de-emphasized, specifically to avoid this kind of
+      confusion — [Toptal: Keep It Tasteful, A Guide to Food App
+      Design](https://www.toptal.com/designers/ux/food-app-design). Cart abandonment
+      from bad checkout UX runs ~70% industry-wide per the same research; food
+      delivery users are especially time-pressed, so checkout friction matters more
+      here than most app categories.
 - [ ] **Customer–rider communication** (teammate request, 9/20) — no chat/messaging
       exists between customer and rider today. Real feature, not a quick fix; needs
       its own design pass (in-app chat vs. just exposing contact numbers, etc.)
@@ -113,10 +124,32 @@ items off as they land.
 - [ ] *(Research note)* Couldn't get live reference for foodpanda's actual menu/
       cart/checkout screens — hit a reCAPTCHA wall navigating into a restaurant page,
       did not attempt to bypass it. GrabFood gates restaurant browsing behind login.
-      The mobile-cart-placement and redundant-per-item-CTA findings elsewhere in
-      this list are based on general knowledge of how these apps work, not a fresh
-      live check on 9/21 specifically — worth a real device comparison later if
-      precision matters.
+      Followed up with web search instead (below) since direct browsing hit walls.
+- [ ] **Products without photos hurt conversion** (web research, 9/21) — this is a
+      recognized, documented UX problem, not just an aesthetic nitpick: a 2018
+      GrabFood UX case study quotes a user directly — *"Food photos are important
+      for me. It's hard imagining what they look like when the app doesn't provide
+      their photos"* — and lists missing menu photos as one of the top pain points
+      driving users away
+      ([source](https://uxdesign.cc/ux-ui-case-study-grabfood-ab2faa0512ec)).
+      Directly relevant: Manuela's 185 products have zero individual photos (all
+      show the brand logo instead) — same root issue this research flags. This is a
+      content/photography task (someone needs to actually photograph the dishes),
+      not a code fix — but worth prioritizing over purely cosmetic items given it's
+      shown to affect whether people order at all.
+- [ ] **"Back to top" control on long menu pages** (web research, 9/21) — GrabFood's
+      menu pages use continuous scrolling through many categories with no way back
+      to the top except manually scrolling up, flagged as a usability gap in a UX
+      pattern analysis
+      ([source](https://rubienguyen.medium.com/grabfood-patterns-and-flows-63f7153f039f)).
+      Otu-Zan's menu pages (Jollibee, McDonald's, Manuela's, etc.) have the exact
+      same structure — multiple category sections in one long scroll, no back-to-top
+      button. Small, low-risk, easy fix.
+- [ ] *(Research note)* The same GrabFood UX analysis flags carousel-style browsing
+      (swipeable cards) as having low discoverability per NNGroup research — most
+      users stop swiping after 3-4 cards. Otu-Zan's category-grouped list layout
+      (not carousels) is actually the safer choice here, not a gap — noting this so
+      nobody "fixes" it into a carousel later assuming that's more modern.
 - [ ] **Dark mode** (teammate/user request, 9/21) — technically possible, nothing
       architecturally blocks it, but it's a real chunk of work, not a quick toggle:
       checked the codebase and found 545 hardcoded hex color values across 17 of the
