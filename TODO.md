@@ -95,6 +95,17 @@ items off as they land.
 
 ## Low
 
+- [ ] **Dark mode** (teammate/user request, 9/21) — technically possible, nothing
+      architecturally blocks it, but it's a real chunk of work, not a quick toggle:
+      checked the codebase and found 545 hardcoded hex color values across 17 of the
+      19 CSS files, zero use of CSS custom properties anywhere. Doing it properly
+      means (1) refactoring those into CSS variables first, (2) designing an actual
+      dark palette — a judgment call, not just inverting colors, since the brand's
+      pink/magenta needs to still read as "Otu-Zan" on a dark background, (3) a
+      toggle + persisted preference, (4) checking every page (login, customer menus,
+      cart, rider dashboard, admin dashboard) for contrast/legibility in both modes.
+      Reasonable nice-to-have; not something to start before the higher-priority
+      items above are done.
 - [ ] Clean up stale "jayson deguzman" hardcoded filter in
       `CustomerActivityContext.jsx` (4 places) — verify no live bad data still depends
       on it first.
