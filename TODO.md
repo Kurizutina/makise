@@ -95,6 +95,28 @@ items off as they land.
 
 ## Low
 
+- [ ] **Show estimated time on the brand-selection screen** (Grab/foodpanda
+      reference, 9/21) — live-checked foodpanda.ph and GrabFood's web apps for
+      comparison. foodpanda's "Top brands" section shows a delivery-time estimate
+      (e.g. "5 min") right on the brand tile, before the customer even opens the
+      menu. Otu-Zan's Home.jsx brand grid shows only logo + name — no timing context
+      up front. Would need real prep-time data per brand/service to be honest, not
+      just decorative (tie to `calculateEstimatedWaitMinutes`, already used inside
+      each menu page, just not surfaced one level up).
+- [ ] **More compact brand list layout** (Grab/foodpanda reference, 9/21) — both
+      foodpanda and Grab present brand/restaurant options as compact horizontal
+      rows (logo + name + ETA) rather than large square tiles, fitting more options
+      on screen at once and reducing scrolling. Otu-Zan's current large square tiles
+      (`src/Pages/costumer/Home.jsx`) take noticeably more space per brand. Related
+      to the mobile-screen-space concerns already flagged under "Mobile cart
+      placement" above.
+- [ ] *(Research note)* Couldn't get live reference for foodpanda's actual menu/
+      cart/checkout screens — hit a reCAPTCHA wall navigating into a restaurant page,
+      did not attempt to bypass it. GrabFood gates restaurant browsing behind login.
+      The mobile-cart-placement and redundant-per-item-CTA findings elsewhere in
+      this list are based on general knowledge of how these apps work, not a fresh
+      live check on 9/21 specifically — worth a real device comparison later if
+      precision matters.
 - [ ] **Dark mode** (teammate/user request, 9/21) — technically possible, nothing
       architecturally blocks it, but it's a real chunk of work, not a quick toggle:
       checked the codebase and found 545 hardcoded hex color values across 17 of the
