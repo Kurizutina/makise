@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Laravel\Sanctum\HasApiTokens;
@@ -25,4 +26,7 @@ class User extends Authenticatable
             'role' => $this->Role, 'email' => $this->Email, 'address' => $this->Address ?? '',
         ];
     }
+
+    public function orders(): HasMany { return $this->hasMany(Order::class, 'UserID'); }
+    public function notifications(): HasMany { return $this->hasMany(Notification::class, 'UserID'); }
 }
