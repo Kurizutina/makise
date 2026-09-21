@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Queue;
@@ -129,7 +130,38 @@ class OrderController extends Controller
         // later transition on the same order (confirmed -> preparing) is a
         // harmless no-op instead of re-touching an already-closed entry.
         $order->queueEntries()->where('QueueStatus', 'waiting')->update(['QueueStatus' => 'done']);
+        $this->notifyStatusChange($order, $data['status']);
         return response()->json(['order' => $order->fresh(['items.product', 'rider'])]);
+    }
+
+    // Admin/rider actions were the actual gap step 1g exists to close: an
+    // order placed on a customer's own phone gets accepted/declined from an
+    // admin's console on a completely different device, and the customer
+    // needs to find out regardless of which device they check from next -
+    // a notification written only to the acting admin/rider's own browser
+    // (the old localStorage-only behavior) never reached them at all.
+    private function notifyStatusChange(Order $order, string $status): void
+    {
+        $content = [
+            'confirmed' => ['Order accepted', 'was accepted. Tracking is now available.'],
+            'cancelled' => ['Order cancelled', 'was cancelled.'],
+            'preparing' => ['Order is being prepared', 'is now being prepared.'],
+            'out_for_delivery' => ['Order is out for delivery', 'is on the way.'],
+            'delivered' => ['Order delivered', 'has been delivered.'],
+        ][$status] ?? null;
+        if (!$content) return;
+
+        Notification::create([
+            'UserID' => $order->UserID,
+            'NotificationMessage' => json_encode([
+                'title' => $content[0],
+                'message' => "Order #{$order->OrderID} {$content[1]}",
+                'type' => $status === 'cancelled' ? 'cancelled' : 'status',
+                'orderId' => $order->OrderID,
+            ]),
+            'NotificationSeen' => false,
+            'NotificationDate' => now(),
+        ]);
     }
 
     public function assign(Request $request, Order $order): JsonResponse

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Payment;
 use Illuminate\Http\JsonResponse;
@@ -68,6 +69,20 @@ class PaymentController extends Controller
         ]);
 
         $payment->update(['PaymentStatus' => $data['status']]);
+        // Same reasoning as OrderController::notifyStatusChange - admin
+        // verifies/rejects from their own console, the customer needs to
+        // find out on whichever device they check next.
+        Notification::create([
+            'UserID' => $payment->order->UserID,
+            'NotificationMessage' => json_encode([
+                'title' => "Payment {$data['status']}",
+                'message' => "Your payment for {$payment->PaymentName} was {$data['status']}.",
+                'type' => $data['status'] === 'rejected' ? 'cancelled' : 'status',
+                'orderId' => $payment->OrderID,
+            ]),
+            'NotificationSeen' => false,
+            'NotificationDate' => now(),
+        ]);
         return response()->json(['payment' => $payment->fresh()]);
     }
 }
