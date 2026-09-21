@@ -49,7 +49,21 @@ items off as they land.
       not instant. Still only covers orders with a `backendOrderId` (catalog-backed
       brands) — Jollibee/custom items/bills remain fully client-trusted until they're
       migrated too. (`0de0804`)
-- [ ] **Step 1e** — Migrate payment confirmation to the backend.
+- [x] **Step 1e** — Migrate payment confirmation to the backend. Pay Bills was
+      the last order type still 100% localStorage-trusted (it never even got a
+      `backendOrderId` — `syncOrderToBackend` requires real catalog items,
+      which bills don't have). Added `PaymentController` (`POST /api/payments`
+      creates a real `Orders`+`Payment` pair; `PATCH /api/payments/{id}/status`
+      is admin-only, verify/reject, same terminal-state guard pattern as
+      `OrderController::updateStatus`). Frontend now syncs bill creation and
+      admin verify/reject to the backend, and `applyBackendTruth` overrides
+      `paymentStatus` from the server the same way it already overrides
+      `DeliveryStatus`/`assignedRider`. Verified live end-to-end through the
+      real UI (fresh throwaway test accounts, not real credentials): submitted
+      a bill payment with uploaded documents, verified it as admin, then
+      tampered localStorage directly to fake it back to "pending" and
+      confirmed the admin UI still showed "Verified" — backend truth wins.
+      Test data cleaned up after. (`29966b2` backend, `95d5dac` frontend)
 - [ ] **Step 1f** — Wire the real `Queue` table (position, status) instead of the
       client-side fake wait-time formula.
 - [ ] **Step 1g** — Wire backend notifications (persisted, not localStorage-only).
