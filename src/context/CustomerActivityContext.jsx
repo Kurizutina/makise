@@ -77,6 +77,45 @@ const syncAssignmentToBackend = (backendOrderId, riderId) => {
   }).catch(() => {});
 };
 
+// Same best-effort philosophy as syncOrderToBackend, but for Pay Bills -
+// those orders have no catalog items so they go through POST /api/payments
+// instead of POST /api/orders. On success, patches both the backend
+// OrderID (so status/assignment sync/override still work like any other
+// order) and the PaymentID (so payment verify/reject can be synced too)
+// onto the local order.
+const syncPaymentToBackend = (localOrderId, details) => {
+  try {
+    const headers = authHeaders();
+    if (!headers || getSessionUser()?.role !== 'customer' || !details) return;
+    fetch(`${API_BASE_URL}/api/payments`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        establishment: details.establishment || '',
+        billReceiptUrl: details.billReceiptUrl || null,
+        billReceiptName: details.billReceiptName || null,
+        transferProofUrl: details.transferProofUrl || null,
+        transferProofName: details.transferProofName || null
+      })
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => {
+        if (body?.orderId) patchStoredOrder(localOrderId, { backendOrderId: body.orderId, backendPaymentId: body.payment?.PaymentID });
+      })
+      .catch(() => {});
+  } catch {
+    // Same as syncOrderToBackend - never the source of truth, safe to swallow.
+  }
+};
+
+const syncPaymentStatusToBackend = (backendPaymentId, status) => {
+  const headers = authHeaders();
+  if (!backendPaymentId || !headers) return;
+  fetch(`${API_BASE_URL}/api/payments/${backendPaymentId}/status`, {
+    method: 'PATCH', headers, body: JSON.stringify({ status })
+  }).catch(() => {});
+};
+
 const getCustomerSnapshot = () => {
   try {
     const profile = JSON.parse(localStorage.getItem(PROFILE_KEY)) || {};
@@ -258,7 +297,11 @@ export const CustomerActivityProvider = ({ children }) => {
       read: false
     };
     updateAll(cart, [order, ...orders], [notification, ...notifications]);
-    syncOrderToBackend(order.id, items, customer.customerAddress);
+    if (section === 'bills') {
+      syncPaymentToBackend(order.id, details);
+    } else {
+      syncOrderToBackend(order.id, items, customer.customerAddress);
+    }
     return order;
   };
 
@@ -384,6 +427,7 @@ export const CustomerActivityProvider = ({ children }) => {
       : order);
     const notification = { id: `NOT-${Date.now()}-${Math.random()}`, orderId, title: `Payment ${paymentStatus}`, message: `Your payment for ${currentOrder.source} was ${paymentStatus}.`, createdAt: new Date().toISOString(), read: false, type: paymentStatus === 'rejected' ? 'cancelled' : 'status' };
     updateAll(latest.cart || cart, nextOrders, [notification, ...(latest.notifications || notifications)]);
+    syncPaymentStatusToBackend(currentOrder.backendPaymentId, paymentStatus);
   };
 
   const value = useMemo(() => ({

@@ -33,20 +33,22 @@ export const useBackendOrders = (endpoint) => {
   return backendOrdersById;
 };
 
-// Overrides status/assignedRider with the backend's version wherever an order
-// has a matching backendOrderId (i.e. was created through the catalog-backed
-// sync in CustomerActivityContext). This is what stops a customer from
-// spoofing an order as delivered/reassigned by editing their own browser's
-// localStorage - rider/admin views now show what the server actually has for
-// any order the server actually knows about. Orders without a
-// backendOrderId (static-menu brands, custom items, bills) pass through
-// untouched, same as before this existed.
+// Overrides status/assignedRider/paymentStatus with the backend's version
+// wherever an order has a matching backendOrderId (i.e. was created through
+// the catalog-backed or Pay Bills sync in CustomerActivityContext). This is
+// what stops a customer from spoofing an order as delivered/reassigned/paid
+// by editing their own browser's localStorage - rider/admin views now show
+// what the server actually has for any order the server actually knows
+// about. Orders without a backendOrderId (static-menu brands, custom items)
+// pass through untouched, same as before this existed.
 export const applyBackendTruth = (orders, backendOrdersById) => orders.map((order) => {
   const backend = order.backendOrderId ? backendOrdersById[order.backendOrderId] : null;
   if (!backend) return order;
+  const payment = backend.payments?.[0];
   return {
     ...order,
     status: backend.DeliveryStatus,
-    assignedRider: backend.rider ? { id: backend.rider.UserID, name: backend.rider.UserName } : null
+    assignedRider: backend.rider ? { id: backend.rider.UserID, name: backend.rider.UserName } : null,
+    details: payment ? { ...order.details, paymentStatus: payment.PaymentStatus } : order.details
   };
 });
