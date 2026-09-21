@@ -60,7 +60,11 @@ class OrderController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $query = Order::query()->with(['items.product', 'payments'])->orderByDesc('OrderDate');
+        // 'user'/'rider'/brand chain: not just for display - this is the data
+        // a rider synthesizes a full order card from when this order was
+        // placed on a customer's own device and never touched this rider's
+        // local storage (see useBackendOrders.js's toLocalOrderShape).
+        $query = Order::query()->with(['items.product.brand.service', 'payments', 'user', 'rider'])->orderByDesc('OrderDate');
 
         if ($user->Role === 'driver') {
             $query->where('AssignedRiderID', $user->UserID);
@@ -76,7 +80,7 @@ class OrderController extends Controller
 
     public function indexAll(Request $request): JsonResponse
     {
-        $query = Order::query()->with(['items.product', 'user', 'rider', 'payments'])->orderByDesc('OrderDate');
+        $query = Order::query()->with(['items.product.brand.service', 'user', 'rider', 'payments'])->orderByDesc('OrderDate');
         $status = $request->query('status');
         if ($status) $query->where('DeliveryStatus', $status);
 
