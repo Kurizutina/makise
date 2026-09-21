@@ -227,11 +227,27 @@ items off as they land.
       Minor UX limitation, not a security/correctness issue like everything
       else this migration closed - reasonable to leave as a future
       nice-to-have rather than block on it.
-- [ ] **Mobile cart placement (UX)** — On phone width, the cart panel currently fills
-      the entire first screen before any menu item is visible. Every major delivery
-      app (Grab, Foodpanda, Uber Eats, DoorDash) shows the menu first and surfaces
-      the cart via a floating button/bottom sheet only once items are added. Highest-
-      leverage design fix — likely costs real customers on mobile as-is.
+- [x] **Mobile cart placement (UX)** — Root cause was one CSS rule, not the
+      markup: `RestaurantMenu` (the one shared component behind every brand —
+      McDonald's, Jollibee, Manuela's, and every catalog-backed brand via
+      `CatalogBrandMenu` — no duplicated markup to hunt down) already put the
+      menu before the cart in the JSX; `.jollibee-cart-panel { order: -1; }`
+      inside the ≤1050px media query was forcing it to the top visually
+      anyway. Removed that, and added a real mobile (≤760px) treatment
+      matching Grab/Foodpanda/UberEats: cart panel hidden by default, opened
+      as a bottom sheet (backdrop, close button) via either the existing
+      header cart button or a new floating "N items · View Cart · ₱total"
+      bar that only appears once the cart has something in it. Tablet width
+      (761-1050px) just gets natural document order — menu, then cart below
+      it — no bottom-sheet complexity needed at that size.
+
+      Verified live on a real mobile viewport (375×812): menu is first thing
+      visible, floating bar appears correctly on add-to-cart, both entry
+      points open the sheet, close button and backdrop-tap both close it,
+      placing an order closes it automatically. Desktop/tablet confirmed
+      completely unaffected via computed styles at 1440px and 900px, not
+      just visually. Full test suite re-run clean (20/25, same 5 pre-existing
+      unrelated failures). (`96d0015`)
 
 ## High
 
