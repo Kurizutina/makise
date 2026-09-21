@@ -6,6 +6,68 @@ items off as they land.
 
 ## Critical
 
+- [x] **Strict adversarial QA pass (9/21)**, after the 1a-1h backend
+      migration and the mobile cart fix — a dedicated round of trying to
+      break the system, not just confirm it works. Full results below;
+      summary: RBAC/security held up completely, one real bug found and
+      fixed.
+
+      **Found and fixed**: none of the three "place order" buttons
+      (`RestaurantMenu`'s checkout, `PayBillsForm`, `OthersOrderForm`)
+      guarded against rapid repeat clicks. Reproduced live: 3 fast clicks on
+      "Place Order" created 3 separate, fully duplicate backend orders (same
+      items, same customer, same timestamp) — a customer double-tapping on
+      a slow connection would get billed for and receive duplicate
+      deliveries. Fixed once, at the source, rather than patching all three
+      buttons: `placeOrder`/`placeCartOrder` in `CustomerActivityContext.jsx`
+      now go through a `useRef`-based guard (state wouldn't work here — several
+      click handlers firing in the same tick all read the same stale value
+      before a state update is visible; a ref updates immediately). Verified
+      the exact same repro now produces exactly 1 order, not 3. (`3e232a0`)
+
+      **Verified secure, no changes needed** — adversarial testing that came
+      back clean:
+      - RBAC: customer and driver tokens both correctly get 403 on every
+        admin-only endpoint (`/admin/orders`, `/admin/catalog/*`,
+        `/admin/accounts/*`, `/riders`); unauthenticated requests get 401
+        everywhere.
+      - Cross-user manipulation: an unassigned driver cannot update a status
+        they're not assigned to (403); a customer cannot self-approve their
+        own order (403) or assign a rider to it (403).
+      - Mass assignment: a registration/order payload with extra fields
+        (`UserID`, `DeliveryStatus`, `TotalPrice` set directly) is fully
+        ignored — the server computes/derives every one of those itself.
+      - Input validation: negative/zero/huge quantities, a nonexistent
+        `ProductID`, an empty items array, a missing delivery address, and a
+        duplicate `ProductID` in one order all correctly rejected (422).
+      - SQL injection: a `'; DROP TABLE Orders; --` payload in
+        `deliveryAddress` was safely stored as literal text (Eloquent's
+        parameterized queries) — table intact, nothing executed. No
+        `dangerouslySetInnerHTML` anywhere in the frontend either, so stored
+        text can't become stored XSS through React's default rendering.
+      - Terminal-state protection under genuine concurrent load: fired 10
+        truly simultaneous identical "cancel" requests at the same order —
+        exactly 1 succeeded, the other 9 correctly got 422. No double-
+        processing under real concurrency, not just under sequential
+        testing.
+      - Duplicate email registration correctly rejected (409), case-
+        insensitively. (Initially mis-flagged this as broken during testing
+        — turned out to be my own test using an email from the automated
+        suite's isolated test-database fixtures, not the real dev database;
+        corrected and re-verified properly.)
+      - File upload validation: a renamed `.exe` disguised as a document
+        upload is rejected (422, MIME/extension check holds).
+      - Rate limiting: confirmed active and enforced (429) on repeated
+        login attempts.
+      - Full mobile E2E smoke test (375×812 viewport): registration → menu
+        browsing → Pay Bills submission with real file uploads → backend
+        sync, all working together correctly on a real phone-width session.
+
+      Full frontend (20/25) and backend (27/30) test suites re-run clean
+      before and after — same pre-existing failures only, already documented
+      below, nothing new. All test accounts/orders/tokens/uploads created
+      during this pass cleaned up afterward.
+
 - [x] **Admin/rider dashboards only showed orders already in that browser's own
       localStorage — invisible to orders placed on any other device** (found
       9/21 while verifying step 1f's queue positions live). `applyBackendTruth`
