@@ -113,14 +113,23 @@ class OrderController extends Controller
     public function updateStatus(Request $request, Order $order): JsonResponse
     {
         $user = $request->user();
-        $isAdmin = $user->Role === 'admin';
-        $isAssignedRider = $user->Role === 'driver' && $order->AssignedRiderID === $user->UserID;
-        abort_unless($isAdmin || $isAssignedRider, 403);
-        abort_if(in_array($order->DeliveryStatus, ['delivered', 'cancelled'], true), 422, 'This order is already finalized.');
-
         $data = $request->validate([
             'status' => ['required', Rule::in(['confirmed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled'])],
         ]);
+
+        $isAdmin = $user->Role === 'admin';
+        $isAssignedRider = $user->Role === 'driver' && $order->AssignedRiderID === $user->UserID;
+        // A customer may cancel their own order themselves - but only their
+        // own order, only to 'cancelled', and only while it's still
+        // pending_rider. Once admin or a rider has actually started acting
+        // on it (confirmed onward), it's out of the customer's hands; they'd
+        // need to contact the business directly at that point.
+        $isOwningCustomerCancelling = $user->Role === 'customer'
+            && $order->UserID === $user->UserID
+            && $data['status'] === 'cancelled'
+            && $order->DeliveryStatus === 'pending_rider';
+        abort_unless($isAdmin || $isAssignedRider || $isOwningCustomerCancelling, 403);
+        abort_if(in_array($order->DeliveryStatus, ['delivered', 'cancelled'], true), 422, 'This order is already finalized.');
 
         $order->update(['DeliveryStatus' => $data['status']]);
         // Any explicit status transition means the order left the raw
