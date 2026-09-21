@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { getSessionUser, isAssignedTo } from '../utils/session';
 import { CUSTOMER_ACTIVITY_CHANGED } from '../utils/customerProfileSync';
 import { calculateDeliveryFee, findDeliveryLocation } from '../utils/deliveryRates';
@@ -202,6 +202,24 @@ export const CustomerActivityProvider = ({ children }) => {
     return riderName !== 'jayson deguzman';
   }));
   const [notifications, setNotifications] = useState(saved.notifications || []);
+  // Guards placeOrder/placeCartOrder against rapid repeat clicks. A ref, not
+  // state: state updates aren't visible until the next render, so several
+  // click handlers firing back-to-back in the same tick (a fast double-tap,
+  // or an automated/scripted double-click) would all read the same stale
+  // value and all pass a state-based check. Found live during QA: three
+  // rapid clicks on "Place Order" created three separate, fully duplicate
+  // backend orders. A ref updates immediately, so the second and third call
+  // see the lock synchronously, no matter how close together they land.
+  const isPlacingOrderRef = useRef(false);
+  const guardOrderPlacement = (run) => {
+    if (isPlacingOrderRef.current) return null;
+    isPlacingOrderRef.current = true;
+    try {
+      return run();
+    } finally {
+      window.setTimeout(() => { isPlacingOrderRef.current = false; }, 1200);
+    }
+  };
 
   useEffect(() => {
     const cleanedOrders = (saved.orders || []).filter((order) => String(order.assignedRider?.name || '').trim().toLowerCase() !== 'jayson deguzman');
@@ -286,7 +304,7 @@ export const CustomerActivityProvider = ({ children }) => {
     updateAll(nextCart, orders, notifications);
   };
 
-  const placeOrder = ({ source, label, items = [], details = null, section = 'food', deliveryLocation = '', customerType = '', orderTime = null }) => {
+  const placeOrder = ({ source, label, items = [], details = null, section = 'food', deliveryLocation = '', customerType = '', orderTime = null }) => guardOrderPlacement(() => {
     customerType = customerType || getCustomerSnapshot().customerType;
     const createdAt = orderTime || new Date().toISOString();
     const estimatedWaitMinutes = calculateEstimatedWaitMinutes(items);
@@ -327,9 +345,9 @@ export const CustomerActivityProvider = ({ children }) => {
       syncOrderToBackend(order.id, items, customer.customerAddress);
     }
     return order;
-  };
+  });
 
-  const placeCartOrder = (source = null, deliveryLocation = '', customerType = '', orderTime = null) => {
+  const placeCartOrder = (source = null, deliveryLocation = '', customerType = '', orderTime = null) => guardOrderPlacement(() => {
     customerType = customerType || getCustomerSnapshot().customerType;
     const orderItems = source ? cart.filter((item) => item.source === source) : cart;
     if (!orderItems.length) return null;
@@ -379,7 +397,7 @@ export const CustomerActivityProvider = ({ children }) => {
     updateAll(nextCart, [...newOrders, ...orders], [...newNotifications, ...notifications]);
     newOrders.forEach((order) => syncOrderToBackend(order.id, order.items, customer.customerAddress));
     return newOrders[0];
-  };
+  });
 
   const markNotificationsRead = () => {
     const nextNotifications = notifications.map((item) => ({ ...item, read: true }));
