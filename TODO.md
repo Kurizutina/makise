@@ -64,8 +64,50 @@ items off as they land.
       tampered localStorage directly to fake it back to "pending" and
       confirmed the admin UI still showed "Verified" — backend truth wins.
       Test data cleaned up after. (`29966b2` backend, `95d5dac` frontend)
-- [ ] **Step 1f** — Wire the real `Queue` table (position, status) instead of the
-      client-side fake wait-time formula.
+- [x] **Step 1f** — Wire the real `Queue` table (position, status) instead of the
+      client-side fake wait-time formula (which was just `40 + 2×(itemCount-1)`,
+      capped at 50 — same number for everyone regardless of how busy the
+      business actually was). Every order now gets a real `Queue` row the
+      moment it's created (`Order::booted()` model event, so it applies
+      uniformly to `OrderController::store` and `PaymentController::store`
+      without duplicating the logic). Position is *computed fresh on every
+      request* (count of still-'waiting' Queue rows with an earlier
+      `QueueDate`, plus 1) rather than stored/decremented — deliberately, so
+      it can't drift out of sync under concurrent orders, which a real
+      business will have. `OrderController::updateStatus` marks the queue
+      entry 'done' on any transition (confirmed or cancelled both leave the
+      line), which naturally shifts everyone behind up on their next fetch
+      with zero explicit decrement logic. Customer/rider views now show real
+      "N orders ahead of you" instead of the flat formula.
+
+      Verified live: created 3 real orders via the API, confirmed positions
+      1/2/3, confirmed order 1 and watched 2/3 shift to 1/2 automatically,
+      cancelled the new position-1 order and watched the last one shift to 1
+      — all without any stored counter to get out of sync. Also verified
+      through the real UI end-to-end.
+
+      **Found and fixed a real pre-existing bug during this verification,
+      not caused by this step but exposed by it**: `patchStoredOrder` (used
+      by `syncOrderToBackend` since step 1c and now also
+      `syncPaymentToBackend`) wrote `backendOrderId`/`backendPaymentId`
+      straight to `localStorage` without bumping `updatedAt` and without
+      notifying the current tab's React state. Since `updateAll`'s merge
+      logic (`mergeById`) keeps whichever copy of an order has the *later*
+      timestamp, any ordinary next action in the same tab (opening
+      notifications, adding to cart, placing another order) would call
+      `updateAll` with the stale React-state copy, tie on timestamp, and
+      silently wipe the backend link that steps 1c/1d/1e's fraud-hole fixes
+      depend on. Reproduced live: placed a bill payment, opened the
+      notifications panel, and watched `backendOrderId` disappear from
+      `localStorage`. Fixed by (1) bumping `updatedAt` in the patch so the
+      merge correctly recognizes it as newer, and (2) dispatching the
+      existing `CUSTOMER_ACTIVITY_CHANGED` event (same mechanism
+      `customerProfileSync.js` already uses for this exact class of
+      out-of-band write) so the current tab picks it up immediately instead
+      of waiting for some unrelated future action. This was silently
+      undermining the backend-truth protection since step 1c, not something
+      introduced this session — worth knowing given the read-side fraud-hole
+      fix in step 1c/1d was tested and marked done before this existed.
 - [ ] **Step 1g** — Wire backend notifications (persisted, not localStorage-only).
 - [ ] **Step 1h** — Decide what `localStorage` becomes afterward (fully retired, or
       kept as an offline cache layer).
