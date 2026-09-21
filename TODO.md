@@ -168,7 +168,36 @@ items off as they land.
       undermining the backend-truth protection since step 1c, not something
       introduced this session — worth knowing given the read-side fraud-hole
       fix in step 1c/1d was tested and marked done before this existed.
-- [ ] **Step 1g** — Wire backend notifications (persisted, not localStorage-only).
+- [x] **Step 1g** — Wire backend notifications (persisted, not localStorage-only).
+      Order-status and payment-status notifications were the last genuinely
+      cross-device gap: admin declines an order or verifies a payment from
+      their own console, and the notification was only ever written to
+      *their own* browser's localStorage — never to the customer's, on
+      whatever device they're actually on. Added `NotificationController`
+      (`GET /api/notifications`, `PATCH /api/notifications/read`) and real
+      `Notification` row creation inside `OrderController::updateStatus` /
+      `PaymentController::updateStatus`, attributed to the order's owning
+      customer. The "order request sent" notification stays local/instant on
+      purpose — that one's inherently same-device already, so moving it
+      server-side would only add poll latency with no gap to justify it.
+
+      **Found and fixed a real timezone bug during verification**: Laravel
+      (UTC) serializes datetimes with no `Z`/offset; JS parses that as local
+      time, silently off by however many hours local is from UTC. A brand
+      new backend notification was sorting *below* an older local one
+      because its (mis-parsed) timestamp looked earlier than it actually
+      was. Fixed with `utils/backendTime.js` (`toUtcIso`), applied in both
+      `useBackendNotifications.js` and `useBackendOrders.js` — the same bug
+      silently affected synthesized cross-device orders' displayed dates too
+      (step 1f's fix), just less visibly since nothing there compared it
+      against a same-device timestamp the way notification sorting does.
+
+      Verified live with two genuinely separate logins on two tabs (no
+      shared session): placed a bill payment as one customer, declined it as
+      a separate admin, watched the customer's own independent 30s poll
+      pick up "Order cancelled" with the correct time and correct sort
+      order, confirmed mark-all-read flips `NotificationSeen` server-side.
+      Test data cleaned up after. (`a312c03` backend, `75f16dd` frontend)
 - [ ] **Step 1h** — Decide what `localStorage` becomes afterward (fully retired, or
       kept as an offline cache layer).
 - [ ] **Mobile cart placement (UX)** — On phone width, the cart panel currently fills
