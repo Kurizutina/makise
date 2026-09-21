@@ -6,6 +6,66 @@ items off as they land.
 
 ## Critical
 
+- [x] **Admin/rider dashboards only showed orders already in that browser's own
+      localStorage — invisible to orders placed on any other device** (found
+      9/21 while verifying step 1f's queue positions live). `applyBackendTruth`
+      only ever *overlaid* backend truth onto orders a browser already knew
+      about locally (`orders.map(...)`) — it never added orders the backend
+      had but this browser never locally saw. Every "verified live" test up to
+      this point (this session's and, per this file's own history, the team's
+      prior ones) happened to use one shared browser/tab set, so admin always
+      already had a local copy to overlay onto. In the actual deployment —
+      admin at the counter, riders and customers each on their own device —
+      an admin or rider who never personally placed or synced that order
+      would see **zero** trace of it, no matter how complete the backend's
+      data was. Proven live: cleared a browser's `localStorage` entirely
+      (`localStorage.clear()`, the closest a single machine can get to a
+      genuinely separate device), logged in as a fresh admin who had never
+      touched the app before, and found real historical orders from the
+      team's own past testing (`BACKEND-5` through `BACKEND-10`, dated 9/20)
+      had been invisible in every admin session since — direct evidence of
+      how long this was already live, not just a theoretical gap.
+
+      Fixed in `useBackendOrders.js`: `applyBackendTruth` now unions in every
+      backend order without a local match, synthesized into the same shape a
+      local order has (`toLocalOrderShape`) — customer name/contact/address
+      from the eager-loaded `user` relation, brand/section from
+      `items.product.brand.service` (added to `OrderController::index`'s and
+      `indexAll`'s eager loads), establishment/receipt info decoded from
+      `Payment.PaymentNote` for bills. **Known, documented gap**: `serviceFee`
+      on a synthesized order is always 0 — delivery fee is computed
+      client-side only (`utils/deliveryRates.js`) and was never sent to or
+      stored by the backend, so there's nothing to recover it from; revenue
+      totals that include cross-device orders will undercount until the
+      backend persists it too (not done this session — flagged here, not
+      silently left broken).
+
+      Also had to fix the write side, found while verifying the read-side fix:
+      `updateOrderStatus`/`assignOrderToRider`/`updatePaymentStatus` looked up
+      the target order by id in local storage only, so clicking
+      Decline/Assign/Verify on a synthesized order would silently do nothing
+      — visible but not actionable, arguably worse than before since staff
+      would think the click worked. Fixed by having callers pass the full
+      order object instead of just its id; when no local copy exists, these
+      functions now call the backend directly using the `backendOrderId`/
+      `backendPaymentId` the synthesized object already carries. Backward
+      compatible with any caller still passing a raw id string (existing
+      tests do, and pass unchanged).
+
+      Verified live end-to-end, admin and rider both, using fresh throwaway
+      accounts and orders placed purely via direct API calls (i.e. never
+      touched by any browser) to guarantee no local knowledge could exist:
+      confirmed the orders were visible after a full `localStorage.clear()`,
+      then successfully declined one, assigned a rider to another, verified a
+      payment on a third, and — after assigning an order to a fresh test
+      rider and clearing storage again to simulate that rider's own separate
+      device — confirmed the rider could see it (customer info, brand,
+      real queue position, all correct) and successfully confirm it, with the
+      real PATCH request landing on the backend each time. All test
+      accounts/orders cleaned up after. Backend test suite (`php artisan
+      test`) and frontend suite both re-run clean (no new failures) before
+      and after via `git stash` comparison.
+
 - [x] **Fix 500 error (with leaked stack trace) on expired/missing auth tokens**
       (found 9/21 while verifying frontend-backend routing health) — pre-existing,
       not introduced this session (confirmed against `/api/auth/me`, a route that
@@ -292,6 +352,26 @@ items off as they land.
       and the expected `serviceFee` no longer matches). Fix: pass an explicit
       `orderTime` in the test instead of relying on `new Date()`. Pre-existing,
       unrelated to any work this session.
+- [ ] **6 more pre-existing, stale test failures found 9/21** (via `git stash`
+      comparison while verifying steps 1e/1f/the cross-device fix — confirmed
+      unrelated to this session's changes, not fixed, just newly documented so
+      they don't get mistaken for something this session broke):
+      - `Login.test.jsx` — "rider login keeps the backend token..." and
+        "failed login does not grant access..." both fail looking for a
+        role-selector button (`getByRole('button', { name: 'Rider' })`) that
+        doesn't exist on the current login page (email/password only, no
+        role picker) — the test wasn't updated when that UI changed.
+      - `ManuelasMenu.test.jsx` — both tests fail with "Unable to fire a
+        change event - please provide a DOM element", `getAllByRole('combobox')`
+        returning fewer serving-size dropdowns than the test expects.
+      - `laravel/tests/Feature/AuthApiTest.php` — 3 failures (registration
+        returns 422 instead of 201; a login expected to fail with wrong
+        credentials succeeds; a rider's forced-password-change flag isn't
+        set) — the test payloads pass a `role` field that
+        `AuthController::register`/`login` don't read at all (registration
+        always hardcodes `customer`; role comes from the account itself, not
+        the request), so these look like they were written against an older
+        API shape.
 - [ ] **Test-suite teardown warning** — since step 1d, `npx react-scripts test` prints
       "A worker process has failed to exit gracefully... tests leaking due to
       improper teardown" (confirmed via `git stash` that it didn't happen before).
