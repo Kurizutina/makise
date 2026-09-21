@@ -402,6 +402,16 @@
   color: #da1c5c;
 }
 
+/* Close button, backdrop, and the floating "View Cart" bar only exist for the
+   mobile bottom-sheet treatment (see @media max-width: 760px below) - hidden
+   here so they have zero effect at desktop/tablet width, where the cart
+   panel is always visible inline and none of this applies. */
+.jollibee-cart-close,
+.jollibee-cart-backdrop,
+.jollibee-mobile-cart-bar {
+  display: none;
+}
+
 .jollibee-empty-cart {
   display: flex;
   flex-direction: column;
@@ -573,9 +583,13 @@
     grid-template-columns: 1fr;
   }
 
+  /* No "order" here on purpose (there used to be one forcing the cart to the
+     very top, above every menu item) - the cart panel already comes after
+     the menu in the markup, so leaving source order alone means the menu is
+     what a customer sees first, same as Grab/Foodpanda/UberEats. Below
+     760px this gets replaced entirely by the bottom-sheet treatment. */
   .jollibee-cart-panel {
     position: static;
-    order: -1;
   }
 
   .jollibee-cart-items {
@@ -601,9 +615,94 @@
     padding-top: 22px;
   }
 
+  /* Room at the bottom so the floating cart bar never covers the last menu
+     items or the "add custom item" section. */
+  .jollibee-menu-content {
+    padding-bottom: 90px;
+  }
+
   .jollibee-intro {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  /* Cart panel becomes a bottom sheet: hidden until opened (via the header
+     cart button or the floating bar below), not part of normal page flow
+     any more at this width. */
+  .jollibee-cart-panel {
+    display: none;
+  }
+
+  .jollibee-cart-panel.is-open {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    z-index: 210;
+    max-height: 85vh;
+    margin: 0;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -10px 32px rgba(67, 33, 45, 0.28);
+    overflow-y: auto;
+  }
+
+  .jollibee-cart-panel.is-open .jollibee-cart-items {
+    max-height: 38vh;
+  }
+
+  .jollibee-cart-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    margin-left: auto;
+    border: none;
+    border-radius: 50%;
+    background: #fff0f5;
+    color: #da1c5c;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .jollibee-cart-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 10, 14, 0.45);
+    z-index: 205;
+    border: none;
+    padding: 0;
+  }
+
+  .jollibee-mobile-cart-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    z-index: 180;
+    padding: 14px 18px;
+    border: none;
+    border-radius: 14px;
+    background: #da1c5c;
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    font-size: 13px;
+    box-shadow: 0 10px 30px rgba(93, 9, 39, 0.35);
+    cursor: pointer;
+  }
+
+  .jollibee-mobile-cart-bar i {
+    margin-right: 6px;
   }
 
   .jollibee-custom-item {

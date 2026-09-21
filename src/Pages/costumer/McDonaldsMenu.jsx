@@ -80,6 +80,7 @@ export const RestaurantMenu = ({
   const [notice, setNotice] = useState('');
   const [isLoading, setIsLoading] = useState(!menuItems);
   const [deliveryLocation, setDeliveryLocation] = useState('');
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const customerType = getSessionUser()?.userType || 'non_student';
 
   useEffect(() => {
@@ -157,6 +158,7 @@ export const RestaurantMenu = ({
     }
     placeCartOrder(sourceKey, deliveryLocation, customerType);
     showNotice(`Order placed with ${itemCount} item${itemCount === 1 ? '' : 's'}.`);
+    setIsCartOpen(false);
   };
 
   const selectedLocation = findDeliveryLocation(deliveryLocation);
@@ -174,13 +176,28 @@ export const RestaurantMenu = ({
           <span>{serviceType === 'food' ? 'Food Delivery' : 'Item Delivery'}</span>
           <h1>{restaurantName} Menu</h1>
         </div>
-        <button type="button" className="jollibee-cart-link" onClick={() => document.getElementById('mcdo-cart')?.scrollIntoView({ behavior: 'smooth' })}>
+        <button type="button" className="jollibee-cart-link" onClick={() => setIsCartOpen(true)}>
           <i className="fa-solid fa-cart-shopping" aria-hidden="true" />
           Cart <strong>{itemCount}</strong>
         </button>
       </header>
 
       {notice && <div className="jollibee-notice" role="status">{notice}</div>}
+
+      {/* Mobile only (see @media rules in JollibeeMenu.css): the embedded cart
+          panel is hidden by default below the phone breakpoint so the menu is
+          the first thing a customer sees, matching how Grab/Foodpanda/UberEats
+          surface it. This bar is the entry point once there's something to
+          check out - the header button above works too, this is just a more
+          prominent reminder once the cart isn't empty. */}
+      {cart.length > 0 && !isCartOpen && (
+        <button type="button" className="jollibee-mobile-cart-bar" onClick={() => setIsCartOpen(true)}>
+          <span><i className="fa-solid fa-cart-shopping" aria-hidden="true" /> {itemCount} item{itemCount === 1 ? '' : 's'}</span>
+          <span>View Cart · {formatPrice(cartSubtotal)}</span>
+        </button>
+      )}
+
+      {isCartOpen && <div className="jollibee-cart-backdrop" onClick={() => setIsCartOpen(false)} aria-hidden="true" />}
 
       <div className="jollibee-layout">
         <div className="jollibee-menu-content">
@@ -227,9 +244,11 @@ export const RestaurantMenu = ({
           {!isLoading && !categories.length && <p className="restaurant-menu-loading">No products available yet. You can request an item above.</p>}
         </div>
 
-        <aside className="jollibee-cart-panel" id="mcdo-cart">
+        <aside className={`jollibee-cart-panel${isCartOpen ? ' is-open' : ''}`} id="mcdo-cart">
           <div className="jollibee-cart-heading">
-            <div><span>Your order</span><h2>Shopping Cart</h2></div><strong>{itemCount}</strong>
+            <div><span>Your order</span><h2>Shopping Cart</h2></div>
+            <strong>{itemCount}</strong>
+            <button type="button" className="jollibee-cart-close" onClick={() => setIsCartOpen(false)} aria-label="Close cart">×</button>
           </div>
           {!cart.length ? (
             <div className="jollibee-empty-cart">
