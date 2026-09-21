@@ -198,8 +198,35 @@ items off as they land.
       pick up "Order cancelled" with the correct time and correct sort
       order, confirmed mark-all-read flips `NotificationSeen` server-side.
       Test data cleaned up after. (`a312c03` backend, `75f16dd` frontend)
-- [ ] **Step 1h** — Decide what `localStorage` becomes afterward (fully retired, or
-      kept as an offline cache layer).
+- [x] **Step 1h** — Decided: `localStorage` stays, deliberately, as an
+      optimistic local cache — not a trust boundary. This closes out the
+      1a-1h backend migration.
+
+      **Why keep it instead of retiring it:** the actual goal of 1c-1g was
+      never "delete localStorage," it was "stop trusting it for anything
+      that matters" — and that's done. Orders, payments, queue, and
+      notifications are all backend-authoritative now (steps 1c-1g);
+      localStorage only ever provides instant UI feedback until each 30s
+      poll confirms or overrides it with the server's version. Fully
+      retiring it would mean replacing every write path with synchronous
+      API calls plus loading/error states everywhere, and losing the
+      instant-feedback UX that makes the app feel responsive, for very
+      little real benefit — the thing that actually mattered (client trust)
+      is already closed.
+
+      **Why it's not even fully possible yet:** the cart and any order type
+      that was never migrated onto the real catalog (Jollibee's static
+      menu, generic custom "Others" item requests) have no backend model at
+      all. Retiring localStorage would require inventing a backend Cart
+      concept that was never in the team's schema, on top of finishing the
+      already-tracked Jollibee catalog migration (Medium priority, below) -
+      separate, larger pieces of work, not part of this decision.
+
+      **Known, accepted gap, not fixed here:** a customer's cart doesn't
+      follow them across devices (add on phone, it's not there on laptop).
+      Minor UX limitation, not a security/correctness issue like everything
+      else this migration closed - reasonable to leave as a future
+      nice-to-have rather than block on it.
 - [ ] **Mobile cart placement (UX)** — On phone width, the cart panel currently fills
       the entire first screen before any menu item is visible. Every major delivery
       app (Grab, Foodpanda, Uber Eats, DoorDash) shows the menu first and surfaces
@@ -208,9 +235,12 @@ items off as they land.
 
 ## High
 
-- [ ] Real queue system (depends on 1f)
-- [ ] Server-driven live status updates / polling (depends on 1c/1d)
-- [ ] Backend-persisted notifications (depends on 1g)
+- [x] Real queue system — delivered in step 1f (Critical, above).
+- [x] Server-driven live status updates / polling — delivered in steps
+      1c/1d (order status), extended to cover every dashboard's actual
+      visibility in the cross-device order-visibility fix (Critical, above).
+- [x] Backend-persisted notifications — delivered in step 1g (Critical,
+      above).
 - [x] **Redundant per-item CTAs (UX)** — every product card had both "Add to Cart"
       and "Place Order." Confirmed this was a real, not just theoretical, problem —
       walked through it live on 9/21: user wanted to order 2 items together, got
