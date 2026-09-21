@@ -423,13 +423,24 @@ export const CustomerActivityProvider = ({ children }) => {
     if (!currentOrder) {
       const backendOrderId = orderRef?.backendOrderId;
       const user = getSessionUser();
-      if (!backendOrderId || (user?.role !== 'admin' && user?.role !== 'driver')) return;
+      // Owning customer cancelling their own still-unconfirmed order works
+      // here too - same cross-device reasoning as admin/rider actions above:
+      // orderRef is a synthesized order (see toLocalOrderShape), so it
+      // carries the real backend customerId/status even with no local copy.
+      const isOwningCustomerCancelling = user?.role === 'customer' && status === 'cancelled'
+        && String(orderRef?.customerId) === String(user?.id) && orderRef?.status === 'pending_rider';
+      if (!backendOrderId || !(user?.role === 'admin' || user?.role === 'driver' || isOwningCustomerCancelling)) return;
       syncStatusToBackend(backendOrderId, status);
       return;
     }
     if (currentOrder.status === status) return;
     const user = getSessionUser();
-    if (user?.role !== 'admin' && !(user?.role === 'driver' && isAssignedTo(currentOrder, user))) return;
+    // A customer may cancel their own order while it's still pending_rider -
+    // same server-side rule as OrderController::updateStatus. Anything past
+    // that point (confirmed onward) is out of their hands.
+    const isOwningCustomerCancelling = user?.role === 'customer' && status === 'cancelled'
+      && String(currentOrder.customerId) === String(user?.id) && currentOrder.status === 'pending_rider';
+    if (user?.role !== 'admin' && !(user?.role === 'driver' && isAssignedTo(currentOrder, user)) && !isOwningCustomerCancelling) return;
     if (['delivered', 'cancelled'].includes(currentOrder.status)) return;
 
     const statusContent = {

@@ -54,6 +54,8 @@
 .rider-decision-state strong { font-size: 11px; }
 .rider-decision-state span { margin-top: 3px; color: #8c7a55; font-size: 9px; }
 .rider-decision-state.cancelled { background: #fff1f2; color: #b83242; }
+.order-cancel-button { width: 100%; margin-top: 9px; padding: 10px; border: 1px solid #e7c7cc; border-radius: 10px; background: #fff; color: #b83242; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.order-cancel-button:hover { background: #fff1f2; }
 .activity-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; color: #a99ca2; text-align: center; }
 .activity-empty > i { margin-bottom: 15px; font-size: 38px; color: #e1cbd3; }
 .activity-empty strong { color: #5c5056; font-size: 14px; }

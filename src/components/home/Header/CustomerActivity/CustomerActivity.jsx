@@ -85,7 +85,8 @@ const CustomerActivity = () => {
     notifications: localNotifications,
     updateCartQuantity,
     placeCartOrder,
-    markNotificationsRead
+    markNotificationsRead,
+    updateOrderStatus
   } = useCustomerActivity();
   const backendOrdersById = useBackendOrders('/api/orders?per_page=50');
   const orders = useMemo(() => applyBackendTruth(localOrders, backendOrdersById), [localOrders, backendOrdersById]);
@@ -193,11 +194,23 @@ const CustomerActivity = () => {
                         )}
 
                         {order.status === 'pending_rider' && (
-                          <div className="rider-decision-state"><i className="fa-solid fa-clock" aria-hidden="true" /><div><strong>Waiting for a rider</strong><span>Tracking will begin after a rider accepts your order.</span></div></div>
+                          <div className="rider-decision-state">
+                            <i className="fa-solid fa-clock" aria-hidden="true" /><div><strong>Waiting for a rider</strong><span>Tracking will begin after a rider accepts your order.</span></div>
+                          </div>
+                        )}
+
+                        {order.status === 'pending_rider' && (
+                          <button
+                            type="button"
+                            className="order-cancel-button"
+                            onClick={() => window.confirm('Cancel this order? This cannot be undone.') && updateOrderStatus(order, 'cancelled')}
+                          >
+                            Cancel Order
+                          </button>
                         )}
 
                         {order.status === 'cancelled' && (
-                          <div className="rider-decision-state cancelled"><i className="fa-solid fa-circle-xmark" aria-hidden="true" /><div><strong>Cancelled by rider</strong><span>This order will not proceed to delivery.</span></div></div>
+                          <div className="rider-decision-state cancelled"><i className="fa-solid fa-circle-xmark" aria-hidden="true" /><div><strong>Cancelled</strong><span>This order will not proceed to delivery.</span></div></div>
                         )}
 
                         {!['pending_rider', 'cancelled'].includes(order.status) && (

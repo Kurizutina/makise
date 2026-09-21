@@ -89,6 +89,7 @@ const toLocalOrderShape = (backend) => {
       transferProofUrl: paymentNote.transferProofUrl || null,
       transferProofName: paymentNote.transferProofName || null
     } : null,
+    customerId: backend.UserID ?? null,
     customerName: backend.user?.UserName || '',
     customerContact: backend.user?.Contact || '',
     customerAddress: backend.DeliveryAddress || backend.user?.Address || '',
