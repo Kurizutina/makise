@@ -380,11 +380,29 @@ export const CustomerActivityProvider = ({ children }) => {
     updateAll(cart, orders, nextNotifications);
   };
 
-  const updateOrderStatus = (orderId, status) => {
+  // orderRef is usually just an id, but callers may pass the full (possibly
+  // backend-synthesized) order object instead - see the fallback branch
+  // below for why that matters.
+  const updateOrderStatus = (orderRef, status) => {
+    const orderId = orderRef?.id ?? orderRef;
     const latest = loadActivity();
     const currentOrders = latest.orders || orders;
     const currentOrder = currentOrders.find((order) => order.id === orderId);
-    if (!currentOrder || currentOrder.status === status) return;
+    // No local copy exists for this order - it's one useBackendOrders
+    // synthesized straight from the backend because it was placed on a
+    // different device (see useBackendOrders.js). There's nothing in
+    // localStorage to update, but the order is real, so go straight to the
+    // backend using the id it already carries; the next poll picks up the
+    // new status. Server-side role/terminal-state checks
+    // (OrderController::updateStatus) still apply regardless.
+    if (!currentOrder) {
+      const backendOrderId = orderRef?.backendOrderId;
+      const user = getSessionUser();
+      if (!backendOrderId || (user?.role !== 'admin' && user?.role !== 'driver')) return;
+      syncStatusToBackend(backendOrderId, status);
+      return;
+    }
+    if (currentOrder.status === status) return;
     const user = getSessionUser();
     if (user?.role !== 'admin' && !(user?.role === 'driver' && isAssignedTo(currentOrder, user))) return;
     if (['delivered', 'cancelled'].includes(currentOrder.status)) return;
@@ -424,10 +442,18 @@ export const CustomerActivityProvider = ({ children }) => {
     syncStatusToBackend(currentOrder.backendOrderId, status);
   };
 
-  const assignOrderToRider = (orderId, rider) => {
+  const assignOrderToRider = (orderRef, rider) => {
     if (getSessionUser()?.role !== 'admin') return;
+    const orderId = orderRef?.id ?? orderRef;
     const latest = loadActivity();
     const currentOrder = (latest.orders || orders).find((order) => order.id === orderId);
+    // Same backend-only fallback as updateOrderStatus above.
+    if (!currentOrder) {
+      const backendOrderId = orderRef?.backendOrderId;
+      if (!backendOrderId) return;
+      syncAssignmentToBackend(backendOrderId, rider?.id);
+      return;
+    }
     const nextOrders = (latest.orders || orders).map((order) => order.id === orderId
       ? { ...order, assignedRider: rider || null, updatedAt: new Date().toISOString() }
       : order);
@@ -435,11 +461,21 @@ export const CustomerActivityProvider = ({ children }) => {
     syncAssignmentToBackend(currentOrder?.backendOrderId, rider?.id);
   };
 
-  const updatePaymentStatus = (orderId, paymentStatus) => {
+  const updatePaymentStatus = (orderRef, paymentStatus) => {
     if (getSessionUser()?.role !== 'admin' || !['verified', 'rejected'].includes(paymentStatus)) return;
+    const orderId = orderRef?.id ?? orderRef;
     const latest = loadActivity();
     const currentOrder = (latest.orders || orders).find((order) => order.id === orderId);
-    if (!currentOrder || currentOrder.section !== 'bills') return;
+    // Same backend-only fallback as updateOrderStatus above - but keyed by
+    // PaymentID (not OrderID), which only the passed-in order object has;
+    // there's no way to derive it from the id string alone.
+    if (!currentOrder) {
+      const backendPaymentId = orderRef?.backendPaymentId;
+      if (!backendPaymentId) return;
+      syncPaymentStatusToBackend(backendPaymentId, paymentStatus);
+      return;
+    }
+    if (currentOrder.section !== 'bills') return;
     const nextOrders = (latest.orders || orders).map((order) => order.id === orderId
       ? { ...order, details: { ...order.details, paymentStatus }, updatedAt: new Date().toISOString() }
       : order);

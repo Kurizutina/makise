@@ -33,27 +33,96 @@ export const useBackendOrders = (endpoint) => {
   return backendOrdersById;
 };
 
-// Overrides status/assignedRider/paymentStatus/queuePosition with the
-// backend's version wherever an order has a matching backendOrderId (i.e.
-// was created through the catalog-backed or Pay Bills sync in
-// CustomerActivityContext). This is what stops a customer from spoofing an
-// order as delivered/reassigned/paid by editing their own browser's
-// localStorage - rider/admin views now show what the server actually has
-// for any order the server actually knows about. queuePosition is the
-// order's real, live rank among every currently-waiting order backend-wide
-// (null once it's been confirmed/declined) - replaces the old flat
-// per-order formula that had no idea how busy the queue actually was.
-// Orders without a backendOrderId (static-menu brands, custom items) pass
-// through untouched, same as before this existed.
-export const applyBackendTruth = (orders, backendOrdersById) => orders.map((order) => {
-  const backend = order.backendOrderId ? backendOrdersById[order.backendOrderId] : null;
-  if (!backend) return order;
+// Builds a full local-shaped order straight from a raw backend order - for
+// when the backend knows about an order this browser's own localStorage
+// never saw at all (it was placed from a different device/browser). Without
+// this, admin/rider dashboards only ever show orders that happen to already
+// exist locally, which on separate real devices (the actual deployment:
+// admin at the counter, riders and customers each on their own phone) means
+// staff would see nothing a customer placed from their own device, despite
+// the backend having the real data all along.
+//
+// serviceFee is a known gap, not an oversight: the delivery/service fee is
+// computed entirely client-side (utils/deliveryRates.js) and never sent to
+// or stored by the backend - Orders.TotalPrice is just the product total.
+// A synthesized order has no way to recover it, so revenue totals that
+// include cross-device orders will undercount until the backend persists
+// it too (tracked in TODO.md).
+const toLocalOrderShape = (backend) => {
   const payment = backend.payments?.[0];
+  const isBill = Boolean(payment);
+  const brand = backend.items?.[0]?.product?.brand;
+  const source = isBill ? (payment.PaymentName || 'Bill payment') : (brand?.BrandName || 'Otu-Zan');
+  const section = isBill ? 'bills' : (brand?.service?.ServiceType === 'item' ? 'item' : 'food');
+  let paymentNote = {};
+  if (isBill) {
+    try { paymentNote = JSON.parse(payment.PaymentNote || '{}'); } catch { paymentNote = {}; }
+  }
   return {
-    ...order,
+    id: `BACKEND-${backend.OrderID}`,
+    backendOrderId: backend.OrderID,
+    backendPaymentId: payment?.PaymentID ?? null,
+    source,
+    label: isBill ? `${source} bill payment` : `${source} order`,
+    section,
+    items: (backend.items || []).map((item) => ({
+      productId: item.ProductID,
+      name: item.product?.ProductName || 'Item',
+      price: Number(item.OrderItemPrice) || 0,
+      quantity: item.ProductQuantity || 1
+    })),
+    details: isBill ? {
+      establishment: source,
+      paymentStatus: payment.PaymentStatus,
+      billReceiptUrl: paymentNote.billReceiptUrl || null,
+      billReceiptName: paymentNote.billReceiptName || null,
+      transferProofUrl: paymentNote.transferProofUrl || null,
+      transferProofName: paymentNote.transferProofName || null
+    } : null,
+    customerName: backend.user?.UserName || '',
+    customerContact: backend.user?.Contact || '',
+    customerAddress: backend.DeliveryAddress || backend.user?.Address || '',
+    customerEmail: backend.user?.Email || '',
     status: backend.DeliveryStatus,
     assignedRider: backend.rider ? { id: backend.rider.UserID, name: backend.rider.UserName } : null,
-    details: payment ? { ...order.details, paymentStatus: payment.PaymentStatus } : order.details,
-    queuePosition: backend.queuePosition ?? null
+    queuePosition: backend.queuePosition ?? null,
+    serviceFee: 0,
+    createdAt: backend.OrderDate,
+    updatedAt: backend.OrderDate
   };
-});
+};
+
+// Overrides status/assignedRider/paymentStatus/queuePosition with the
+// backend's version wherever a local order has a matching backendOrderId
+// (i.e. was created through the catalog-backed or Pay Bills sync in
+// CustomerActivityContext) - this is what stops a customer from spoofing an
+// order as delivered/reassigned/paid by editing their own browser's
+// localStorage. queuePosition is the order's real, live rank among every
+// currently-waiting order backend-wide (null once it's been
+// confirmed/declined) - replaces the old flat per-order formula that had no
+// idea how busy the queue actually was.
+//
+// Also unions in every backend order that ISN'T already in localOrders -
+// see toLocalOrderShape above for why that matters. Orders with no backend
+// counterpart at all (static-menu brands, custom items - never synced,
+// same as before this existed) pass through untouched.
+export const applyBackendTruth = (orders, backendOrdersById) => {
+  const matchedBackendIds = new Set();
+  const overlaid = orders.map((order) => {
+    const backend = order.backendOrderId ? backendOrdersById[order.backendOrderId] : null;
+    if (!backend) return order;
+    matchedBackendIds.add(String(backend.OrderID));
+    const payment = backend.payments?.[0];
+    return {
+      ...order,
+      status: backend.DeliveryStatus,
+      assignedRider: backend.rider ? { id: backend.rider.UserID, name: backend.rider.UserName } : null,
+      details: payment ? { ...order.details, paymentStatus: payment.PaymentStatus } : order.details,
+      queuePosition: backend.queuePosition ?? null
+    };
+  });
+  const unmatched = Object.values(backendOrdersById)
+    .filter((backend) => !matchedBackendIds.has(String(backend.OrderID)))
+    .map(toLocalOrderShape);
+  return [...overlaid, ...unmatched];
+};

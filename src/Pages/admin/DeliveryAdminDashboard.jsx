@@ -104,9 +104,9 @@ const OrderCard = ({ order, onAssign, onStatus, riders }) => {
       <p className="admin-order-status">{STATUS_LABELS[order.status] || 'Pending assignment'}</p>
       {canAssign && order.assignedRider && riders.some((rider) => String(rider.id) === assignedRiderId) && <p role="status">Assigned to {order.assignedRider.name}</p>}
       <div className="admin-order-actions">
-        {order.status === 'pending_rider' && <button type="button" onClick={() => onStatus(order.id, 'cancelled')}>Decline</button>}
-        {canAssign && <button className="primary" type="button" disabled={!selectedRider || selectedRiderId === assignedRiderId} onClick={() => onAssign(order.id, selectedRider)}>Assign</button>}
-        {service === 'bills' && nextAction && <button className="primary" type="button" onClick={() => onStatus(order.id, nextAction[0])}>{nextAction[1]}</button>}
+        {order.status === 'pending_rider' && <button type="button" onClick={() => onStatus(order, 'cancelled')}>Decline</button>}
+        {canAssign && <button className="primary" type="button" disabled={!selectedRider || selectedRiderId === assignedRiderId} onClick={() => onAssign(order, selectedRider)}>Assign</button>}
+        {service === 'bills' && nextAction && <button className="primary" type="button" onClick={() => onStatus(order, nextAction[0])}>{nextAction[1]}</button>}
         {order.status === 'cancelled' && <span className="admin-cancelled-state"><i className="fa-solid fa-circle-xmark" /> Cancelled</span>}
       </div>
     </article>
@@ -177,7 +177,7 @@ const PaymentsTab = ({ orders, onPaymentStatus }) => {
     <div><small>{order.id}</small><OrderCustomerDetails order={order} /><span>{order.source}</span></div>
     <div><small>Uploaded bill</small><strong>{order.details?.billReceiptName || 'No receipt uploaded'}</strong><span>{order.details?.transferProofName || 'No transfer proof'}</span><div className="admin-payment-documents">{order.details?.billReceiptUrl && <a href={order.details.billReceiptUrl} target="_blank" rel="noreferrer"><img src={order.details.billReceiptUrl} alt="Uploaded bill receipt" /><span>View receipt</span></a>}{order.details?.transferProofUrl && <a href={order.details.transferProofUrl} target="_blank" rel="noreferrer"><img src={order.details.transferProofUrl} alt="Uploaded proof of payment" /><span>View proof</span></a>}{order.details?.billReceiptUrl && <a className="admin-payment-download" href={order.details.billReceiptUrl} download={order.details.billReceiptName || true}>Download receipt</a>}{order.details?.transferProofUrl && <a className="admin-payment-download" href={order.details.transferProofUrl} download={order.details.transferProofName || true}>Download proof</a>}</div></div>
     <span className={`admin-payment-status ${order.details?.paymentStatus || 'pending'}`}>{order.details?.paymentStatus || 'pending'}</span>
-    {(order.details?.paymentStatus || 'pending') === 'pending' && <div className="admin-payment-actions"><button className="primary" type="button" onClick={() => onPaymentStatus(order.id, 'verified')}>Verify</button><button type="button" onClick={() => onPaymentStatus(order.id, 'rejected')}>Reject</button></div>}
+    {(order.details?.paymentStatus || 'pending') === 'pending' && <div className="admin-payment-actions"><button className="primary" type="button" onClick={() => onPaymentStatus(order, 'verified')}>Verify</button><button type="button" onClick={() => onPaymentStatus(order, 'rejected')}>Reject</button></div>}
   </article>)}{!payments.length && <div className="admin-page-empty"><i className="fa-solid fa-file-invoice" /><h2>No payment requests</h2><p>Customer bill-payment submissions will appear here.</p></div>}</div>;
 };
 

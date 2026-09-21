@@ -121,7 +121,7 @@ const RiderDashboard = () => {
                 <div className="rider-order-estimate"><i className="fa-regular fa-clock" /><span>Estimated wait</span><strong>{formatEstimatedWait(order, now)}</strong></div>
                 <OrderCustomerDetails order={order} />
                 <div className="rider-order-preview"><span><i className="fa-solid fa-bag-shopping" /> {order.items?.reduce((total, item) => total + (item.quantity || 1), 0) || 0} item(s)</span><button type="button" onClick={() => setSelectedOrderId(order.id)}>View Order <i className="fa-solid fa-arrow-right" /></button></div>
-                {order.status === 'pending_rider' && <div className="rider-decision-buttons"><button type="button" className="rider-cancel" onClick={() => updateOrderStatus(order.id, 'cancelled')}>Cancel</button><button type="button" className="rider-accept" onClick={() => updateOrderStatus(order.id, 'confirmed')}>Confirm Order</button></div>}
+                {order.status === 'pending_rider' && <div className="rider-decision-buttons"><button type="button" className="rider-cancel" onClick={() => updateOrderStatus(order, 'cancelled')}>Cancel</button><button type="button" className="rider-accept" onClick={() => updateOrderStatus(order, 'confirmed')}>Confirm Order</button></div>}
               </article>
             ))}
           </div>
@@ -144,8 +144,8 @@ const RiderDashboard = () => {
             {selectedOrder.details?.fulfillmentMethod === 'pickup' && <div className="rider-recipient"><h3>Pick Up recipient</h3><p><strong>{selectedOrder.details.recipientName}</strong> · {selectedOrder.details.recipientContact}</p><span>{selectedOrder.details.deliveryAddress}</span></div>}
 
             <div className="rider-modal-actions">
-              {selectedOrder.status === 'pending_rider' && <><button type="button" className="rider-cancel" onClick={() => updateOrderStatus(selectedOrder.id, 'cancelled')}>Cancel Order</button><button type="button" className="rider-accept" onClick={() => updateOrderStatus(selectedOrder.id, 'confirmed')}>Confirm Order</button></>}
-              {nextStatuses[selectedOrder.status] && <button type="button" className="rider-advance" onClick={() => updateOrderStatus(selectedOrder.id, nextStatuses[selectedOrder.status][0])}>{nextStatuses[selectedOrder.status][1]}</button>}
+              {selectedOrder.status === 'pending_rider' && <><button type="button" className="rider-cancel" onClick={() => updateOrderStatus(selectedOrder, 'cancelled')}>Cancel Order</button><button type="button" className="rider-accept" onClick={() => updateOrderStatus(selectedOrder, 'confirmed')}>Confirm Order</button></>}
+              {nextStatuses[selectedOrder.status] && <button type="button" className="rider-advance" onClick={() => updateOrderStatus(selectedOrder, nextStatuses[selectedOrder.status][0])}>{nextStatuses[selectedOrder.status][1]}</button>}
               {['delivered', 'cancelled'].includes(selectedOrder.status) && <button type="button" className="rider-close-order" onClick={() => setSelectedOrderId(null)}>Close</button>}
             </div>
           </section>
