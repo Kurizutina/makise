@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Queue;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -68,7 +69,9 @@ class OrderController extends Controller
         }
 
         $perPage = min(max((int) $request->query('per_page', 10), 1), 50);
-        return response()->json($query->paginate($perPage));
+        $paginated = $query->paginate($perPage);
+        $this->attachQueuePositions($paginated);
+        return response()->json($paginated);
     }
 
     public function indexAll(Request $request): JsonResponse
@@ -78,7 +81,28 @@ class OrderController extends Controller
         if ($status) $query->where('DeliveryStatus', $status);
 
         $perPage = min(max((int) $request->query('per_page', 10), 1), 50);
-        return response()->json($query->paginate($perPage));
+        $paginated = $query->paginate($perPage);
+        $this->attachQueuePositions($paginated);
+        return response()->json($paginated);
+    }
+
+    // Position is computed fresh on every request from the actual set of
+    // orders still waiting - never stored/decremented - so it can't drift
+    // out of sync the way a mutated counter could under concurrent orders.
+    // Only orders that still have a 'waiting' Queue row (i.e. haven't been
+    // confirmed, declined, or otherwise moved yet) get a position; everyone
+    // else gets null since they're no longer "in line."
+    private function attachQueuePositions($paginated): void
+    {
+        $waitingOrderIds = Queue::where('QueueStatus', 'waiting')->orderBy('QueueDate')->pluck('OrderID');
+        $positionByOrderId = [];
+        foreach ($waitingOrderIds as $index => $orderId) {
+            $positionByOrderId[$orderId] = $index + 1;
+        }
+        $paginated->getCollection()->transform(function (Order $order) use ($positionByOrderId) {
+            $order->queuePosition = $positionByOrderId[$order->OrderID] ?? null;
+            return $order;
+        });
     }
 
     public function updateStatus(Request $request, Order $order): JsonResponse
@@ -94,6 +118,13 @@ class OrderController extends Controller
         ]);
 
         $order->update(['DeliveryStatus' => $data['status']]);
+        // Any explicit status transition means the order left the raw
+        // pre-confirmation line (confirmed, or declined via 'cancelled') -
+        // it's either now being actively tracked through its own progress
+        // steps, or done entirely. Guarded by QueueStatus='waiting' so a
+        // later transition on the same order (confirmed -> preparing) is a
+        // harmless no-op instead of re-touching an already-closed entry.
+        $order->queueEntries()->where('QueueStatus', 'waiting')->update(['QueueStatus' => 'done']);
         return response()->json(['order' => $order->fresh(['items.product', 'rider'])]);
     }
 

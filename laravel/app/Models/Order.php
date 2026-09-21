@@ -18,4 +18,16 @@ class Order extends Model
     public function items(): HasMany { return $this->hasMany(OrderItem::class, 'OrderID'); }
     public function payments(): HasMany { return $this->hasMany(Payment::class, 'OrderID'); }
     public function queueEntries(): HasMany { return $this->hasMany(Queue::class, 'OrderID'); }
+
+    // Every order (catalog-backed or a Pay Bills request) gets a real Queue
+    // row the moment it exists, regardless of which controller created it -
+    // a model event instead of duplicating this in OrderController::store
+    // and PaymentController::store keeps it from silently missing a future
+    // third order-creation path.
+    protected static function booted(): void
+    {
+        static::created(function (Order $order) {
+            $order->queueEntries()->create(['QueueStatus' => 'waiting', 'QueueDate' => now()]);
+        });
+    }
 }
