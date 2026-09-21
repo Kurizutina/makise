@@ -26,7 +26,16 @@ export const useBackendOrders = (endpoint) => {
       })
       .catch(() => {});
     load();
-    const poll = window.setInterval(load, 15000);
+    // 30s, not 15s: this now also runs on every customer-facing page (added
+    // in step 1f, for real queue positions), on top of the admin and rider
+    // dashboards that already polled. The local dev backend (php artisan
+    // serve) has very limited request concurrency - confirmed directly, 8
+    // concurrent requests queue up to ~2.5s for the last one - so with 3
+    // independent pollers now instead of 2, halving the request rate here
+    // measurably reduces how often a real click gets stuck behind polling
+    // traffic. 30s of staleness on order status is an acceptable tradeoff;
+    // a stuck button on every click is not.
+    const poll = window.setInterval(load, 30000);
     return () => { controller.abort(); window.clearInterval(poll); };
   }, [endpoint]);
 
