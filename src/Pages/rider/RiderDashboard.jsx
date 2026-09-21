@@ -36,7 +36,13 @@ const PaymentDocument = ({ url, name, type, label }) => {
 const formatEstimatedWait = (order, now) => {
   const estimatedMinutes = order.estimatedWaitMinutes
     || calculateEstimatedWaitMinutes(order.items);
-  if (order.status === 'pending_rider') return `${estimatedMinutes} min after confirmation`;
+  if (order.status === 'pending_rider') {
+    if (Number.isInteger(order.queuePosition)) {
+      const ahead = order.queuePosition - 1;
+      return ahead > 0 ? `${ahead} ahead in queue • ~${estimatedMinutes} min after confirmation` : `Next in queue • ~${estimatedMinutes} min after confirmation`;
+    }
+    return `${estimatedMinutes} min after confirmation`;
+  }
   if (order.status === 'cancelled') return 'Cancelled';
   if (order.status === 'delivered') return 'Completed';
 

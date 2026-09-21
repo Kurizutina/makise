@@ -33,14 +33,18 @@ export const useBackendOrders = (endpoint) => {
   return backendOrdersById;
 };
 
-// Overrides status/assignedRider/paymentStatus with the backend's version
-// wherever an order has a matching backendOrderId (i.e. was created through
-// the catalog-backed or Pay Bills sync in CustomerActivityContext). This is
-// what stops a customer from spoofing an order as delivered/reassigned/paid
-// by editing their own browser's localStorage - rider/admin views now show
-// what the server actually has for any order the server actually knows
-// about. Orders without a backendOrderId (static-menu brands, custom items)
-// pass through untouched, same as before this existed.
+// Overrides status/assignedRider/paymentStatus/queuePosition with the
+// backend's version wherever an order has a matching backendOrderId (i.e.
+// was created through the catalog-backed or Pay Bills sync in
+// CustomerActivityContext). This is what stops a customer from spoofing an
+// order as delivered/reassigned/paid by editing their own browser's
+// localStorage - rider/admin views now show what the server actually has
+// for any order the server actually knows about. queuePosition is the
+// order's real, live rank among every currently-waiting order backend-wide
+// (null once it's been confirmed/declined) - replaces the old flat
+// per-order formula that had no idea how busy the queue actually was.
+// Orders without a backendOrderId (static-menu brands, custom items) pass
+// through untouched, same as before this existed.
 export const applyBackendTruth = (orders, backendOrdersById) => orders.map((order) => {
   const backend = order.backendOrderId ? backendOrdersById[order.backendOrderId] : null;
   if (!backend) return order;
@@ -49,6 +53,7 @@ export const applyBackendTruth = (orders, backendOrdersById) => orders.map((orde
     ...order,
     status: backend.DeliveryStatus,
     assignedRider: backend.rider ? { id: backend.rider.UserID, name: backend.rider.UserName } : null,
-    details: payment ? { ...order.details, paymentStatus: payment.PaymentStatus } : order.details
+    details: payment ? { ...order.details, paymentStatus: payment.PaymentStatus } : order.details,
+    queuePosition: backend.queuePosition ?? null
   };
 });

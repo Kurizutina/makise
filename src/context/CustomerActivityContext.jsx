@@ -17,12 +17,30 @@ const authHeaders = () => {
 // touching cart/notifications or requiring the calling component to still be
 // mounted. Used only for background metadata (backendOrderId) that nothing
 // renders - real user-facing order edits go through updateAll instead.
+//
+// Must bump updatedAt: updateAll's persist()/mergeById() keeps whichever
+// copy of an order has the later timestamp, and anything else the customer
+// does afterward (open notifications, add to cart, place another order)
+// calls updateAll with the React-state copy of this same order, which never
+// received this patch (patchStoredOrder writes straight to localStorage,
+// bypassing setOrders). Without a newer timestamp on our side, that next
+// merge sees a tie and keeps the state copy - silently dropping
+// backendOrderId/backendPaymentId and undoing the backend sync this exists
+// for. Found live: placing a bill payment then opening the notifications
+// panel wiped backendOrderId before the queue-position UI ever saw it.
+//
+// Also dispatches CUSTOMER_ACTIVITY_CHANGED (the same event
+// customerProfileSync.js uses for the identical out-of-band-write problem)
+// so the tab that's still mounted picks the patch up immediately instead of
+// waiting for some unrelated future updateAll call to happen to merge it in.
 const patchStoredOrder = (localOrderId, patch) => {
   const latest = loadActivity();
   const nextOrders = (latest.orders || []).map((order) => order.id === localOrderId
-    ? { ...order, ...patch }
+    ? { ...order, ...patch, updatedAt: new Date().toISOString() }
     : order);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...latest, orders: nextOrders }));
+  const next = { ...latest, orders: nextOrders };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  window.dispatchEvent(new CustomEvent(CUSTOMER_ACTIVITY_CHANGED, { detail: next }));
 };
 
 // Best-effort sync to the real backend order API. Only fires for orders made

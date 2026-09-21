@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   calculateEstimatedWaitMinutes,
   getOrderDisplayLabel,
@@ -7,6 +7,7 @@ import {
 import './CustomerActivity.css';
 import { calculateDeliveryFee, DELIVERY_LOCATIONS, findDeliveryLocation } from '../../../../utils/deliveryRates';
 import { getSessionUser } from '../../../../utils/session';
+import { applyBackendTruth, useBackendOrders } from '../../../../hooks/useBackendOrders';
 
 const NotificationIcon = () => (
   <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -39,7 +40,19 @@ const formatEstimatedWait = (order, now) => {
   const estimatedMinutes = order.estimatedWaitMinutes
     || calculateEstimatedWaitMinutes(order.items);
 
-  if (order.status === 'pending_rider') return `${estimatedMinutes} min after confirmation`;
+  if (order.status === 'pending_rider') {
+    // queuePosition is the order's real, live rank among every order still
+    // waiting backend-wide (see useBackendOrders.js) - only present once the
+    // backend actually knows about this order. Falls back to the flat
+    // per-order formula for order types that aren't backend-synced yet.
+    if (Number.isInteger(order.queuePosition)) {
+      const ahead = order.queuePosition - 1;
+      return ahead > 0
+        ? `${ahead} order${ahead === 1 ? '' : 's'} ahead of you • ~${estimatedMinutes} min after confirmation`
+        : `You're next • ~${estimatedMinutes} min after confirmation`;
+    }
+    return `${estimatedMinutes} min after confirmation`;
+  }
   if (order.status === 'cancelled') return 'Order cancelled';
   if (order.status === 'delivered') return 'Completed';
 
@@ -67,12 +80,14 @@ const EstimatedWait = ({ order, now }) => (
 const CustomerActivity = () => {
   const {
     cart,
-    orders,
+    orders: localOrders,
     notifications,
     updateCartQuantity,
     placeCartOrder,
     markNotificationsRead
   } = useCustomerActivity();
+  const backendOrdersById = useBackendOrders('/api/orders?per_page=50');
+  const orders = useMemo(() => applyBackendTruth(localOrders, backendOrdersById), [localOrders, backendOrdersById]);
   const [openPanel, setOpenPanel] = useState(null);
   const [activityTab, setActivityTab] = useState('notifications');
   const [now, setNow] = useState(Date.now());
