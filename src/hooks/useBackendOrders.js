@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { toUtcIso } from '../utils/backendTime';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -96,8 +97,8 @@ const toLocalOrderShape = (backend) => {
     assignedRider: backend.rider ? { id: backend.rider.UserID, name: backend.rider.UserName } : null,
     queuePosition: backend.queuePosition ?? null,
     serviceFee: 0,
-    createdAt: backend.OrderDate,
-    updatedAt: backend.OrderDate
+    createdAt: toUtcIso(backend.OrderDate),
+    updatedAt: toUtcIso(backend.OrderDate)
   };
 };
 

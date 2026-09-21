@@ -134,6 +134,12 @@ const syncPaymentStatusToBackend = (backendPaymentId, status) => {
   }).catch(() => {});
 };
 
+const syncNotificationsReadToBackend = () => {
+  const headers = authHeaders();
+  if (!headers || getSessionUser()?.role !== 'customer') return;
+  fetch(`${API_BASE_URL}/api/notifications/read`, { method: 'PATCH', headers }).catch(() => {});
+};
+
 const getCustomerSnapshot = () => {
   try {
     const profile = JSON.parse(localStorage.getItem(PROFILE_KEY)) || {};
@@ -378,6 +384,7 @@ export const CustomerActivityProvider = ({ children }) => {
   const markNotificationsRead = () => {
     const nextNotifications = notifications.map((item) => ({ ...item, read: true }));
     updateAll(cart, orders, nextNotifications);
+    syncNotificationsReadToBackend();
   };
 
   // orderRef is usually just an id, but callers may pass the full (possibly
@@ -429,16 +436,24 @@ export const CustomerActivityProvider = ({ children }) => {
     const nextOrders = currentOrders.map((order) => order.id === orderId
       ? { ...order, status, updatedAt, estimatedWaitMinutes, ...confirmationTiming }
       : order);
-    const notification = {
-      id: `NOT-${Date.now()}-${Math.random()}`,
-      orderId,
-      title: content[0],
-      message: content[1],
-      createdAt: updatedAt,
-      read: false,
-      type: status === 'cancelled' ? 'cancelled' : 'status'
-    };
-    updateAll(latest.cart || cart, nextOrders, [notification, ...(latest.notifications || notifications)]);
+    // Backend-linked orders get their notification from the server now
+    // (OrderController::notifyStatusChange, step 1g) - the customer's own
+    // poll picks it up regardless of which device they're on. Creating one
+    // here too would double it up for anyone testing admin/customer in the
+    // same browser. Orders with no backend link (legacy local-only types)
+    // still need this - there's no server-side equivalent for those.
+    const nextNotifications = currentOrder.backendOrderId
+      ? (latest.notifications || notifications)
+      : [{
+        id: `NOT-${Date.now()}-${Math.random()}`,
+        orderId,
+        title: content[0],
+        message: content[1],
+        createdAt: updatedAt,
+        read: false,
+        type: status === 'cancelled' ? 'cancelled' : 'status'
+      }, ...(latest.notifications || notifications)];
+    updateAll(latest.cart || cart, nextOrders, nextNotifications);
     syncStatusToBackend(currentOrder.backendOrderId, status);
   };
 
@@ -479,8 +494,12 @@ export const CustomerActivityProvider = ({ children }) => {
     const nextOrders = (latest.orders || orders).map((order) => order.id === orderId
       ? { ...order, details: { ...order.details, paymentStatus }, updatedAt: new Date().toISOString() }
       : order);
-    const notification = { id: `NOT-${Date.now()}-${Math.random()}`, orderId, title: `Payment ${paymentStatus}`, message: `Your payment for ${currentOrder.source} was ${paymentStatus}.`, createdAt: new Date().toISOString(), read: false, type: paymentStatus === 'rejected' ? 'cancelled' : 'status' };
-    updateAll(latest.cart || cart, nextOrders, [notification, ...(latest.notifications || notifications)]);
+    // Same reasoning as updateOrderStatus above - a backend-linked payment
+    // gets its notification from PaymentController::updateStatus instead.
+    const nextNotifications = currentOrder.backendPaymentId
+      ? (latest.notifications || notifications)
+      : [{ id: `NOT-${Date.now()}-${Math.random()}`, orderId, title: `Payment ${paymentStatus}`, message: `Your payment for ${currentOrder.source} was ${paymentStatus}.`, createdAt: new Date().toISOString(), read: false, type: paymentStatus === 'rejected' ? 'cancelled' : 'status' }, ...(latest.notifications || notifications)];
+    updateAll(latest.cart || cart, nextOrders, nextNotifications);
     syncPaymentStatusToBackend(currentOrder.backendPaymentId, paymentStatus);
   };
 

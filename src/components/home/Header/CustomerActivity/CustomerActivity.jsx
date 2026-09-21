@@ -8,6 +8,7 @@ import './CustomerActivity.css';
 import { calculateDeliveryFee, DELIVERY_LOCATIONS, findDeliveryLocation } from '../../../../utils/deliveryRates';
 import { getSessionUser } from '../../../../utils/session';
 import { applyBackendTruth, useBackendOrders } from '../../../../hooks/useBackendOrders';
+import { toLocalNotificationShape, useBackendNotifications } from '../../../../hooks/useBackendNotifications';
 
 const NotificationIcon = () => (
   <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -81,13 +82,24 @@ const CustomerActivity = () => {
   const {
     cart,
     orders: localOrders,
-    notifications,
+    notifications: localNotifications,
     updateCartQuantity,
     placeCartOrder,
     markNotificationsRead
   } = useCustomerActivity();
   const backendOrdersById = useBackendOrders('/api/orders?per_page=50');
   const orders = useMemo(() => applyBackendTruth(localOrders, backendOrdersById), [localOrders, backendOrdersById]);
+  const backendNotifications = useBackendNotifications();
+  // Local notifications only ever cover "order request sent" (instant,
+  // same-device - see placeOrder/placeCartOrder). Everything admin/rider
+  // triggers (status changes, payment verify/reject) is backend-only now
+  // (step 1g) since it has to reach whatever device the customer checks
+  // from next, not just the browser that placed the order. Disjoint event
+  // sources by design, so this union never needs deduping.
+  const notifications = useMemo(() => (
+    [...localNotifications, ...backendNotifications.map(toLocalNotificationShape)]
+      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+  ), [localNotifications, backendNotifications]);
   const [openPanel, setOpenPanel] = useState(null);
   const [activityTab, setActivityTab] = useState('notifications');
   const [now, setNow] = useState(Date.now());
