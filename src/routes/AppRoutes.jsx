@@ -15,6 +15,7 @@ import Home from '../Pages/costumer/Home';
 import JollibeeMenu from '../Pages/costumer/JollibeeMenu';
 import CatalogNameRedirect from '../Pages/costumer/CatalogNameRedirect';
 import ProtectedRoute from './ProtectedRoute';
+import CustomerBrowseRoute from './CustomerBrowseRoute';
 import RiderDashboard from '../Pages/rider/RiderDashboard';
 import DeliveryAdminDashboard from '../Pages/admin/DeliveryAdminDashboard';
 import CatalogBrandMenu from '../Pages/costumer/CatalogBrandMenu';
@@ -44,7 +45,10 @@ const AppRoutes = () => {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/change-password" element={<ChangePassword />} />
 
-        <Route element={<ProtectedRoute role="customer" />}>
+        {/* Browsing is open to guests - login is only required to actually
+            place an order (gated in CustomerActivityContext/Home/CustomerActivity),
+            matching how Grab/foodpanda let you look before you log in. */}
+        <Route element={<CustomerBrowseRoute />}>
           <Route path="/food/manuelas" element={<CatalogNameRedirect brandName="Manuela's" />} />
           <Route path="/catalog/brands/:brandId" element={<CatalogBrandMenu />} />
           <Route

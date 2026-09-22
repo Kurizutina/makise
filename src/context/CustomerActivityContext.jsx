@@ -212,6 +212,13 @@ export const CustomerActivityProvider = ({ children }) => {
   // see the lock synchronously, no matter how close together they land.
   const isPlacingOrderRef = useRef(false);
   const guardOrderPlacement = (run) => {
+    // Guests can browse and build a cart freely (see CustomerBrowseRoute),
+    // but placing an order with no session would create a local-only order
+    // that can never reach the backend (syncOrderToBackend/syncPaymentToBackend
+    // both require an auth token) - invisible to admin/rider despite looking
+    // like a success to the guest. UI call sites already redirect to /login
+    // before reaching this point; this is the backstop in case one doesn't.
+    if (!getSessionUser()) return null;
     if (isPlacingOrderRef.current) return null;
     isPlacingOrderRef.current = true;
     try {

@@ -12,6 +12,7 @@ const openEditor = async () => {
 beforeEach(() => {
   localStorage.clear(); sessionStorage.clear();
   sessionStorage.setItem('otuzanAuthenticated', 'test-token');
+  sessionStorage.setItem('otuzanUser', JSON.stringify(user));
   global.fetch = jest.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ user }) });
 });
 afterEach(() => { delete global.fetch; localStorage.clear(); sessionStorage.clear(); });

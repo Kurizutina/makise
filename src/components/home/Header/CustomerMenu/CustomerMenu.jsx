@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './CustomerMenu.css';
 import { syncCustomerOrders } from '../../../../utils/customerProfileSync';
-import { clearSession } from '../../../../utils/session';
+import { clearSession, getSessionUser } from '../../../../utils/session';
 
 const PROFILE_KEY = 'otuzanCustomerProfile';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -157,10 +157,16 @@ const CustomerMenu = ({ icon }) => {
       <button
         className="header-menu-button"
         type="button"
-        aria-label="Open customer menu"
+        aria-label={getSessionUser() ? 'Open customer menu' : 'Log in'}
         aria-expanded={isMenuOpen}
         aria-haspopup="menu"
-        onClick={() => setIsMenuOpen((current) => !current)}
+        onClick={() => {
+          if (!getSessionUser()) {
+            navigate('/login');
+            return;
+          }
+          setIsMenuOpen((current) => !current);
+        }}
       >
         {icon}
       </button>

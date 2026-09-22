@@ -7,6 +7,7 @@ import OthersOrderForm from '../../components/home/OthersOrderForm/OthersOrderFo
 import PayBillsForm from '../../components/home/PayBillsForm/PayBillsForm';
 import { useCustomerActivity } from '../../context/CustomerActivityContext';
 import { catalogImageUrl, getCatalog } from '../../utils/catalog';
+import { getSessionUser } from '../../utils/session';
 
 
 const Home = () => {
@@ -89,6 +90,15 @@ const Home = () => {
         onBrandSelect={(brand) => {
           if (brand.type !== 'bills' && brand.productsCount > 0) {
             navigate(`/catalog/brands/${brand.id}`);
+            return;
+          }
+          // Bill payments and custom "Others" orders skip the cart entirely
+          // and start talking to authenticated-only endpoints immediately
+          // (PayBillsForm uploads receipts as soon as a file is picked) - so
+          // guests are sent to log in here, before investing effort filling
+          // out a form they'd be blocked from submitting anyway.
+          if (!getSessionUser()) {
+            navigate('/login');
             return;
           }
           if (brand.type === 'bills') {

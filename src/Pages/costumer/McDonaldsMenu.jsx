@@ -156,7 +156,12 @@ export const RestaurantMenu = ({
       showNotice('Select your delivery location before placing your order.');
       return;
     }
-    placeCartOrder(sourceKey, deliveryLocation, customerType);
+    if (!getSessionUser()) {
+      navigate('/login');
+      return;
+    }
+    const order = placeCartOrder(sourceKey, deliveryLocation, customerType);
+    if (!order) return;
     showNotice(`Order placed with ${itemCount} item${itemCount === 1 ? '' : 's'}.`);
     setIsCartOpen(false);
   };

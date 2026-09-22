@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   calculateEstimatedWaitMinutes,
   getOrderDisplayLabel,
@@ -79,6 +80,7 @@ const EstimatedWait = ({ order, now }) => (
 );
 
 const CustomerActivity = () => {
+  const navigate = useNavigate();
   const {
     cart,
     orders: localOrders,
@@ -123,6 +125,10 @@ const CustomerActivity = () => {
 
   const confirmCart = () => {
     if (!deliveryLocation) return;
+    if (!getSessionUser()) {
+      navigate('/login');
+      return;
+    }
     const order = placeCartOrder(null, deliveryLocation, customerType);
     if (order) {
       setOpenPanel('activity');
