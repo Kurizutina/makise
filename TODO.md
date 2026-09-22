@@ -67,19 +67,6 @@ flipping the box, to keep this split meaningful over time.
       map item below (that one's about *how* location gets picked; this is
       about *when* it's surfaced) - could be as simple as showing the
       selected zone persistently in the header once chosen.
-- [ ] **Catalog-backed menu pages render every product into the DOM at once,
-      no pagination** (found during the pre-defense audit, 9/23, via direct
-      measurement, not assumption) - `RestaurantMenu` maps the *entire*
-      product list into `<img>` tags on mount. Confirmed on the real, current
-      catalog: Jollibee (121 products after the 9/22 photo update) queued
-      121 image tags immediately; only 20 had actually finished loading after
-      6.5 seconds on a fast local connection. McDonald's (184 products) and
-      Manuela's (185) already do the same thing and predate that update -
-      this isn't new, it just hadn't been load-tested with real data volume
-      until now. `loading="lazy"` is set correctly but isn't sufficient at
-      this scale, and it gets worse with every additional real product photo
-      the team adds. Needs real pagination or a "load more" pattern per
-      category, not just lazy-loading the whole list.
 - [ ] **Products without photos hurt conversion** (web research, 9/21;
       re-confirmed and sharpened during the design critique, 9/23) — this is a
       recognized, documented UX problem, not just an aesthetic nitpick: a 2018
@@ -676,6 +663,19 @@ AI for key business decisions
 
 ## Medium
 
+- [x] **Catalog-backed menu pages rendered every product into the DOM at
+      once, no pagination** (found during the pre-defense audit, 9/23, via
+      direct measurement - Jollibee's 121-product catalog queued 121 image
+      tags on mount, only 20 had actually finished loading after 6.5s; fixed
+      9/23). `RestaurantMenu` (shared by every catalog-backed brand) now
+      caps each category to 12 products initially, with a "Show N more"
+      button per category instead of a single global cutoff, so every
+      category still shows something rather than starving whichever ones
+      happen to be lower on the page. Verified live against the real
+      McDonald's catalog (184 products, 13 categories): initial mount
+      dropped from 184 to 110 cards, "Show more" correctly reveals the next
+      batch, add-to-cart and the sticky category-nav chips still work on
+      paginated items. (`24f1a25`)
 - [x] **Let customers browse without logging in** (user request, 9/21, noticed while
       browsing foodpanda themselves) — the backend catalog API was already public;
       the only blocker was the frontend's `ProtectedRoute` wrapper unconditionally
