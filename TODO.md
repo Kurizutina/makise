@@ -123,12 +123,6 @@ flipping the box, to keep this split meaningful over time.
 
 ### Functionality
 
-- [ ] **Best-selling products on the customer-facing home page** (user request,
-      9/22) — needs a backend aggregation (top products by order count/quantity,
-      likely windowed to a recent period so it reflects current demand, not
-      all-time). Pairs naturally with the Revenue-tracking fix above once that
-      exists, and is one of the concrete outputs Data Analytics Layer 1 below
-      calls for anyway - worth building once, not twice.
 - [ ] **"Newly added" indicator when browsing a brand's menu** (user request,
       9/22) — needs confirming `Product` actually has a reliable creation
       timestamp to key off (Eloquent's default `created_at` likely already
@@ -347,14 +341,16 @@ AI for key business decisions
 ([source](https://www.gartner.com/en/newsroom/press-releases/2025-06-17-gartner-announces-top-data-and-analytics-predictions)).
 
 - [ ] **Layer 1 — Revenue Trends & Best-Sellers (Descriptive Analytics)**.
-      **Unblocked (9/23)** - the Revenue-tracking bug fix above already built
-      the foundation this needs: `GET /api/admin/revenue` aggregates real,
-      persisted `ServiceFee` by calendar day and by service, over every order
-      in the table. Remaining scope is smaller than originally planned: add a
-      best-sellers query (top products by order count/quantity, windowed to a
-      recent period) and a peak-ordering-time query (hour-of-day / day-of-week),
-      then surface the existing `daily` trend data from the revenue endpoint as
-      an actual chart instead of just the three stat cards it renders today.
+      **Most of the backend work is already done (9/23)**, as a side effect of
+      the Revenue tab fix and the best-sellers home-page feature above:
+      `GET /api/admin/revenue` aggregates real, persisted `ServiceFee` by
+      calendar day and by service; `GET /api/catalog/best-sellers` ranks
+      products by real units sold in the last 30 days. What's left for this to
+      count as the analytics *layer* rather than just two dashboard features:
+      a peak-ordering-time query (hour-of-day / day-of-week), and surfacing
+      the existing `daily` trend data from the revenue endpoint as an actual
+      chart on the admin side instead of just the three stat cards it renders
+      today.
       Dashboard design research recommends keeping each view to a handful of
       KPIs with one clear primary metric, not a wall of numbers
       ([Improvado: Dashboard Design Best
@@ -602,6 +598,21 @@ AI for key business decisions
 
 ## High
 
+- [x] **Best-selling products on the customer-facing home page** (user request,
+      9/22; built 9/23 right after the Revenue tab fix, which supplied the
+      aggregation foundation this needed). `GET /api/catalog/best-sellers`
+      (`CatalogController::bestSellers`) ranks products by real units sold in
+      the last 30 days - not all-time, so it reflects current demand - and
+      excludes cancelled orders, so a cancelled bulk order can't fake a
+      product's popularity. New `BestSellersSection` on the home page, above
+      the brand grid, matching where foodpanda/GrabFood surface "popular
+      now"; renders nothing on a fresh install with no order history rather
+      than showing an empty section. Clicking a product navigates to its
+      brand's menu page. Backend test covers ranking plus the cancelled/stale
+      exclusions. Verified live against real order history - correctly
+      ranked, and correctly fell back to a placeholder for the one result
+      with no product photo (the already-tracked photos gap, not a bug here).
+      (`b1192c3`)
 - [x] **Admin "Revenue" tab was silently capped at the 50 most recent orders,
       ever, and undercounted even within that page** (user testing, 9/22,
       reported as "revenue resets every day"; fixed 9/23). Two real bugs, not
