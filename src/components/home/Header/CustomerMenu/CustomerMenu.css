@@ -3,6 +3,29 @@
   flex-shrink: 0;
 }
 
+.header-guest-auth-button {
+  flex-shrink: 0;
+  height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #c81752;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.header-guest-auth-button:hover { background: #ffe9ef; transform: scale(1.03); }
+.header-guest-auth-button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+@media (max-width: 440px) {
+  .header-guest-auth-button { height: 32px; padding: 0 12px; font-size: 12px; }
+}
+
 .customer-menu-popover {
   position: absolute;
   top: calc(100% + 12px);

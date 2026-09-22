@@ -152,24 +152,34 @@ const CustomerMenu = ({ icon }) => {
     navigate('/login', { replace: true });
   };
 
+  const isGuest = !getSessionUser();
+
   return (
     <div className="customer-menu-wrapper" ref={menuRef}>
-      <button
-        className="header-menu-button"
-        type="button"
-        aria-label={getSessionUser() ? 'Open customer menu' : 'Log in'}
-        aria-expanded={isMenuOpen}
-        aria-haspopup="menu"
-        onClick={() => {
-          if (!getSessionUser()) {
-            navigate('/login');
-            return;
-          }
-          setIsMenuOpen((current) => !current);
-        }}
-      >
-        {icon}
-      </button>
+      {isGuest ? (
+        // Explicit, visible auth entry point in the header itself - matches
+        // Grab/foodpanda showing "Login/Sign Up" right on the page rather
+        // than hiding it behind an account icon a guest has no reason to
+        // click.
+        <button
+          className="header-guest-auth-button"
+          type="button"
+          onClick={() => navigate('/login')}
+        >
+          Log In / Sign Up
+        </button>
+      ) : (
+        <button
+          className="header-menu-button"
+          type="button"
+          aria-label="Open customer menu"
+          aria-expanded={isMenuOpen}
+          aria-haspopup="menu"
+          onClick={() => setIsMenuOpen((current) => !current)}
+        >
+          {icon}
+        </button>
+      )}
 
       {isMenuOpen && (
         <div className="customer-menu-popover" role="menu">

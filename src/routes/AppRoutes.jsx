@@ -3,7 +3,8 @@ import React from 'react';
 import {
   BrowserRouter,
   Routes,
-  Route
+  Route,
+  Navigate
 } from 'react-router-dom';
 
 import Login from '../Pages/auth/Login';
@@ -26,9 +27,13 @@ const AppRoutes = () => {
 
       <Routes>
 
+        {/* The site itself is the landing page, not a login wall - matches
+            Grab/foodpanda opening straight into the browsable catalog. Goes
+            through CustomerBrowseRoute like /home does, so an already-signed-in
+            admin/driver still lands on their own dashboard instead of this. */}
         <Route
           path="/"
-          element={<Login />}
+          element={<Navigate to="/home" replace />}
         />
 
         <Route
