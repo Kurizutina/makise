@@ -19,37 +19,6 @@ flipping the box, to keep this split meaningful over time.
       exists between customer and rider today. Real feature, not a quick fix; needs
       its own design pass (in-app chat vs. just exposing contact numbers, etc.)
       before implementation.
-- [ ] **Admin "Revenue" tab is not actually tracking revenue — it's silently
-      capped at the 50 most recent orders, ever** (user testing, 9/22, reported as
-      "revenue resets every day"). Traced the actual cause before writing this up:
-      there is no revenue table and no date-based aggregation anywhere in the
-      backend - `RevenueTab` (`DeliveryAdminDashboard.jsx`) just sums whatever
-      `orders` happen to be loaded in the browser, and those come from
-      `useBackendOrders('/api/admin/orders?per_page=50')` - page 1 only, never
-      paginated further, and `OrderController::indexAll` defaults/caps at that
-      same 50. Once total order volume passes 50, older orders (and their
-      revenue) silently fall out of view entirely. That will look exactly like
-      "revenue resetting" without being a UTC/midnight bug at all - it's data
-      being dropped from what admin can see, not mis-dated.
-
-      The right fix is the one already proposed: persist revenue server-side
-      instead of computing it from whatever page of orders the browser happens
-      to have. Scope: (1) a `DailyRevenue` (or similar) table keyed by calendar
-      date in the business's actual local timezone (not raw UTC boundaries -
-      confirm the intended timezone with the team, likely Asia/Manila/UTC+8,
-      since a UTC-midnight boundary would flip revenue between days mid-afternoon
-      local time), (2) compute/insert it from real order data on order
-      completion or via a daily aggregation job - either works, pick based on
-      whether "today so far" needs to be live or can be end-of-day only, (3) a
-      dedicated `GET /api/admin/revenue?range=...` endpoint the dashboard queries
-      instead of deriving totals from the capped orders list. Also fixes the
-      already-known undercounting gap where a synthesized cross-device order's
-      `serviceFee` is always 0 (documented under "cross-device order visibility"
-      in Completed Work) - persisting the fee at order-creation time on the
-      backend closes that gap too, for free. **This is also the hard dependency
-      for Data Analytics Layer 1 below** - fix it once, get the bug fix and the
-      analytics foundation from the same work, rather than doing it twice.
-
 ## Medium Priority
 
 ### Design
@@ -378,19 +347,20 @@ AI for key business decisions
 ([source](https://www.gartner.com/en/newsroom/press-releases/2025-06-17-gartner-announces-top-data-and-analytics-predictions)).
 
 - [ ] **Layer 1 — Revenue Trends & Best-Sellers (Descriptive Analytics)**.
-      Hard-blocked on the Revenue-tracking bug fix under High Priority above -
-      you cannot report a revenue *trend* from a system that doesn't persist
-      revenue by date yet, so this is the same underlying backend work, not
-      separate work. Scope once that lands: the `DailyRevenue` table/endpoint
-      already gets you trend data; add a best-sellers query (top products by
-      order count/quantity, windowed to a recent period) and a peak-ordering-time
-      query (hour-of-day / day-of-week) alongside it. Dashboard design research
-      recommends keeping each view to a handful of KPIs with one clear primary
-      metric, not a wall of numbers
+      **Unblocked (9/23)** - the Revenue-tracking bug fix above already built
+      the foundation this needs: `GET /api/admin/revenue` aggregates real,
+      persisted `ServiceFee` by calendar day and by service, over every order
+      in the table. Remaining scope is smaller than originally planned: add a
+      best-sellers query (top products by order count/quantity, windowed to a
+      recent period) and a peak-ordering-time query (hour-of-day / day-of-week),
+      then surface the existing `daily` trend data from the revenue endpoint as
+      an actual chart instead of just the three stat cards it renders today.
+      Dashboard design research recommends keeping each view to a handful of
+      KPIs with one clear primary metric, not a wall of numbers
       ([Improvado: Dashboard Design Best
       Practices](https://improvado.io/blog/dashboard-design-guide)) - resist the
-      urge to show everything at once. **This is the layer to implement first**,
-      not last - it rides on a bug fix you need to do anyway.
+      urge to show everything at once. **This is the layer to implement first**
+      - most of it is already done as a side effect of the bug fix.
 - [ ] **Layer 2 — RFM Customer Segmentation (Diagnostic Analytics)**. Score each
       customer on Recency (days since last order), Frequency (order count), and
       Monetary value (total spend) to classify them into segments like
@@ -632,6 +602,45 @@ AI for key business decisions
 
 ## High
 
+- [x] **Admin "Revenue" tab was silently capped at the 50 most recent orders,
+      ever, and undercounted even within that page** (user testing, 9/22,
+      reported as "revenue resets every day"; fixed 9/23). Two real bugs, not
+      one: (1) `RevenueTab` summed whatever `orders` the dashboard already had
+      loaded for display (`useBackendOrders('/api/admin/orders?per_page=50')`
+      - page 1 only), so once total order volume passed 50, older orders and
+      their revenue silently fell out of the total; (2) the delivery/service
+      fee was computed entirely client-side and never sent to the backend at
+      all - `Orders.TotalPrice` was just the product subtotal, so even an
+      uncapped sum would still have been wrong.
+
+      Fixed both at the source: added `Orders.ServiceFee` (migration
+      `2026_09_23_000001`), `OrderController::store`/`PaymentController::store`
+      now accept and persist it (validated 0–500) and fold it into
+      `TotalPrice`. Added `GET /api/admin/revenue`
+      (`OrderController::revenue`) - aggregates the fee across *every*
+      non-cancelled order in the table, not a paginated slice, grouped by
+      service and by calendar day. **Timezone default: Asia/Manila (UTC+8),
+      since `OrderDate` is stored UTC and a raw UTC-midnight boundary would
+      flip revenue between days mid-afternoon local time - this was a
+      reasonable default, not confirmed with the team yet; flag if that's
+      wrong.** `RevenueTab` now fetches that endpoint instead of deriving a
+      total from the orders it already had. Also closes the known gap where
+      a synthesized cross-device order's `serviceFee` showed as 0
+      (`toLocalOrderShape` now reads the real persisted value). This was also
+      the hard dependency for Data Analytics Layer 1 below - the aggregation
+      endpoint now backing this tab is the same foundation that layer needs.
+
+      Verified live: placed a real order with a service fee through the
+      actual API, confirmed `TotalPrice`/`ServiceFee` persisted correctly,
+      confirmed `/api/admin/revenue` reflected it and correctly dropped it
+      after cancelling, and confirmed the Revenue tab renders the real
+      backend total in a live browser session. Backend tests added covering
+      fee persistence, its validation bounds, and the revenue endpoint
+      aggregating past the old 50-order cap (55 seeded orders, one cancelled).
+      Full frontend/backend suites re-run clean - same pre-existing failures
+      only (Login.test.jsx, ManuelasMenu.test.jsx, AuthApiTest.php - all
+      already tracked below, none new). Test accounts/orders cleaned up
+      after. (`433f6ff`)
 - [x] Real queue system — delivered in step 1f above.
 - [x] Server-driven live status updates / polling — delivered in steps
       1c/1d above, extended to cover every dashboard's actual visibility in
