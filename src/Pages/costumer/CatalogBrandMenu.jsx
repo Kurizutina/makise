@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { RestaurantMenu } from './McDonaldsMenu';
 import { API_BASE_URL, catalogImageUrl } from '../../utils/catalog';
 
 const CatalogBrandMenu = () => {
   const { brandId } = useParams();
+  const location = useLocation();
+  const highlightProductId = location.state?.highlightProductId ?? null;
   const [catalog, setCatalog] = useState(null);
   const [error, setError] = useState('');
 
@@ -42,6 +44,7 @@ const CatalogBrandMenu = () => {
     serviceType={catalog.brand.service?.ServiceType || 'item'}
     menuItems={products}
     showFoodIcons
+    highlightProductId={highlightProductId}
   />;
 };
 

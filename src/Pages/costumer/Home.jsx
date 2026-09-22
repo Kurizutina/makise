@@ -92,7 +92,9 @@ const Home = () => {
 
       <BestSellersSection
         products={bestSellers}
-        onProductSelect={(product) => navigate(`/catalog/brands/${product.BrandID}`)}
+        onProductSelect={(product) => navigate(`/catalog/brands/${product.BrandID}`, {
+          state: { highlightProductId: product.ProductID }
+        })}
       />
 
       {/* Brand Cards */}

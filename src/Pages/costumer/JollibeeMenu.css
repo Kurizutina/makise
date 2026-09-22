@@ -280,6 +280,17 @@
   gap: 17px;
 }
 
+.product-card-highlighted {
+  outline: 3px solid var(--color-primary, #da1c5c);
+  outline-offset: 3px;
+  animation: product-card-highlight-pulse 1.6s ease-in-out 1;
+}
+
+@keyframes product-card-highlight-pulse {
+  0%, 100% { box-shadow: none; }
+  50% { box-shadow: 0 0 0 10px rgba(218, 28, 92, 0.15); }
+}
+
 .restaurant-show-more {
   display: block;
   margin: 18px auto 0;

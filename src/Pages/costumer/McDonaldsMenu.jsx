@@ -25,7 +25,7 @@ const RestaurantProductCard = ({ product, onAddToCart, showFoodIcons }) => {
   } : product;
 
   return (
-    <article className="jollibee-product-card">
+    <article className="jollibee-product-card" id={product.productId ? `product-card-${product.productId}` : undefined}>
       {product.image && <div className="jollibee-product-image"><img src={product.image} alt={product.name} loading="lazy" /></div>}
       {showFoodIcons && !product.image && (
         <div className="restaurant-product-food-icon" aria-hidden="true">
@@ -63,7 +63,8 @@ export const RestaurantMenu = ({
   showFoodIcons = false,
   pageClass = '',
   headerClass = '',
-  eyebrowClass = ''
+  eyebrowClass = '',
+  highlightProductId = null
 }) => {
   const navigate = useNavigate();
   const {
@@ -132,6 +133,45 @@ export const RestaurantMenu = ({
     ...current,
     [category]: (current[category] ?? PRODUCTS_PAGE_SIZE) + PRODUCTS_PAGE_SIZE
   }));
+
+  // Arriving here from a "Best seller" card on the home page used to just
+  // drop the customer at the top of the whole menu - on a 184-product,
+  // 13-category page (and worse now that categories paginate) that's not
+  // actually "showing them the food," it's making them go find it. Expands
+  // whichever category the target product is in past its initial page if
+  // needed, then scrolls straight to that card and highlights it briefly.
+  const highlightedOnceRef = useRef(false);
+  useEffect(() => {
+    if (!highlightProductId || highlightedOnceRef.current || !categories.length) return;
+    let targetCategory = null;
+    let targetIndex = -1;
+    categories.forEach((group) => {
+      const index = group.products.findIndex((product) => product.productId === highlightProductId);
+      if (index !== -1) { targetCategory = group.category; targetIndex = index; }
+    });
+    if (!targetCategory) return;
+
+    highlightedOnceRef.current = true;
+    setVisibleCounts((current) => {
+      const needed = targetIndex + 1;
+      if ((current[targetCategory] ?? PRODUCTS_PAGE_SIZE) >= needed) return current;
+      return { ...current, [targetCategory]: needed };
+    });
+
+    let attempts = 0;
+    const tryScrollToCard = () => {
+      const element = document.getElementById(`product-card-${highlightProductId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.classList.add('product-card-highlighted');
+        window.setTimeout(() => element.classList.remove('product-card-highlighted'), 2500);
+      } else if (attempts < 20) {
+        attempts += 1;
+        window.requestAnimationFrame(tryScrollToCard);
+      }
+    };
+    window.requestAnimationFrame(tryScrollToCard);
+  }, [categories, highlightProductId]);
 
   // Sticky category chips only earn their place once there's actually
   // somewhere meaningful to jump to - skip them for the one/two-category

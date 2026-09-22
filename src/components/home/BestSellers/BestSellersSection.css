@@ -1,5 +1,14 @@
+/* Match .food-items-section's container exactly (same max-width, centering,
+   and responsive side padding) - without this the two sections' headings
+   drift apart at wider viewports, since this one used a flat 24px while the
+   brand grid below scales its padding up to 56px inside a centered 1400px
+   column. */
 .best-sellers-section {
-  padding: 0 24px 8px;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 8px clamp(20px, 4vw, 56px) 8px;
+  box-sizing: border-box;
 }
 
 .best-sellers-grid {
@@ -80,10 +89,6 @@
 }
 
 @media (max-width: 767px) {
-  .best-sellers-section {
-    padding: 0 16px 4px;
-  }
-
   .best-sellers-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
