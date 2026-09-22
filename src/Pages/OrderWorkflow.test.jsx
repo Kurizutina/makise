@@ -72,14 +72,31 @@ test('a customer sees notifications only for orders linked to their account', ()
   expect(actions.notifications).toEqual([{ id: 'OWN-NOTIFICATION', orderId: 'OWN-ORDER' }]);
 });
 
-test('direct and cart orders retain the signed-in customer account ID', () => {
+test('direct and cart orders retain the signed-in customer account ID', async () => {
   signIn(42, 'customer');
   localStorage.setItem('otuzanCustomerProfile', JSON.stringify({ id: 42, username: 'Full Name', address: 'Address', email: 'customer@example.com' }));
   render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
-  act(() => actions.placeOrder({ source: 'Shop', items: [], deliveryLocation: 'villa-javier' }));
+  // Explicit daytime timestamp - calculateDeliveryFee applies a night
+  // surcharge past a cutoff time, and both calls below default to the real
+  // wall-clock time when orderTime isn't passed, which made this test flaky
+  // whenever the suite happened to run late at night.
+  // 02:00 UTC lands well before the earliest night-surcharge cutoff
+  // (18:30) across every real-world UTC offset (-12 to +14), not just this
+  // machine's own timezone. Each order also needs a distinct, increasing
+  // timestamp: persist()'s mergeById sorts by time descending so the
+  // newest order lands at orders[0], and the seeded baseline order fixes
+  // its own timestamp at 2026-09-14 - both test orders must sort after
+  // that, and after each other in placement order.
+  act(() => actions.placeOrder({ source: 'Shop', items: [], deliveryLocation: 'villa-javier', orderTime: '2026-09-15T02:00:00.000Z' }));
   expect(saved().orders[0]).toMatchObject({ customerId: 42, customerName: 'Full Name', customerEmail: 'customer@example.com', serviceFee: 75, deliveryLocationName: 'Villa Javier' });
   act(() => actions.addToCart({ id: 'item', source: 'Shop', name: 'Food', details: { deliveryLocation: 'bukang-liwayway' } }));
-  act(() => actions.placeCartOrder());
+  // The rapid-repeat-click guard (guardOrderPlacement's isPlacingOrderRef,
+  // added by the adversarial QA pass) blocks a second order placement for
+  // 1200ms after the first - real, correct anti-duplicate-order behavior,
+  // but this test places two orders back to back on purpose, so it has to
+  // clear the same cooldown a real customer would between separate orders.
+  await new Promise((resolve) => setTimeout(resolve, 1250));
+  act(() => actions.placeCartOrder(null, undefined, undefined, '2026-09-15T02:00:01.000Z'));
   expect(saved().orders[0]).toMatchObject({ customerId: 42, customerName: 'Full Name', serviceFee: 75, deliveryLocationName: 'Bukang Liwayway' });
 });
 
