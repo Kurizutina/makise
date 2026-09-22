@@ -1,0 +1,25 @@
+Beverages price list
+
+Iced Vanilla Regular
+₱89.00
+
+Iced Vanilla Large
+₱110.00
+
+Iced Caramel Regular
+₱100.00
+
+Iced Caramel Large
+₱122.00
+
+Iced Mocha Regular
+₱88.00
+
+Iced Mocha Large
+₱110.00
+
+Iced Latte Regular
+₱84.00
+
+Iced Latte Large
+₱106.00
