@@ -13,7 +13,6 @@ import ForgotPassword from '../Pages/auth/ForgotPassword';
 import ResetPassword from '../Pages/auth/ResetPassword';
 import ChangePassword from '../Pages/auth/ChangePassword';
 import Home from '../Pages/costumer/Home';
-import JollibeeMenu from '../Pages/costumer/JollibeeMenu';
 import CatalogNameRedirect from '../Pages/costumer/CatalogNameRedirect';
 import ProtectedRoute from './ProtectedRoute';
 import CustomerBrowseRoute from './CustomerBrowseRoute';
@@ -64,7 +63,7 @@ const AppRoutes = () => {
 
           <Route
             path="/food/jollibee"
-            element={<JollibeeMenu />}
+            element={<CatalogNameRedirect brandName="Jollibee" />}
           />
 
           <Route
