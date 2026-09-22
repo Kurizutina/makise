@@ -94,6 +94,17 @@ items off as they land.
       solid; what's left is hardening and polish around it, not a broken
       foundation.
 
+- [x] **Pre-defense ISO-structured audit (9/23)** — ran a second, more formal
+      pass specifically ahead of the instructor check-in, evaluated against
+      ISO/IEC 25010 (quality), 27001/OWASP (security), and 20000/12207
+      (operational readiness). **Verdict: Conditional Pass, Medium risk** - the
+      core transaction loop is genuinely solid (same conclusion as the pass
+      above, re-confirmed), but real, specific gaps remain before this is
+      defense-ready. Nothing new security-wise beyond what's already tracked;
+      the new findings from this pass are the unpaginated-catalog performance
+      issue and the design critique below, both added as their own items.
+      Full report given directly in conversation, not duplicated here.
+
 - [x] **Admin/rider dashboards only showed orders already in that browser's own
       localStorage — invisible to orders placed on any other device** (found
       9/21 while verifying step 1f's queue positions live). `applyBackendTruth`
@@ -411,6 +422,40 @@ items off as they land.
 
 ## Medium
 
+- [ ] **Catalog-backed menu pages render every product into the DOM at once,
+      no pagination** (found during the pre-defense audit, 9/23, via direct
+      measurement, not assumption) - `RestaurantMenu` maps the *entire*
+      product list into `<img>` tags on mount. Confirmed on the real, current
+      catalog: Jollibee (121 products after tonight's photo update) queued
+      121 image tags immediately; only 20 had actually finished loading after
+      6.5 seconds on a fast local connection. McDonald's (184 products) and
+      Manuela's (185) already do the same thing and predate tonight's
+      changes - this isn't new, it just hadn't been load-tested with real
+      data volume until now. `loading="lazy"` is set correctly but isn't
+      sufficient at this scale, and it gets worse with every additional real
+      product photo the team adds (which is the direction Sean's Jollibee
+      work just proved is worth doing). Needs real pagination or a
+      "load more" pattern per category, not just lazy-loading the whole list.
+- [ ] **Homepage has no hero / mood-setting moment** (design critique, 9/23,
+      compared live against foodpanda.ph, GrabFood, Uber Eats, Deliveroo -
+      every one of them opens with a photo, gradient card, or bold headline
+      before the browsing grid; Otu-Zan goes flat header -> grid -> a large
+      dead whitespace gap -> footer). Already built once this session
+      (gradient card, time-of-day greeting, real catalog stats, no
+      photography needed) and reverted at the user's request mid-session to
+      slow down and reconsider rather than accept it live - the code isn't
+      lost, just not landed. Flagged again here since the follow-up design
+      critique named this the single most visible gap against the reference
+      apps; revisit when ready rather than re-building from scratch.
+- [ ] **Delivery location isn't surfaced until deep in checkout** (design
+      critique, 9/23) - every reference app (foodpanda leads with "Select
+      your address" in the header; Grab's hero has a location field built
+      in) treats "where are you" as a primary, always-visible homepage
+      element. Otu-Zan only asks via a delivery-location dropdown once a
+      customer is already mid-checkout. Lighter-weight than the OpenLeaflet
+      map item below (that one's about *how* location gets picked; this is
+      about *when* it's surfaced) - could be as simple as showing the
+      selected zone persistently in the header once chosen.
 - [x] **Let customers browse without logging in** (user request, 9/21, noticed while
       browsing foodpanda themselves) — the backend catalog API was already public;
       the only blocker was the frontend's `ProtectedRoute` wrapper on `/home`,
@@ -731,18 +776,25 @@ items off as they land.
       cart/checkout screens — hit a reCAPTCHA wall navigating into a restaurant page,
       did not attempt to bypass it. GrabFood gates restaurant browsing behind login.
       Followed up with web search instead (below) since direct browsing hit walls.
-- [ ] **Products without photos hurt conversion** (web research, 9/21) — this is a
+- [ ] **Products without photos hurt conversion** (web research, 9/21;
+      re-confirmed and sharpened during the design critique, 9/23) — this is a
       recognized, documented UX problem, not just an aesthetic nitpick: a 2018
       GrabFood UX case study quotes a user directly — *"Food photos are important
       for me. It's hard imagining what they look like when the app doesn't provide
       their photos"* — and lists missing menu photos as one of the top pain points
       driving users away
       ([source](https://uxdesign.cc/ux-ui-case-study-grabfood-ab2faa0512ec)).
-      Directly relevant: Manuela's 185 products have zero individual photos (all
-      show the brand logo instead) — same root issue this research flags. This is a
-      content/photography task (someone needs to actually photograph the dishes),
-      not a code fix — but worth prioritizing over purely cosmetic items given it's
-      shown to affect whether people order at all.
+      **This got more urgent tonight, not less**: Sean's Jollibee catalog update
+      (121 real product photos) now looks close to foodpanda-quality, which
+      means McDonald's (184 products) and Manuela's (185) - still zero individual
+      photos, brand logo placeholder on every single one - now sit right next to
+      genuinely good work in the same app. Before, the whole catalog was
+      uniformly plain, which read as "unfinished but consistent." Now it reads
+      as "one brand got finished and the rest didn't," which invites exactly
+      the question "why does only one of these look real?" in a live demo.
+      Still a content/photography task, not a code fix - but the bar it needs
+      to clear just moved, and it's the highest-visual-impact gap left in the
+      whole system.
 - [x] **"Back to top" control on long menu pages** (web research, 9/21) — GrabFood's
       menu pages use continuous scrolling through many categories with no way back
       to the top except manually scrolling up, flagged as a usability gap in a UX
