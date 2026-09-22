@@ -663,6 +663,42 @@ AI for key business decisions
 
 ## Medium
 
+- [x] **Best-sellers section (own feature, shipped same day) had a padding
+      mismatch, dead-end clicks, and wrong section order; separately, no way
+      back to Home from the FAQ page at all** (both user-reported live,
+      9/23; fixed same day). Three real bugs in the first: `BestSellersSection`
+      used a flat 24px side padding while the brand grid below it uses a
+      centered `max-width:1400px` container with responsive padding up to
+      56px, so the headings visibly drifted apart; clicking a card landed at
+      the top of the brand's whole menu page instead of at the actual
+      product (worse once that page paginates); and re-checking foodpanda/
+      GrabFood live showed both put category navigation *before* curated
+      picks, not after, so the section was reordered to sit below the brand
+      grid instead of above it.
+
+      Separately, FAQ's "no back button" traced to the Footer's Home/service
+      links being `href="#home"` same-page anchors that only ever worked
+      because Footer always used to render on the Home page itself (with a
+      matching `id="home"` and a live `onServiceChange` handler) - once
+      Footer rendered on FAQ too, both silently no-op'd. Fixed at the root:
+      Footer now uses real router navigation (service links hand off the
+      target service type through router state, which Home reads once to
+      select the right tab), and the header logo/brand name is now a real
+      link back to `/home` on every page - the standard "click the logo"
+      affordance that was missing entirely. Also fixed a real React bug
+      found while wiring this: a ref was being mutated from inside a
+      `setState` updater, which worked in production but silently discarded
+      the requested service tab in dev, because React 18 StrictMode
+      intentionally double-invokes updaters to catch exactly that.
+
+      All verified live before pushing: alignment now matches the brand grid,
+      clicking a best-seller scrolls to and briefly highlights the exact
+      product (auto-expanding its category past the pagination cutoff if
+      needed), section order matches the reference apps, the header logo and
+      every footer link correctly navigate from FAQ, and the Pay Bills
+      footer link both navigates home and selects the right tab. Frontend
+      suite re-run clean after each change - same pre-existing failures
+      only. (`0ba0fd8`, `11a31bf`, `64183b2`)
 - [x] **Catalog-backed menu pages rendered every product into the DOM at
       once, no pagination** (found during the pre-defense audit, 9/23, via
       direct measurement - Jollibee's 121-product catalog queued 121 image
