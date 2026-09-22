@@ -23,3 +23,9 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# customer-submitted bill payment receipts/proofs - never source-controlled
+# content, unlike admin-curated brand/product catalog images which stay
+# tracked since this project has no separate image hosting yet
+/laravel/public/uploads/bill-documents/*
+!/laravel/public/uploads/bill-documents/.gitkeep

@@ -81,7 +81,17 @@ export const RestaurantMenu = ({
   const [isLoading, setIsLoading] = useState(!menuItems);
   const [deliveryLocation, setDeliveryLocation] = useState('');
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const customerType = getSessionUser()?.userType || 'non_student';
+
+  // Menu pages are one long scroll through every category (GrabFood has the
+  // same structure and the same usability gap per the research in TODO.md) -
+  // this is the only way back up besides manually scrolling.
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 600);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   useEffect(() => {
     if (menuItems) {
@@ -350,6 +360,17 @@ export const RestaurantMenu = ({
           <button type="button" className="jollibee-checkout" disabled={!cart.length} onClick={checkoutCart}>Place Order {itemCount > 0 && `(${itemCount})`}</button>
         </aside>
       </div>
+
+      {showBackToTop && (
+        <button
+          type="button"
+          className="jollibee-back-to-top"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          aria-label="Back to top"
+        >
+          <i className="fa-solid fa-arrow-up" aria-hidden="true" />
+        </button>
+      )}
     </main>
   );
 };

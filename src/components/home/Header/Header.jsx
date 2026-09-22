@@ -46,13 +46,15 @@ const Header = ({
           </div>
         </div>
       </div>
-      <nav className="header-service-nav" aria-label="Customer services">
-        <ServiceNavigation
-          selectedService={selectedService}
-          onServiceChange={onServiceChange}
-          services={services}
-        />
-      </nav>
+      {services?.length > 0 && (
+        <nav className="header-service-nav" aria-label="Customer services">
+          <ServiceNavigation
+            selectedService={selectedService}
+            onServiceChange={onServiceChange}
+            services={services}
+          />
+        </nav>
+      )}
     </header>
   );
 };

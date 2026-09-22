@@ -559,6 +559,13 @@ select.input-field {
     width: 100%;
   }
 
+  /* Form first on phone screens - the decorative welcome card was pushing
+     the actual email/password fields below the fold. Purely visual (flex
+     order), markup/tab order unchanged. */
+  .auth-right {
+    order: -1;
+  }
+
   .logo-section {
     padding: 2rem 1.5rem;
   }

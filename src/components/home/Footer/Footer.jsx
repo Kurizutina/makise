@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { FaFacebook } from 'react-icons/fa';
 import './Footer.css';
 
@@ -18,6 +19,7 @@ const Footer = ({ onServiceChange }) => (
           <li><a href="#home" onClick={() => onServiceChange('food')}>Food Delivery</a></li>
           <li><a href="#home" onClick={() => onServiceChange('item')}>Item Delivery</a></li>
           <li><a href="#home" onClick={() => onServiceChange('bills')}>Pay Bills</a></li>
+          <li><Link to="/faq">FAQ</Link></li>
         </ul>
       </nav>
 

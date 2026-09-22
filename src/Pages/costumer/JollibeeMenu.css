@@ -451,6 +451,37 @@
   display: none;
 }
 
+.jollibee-back-to-top {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 95;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: #da1c5c;
+  color: #fff;
+  font-size: 16px;
+  box-shadow: 0 8px 22px rgba(93, 9, 39, 0.3);
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.jollibee-back-to-top:hover {
+  background: #a71243;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 760px) {
+  .jollibee-back-to-top {
+    right: 14px;
+    bottom: 88px;
+  }
+}
+
 .jollibee-empty-cart {
   display: flex;
   flex-direction: column;

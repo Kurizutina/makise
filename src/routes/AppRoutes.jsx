@@ -20,6 +20,7 @@ import CustomerBrowseRoute from './CustomerBrowseRoute';
 import RiderDashboard from '../Pages/rider/RiderDashboard';
 import DeliveryAdminDashboard from '../Pages/admin/DeliveryAdminDashboard';
 import CatalogBrandMenu from '../Pages/costumer/CatalogBrandMenu';
+import FAQ from '../Pages/costumer/FAQ';
 
 const AppRoutes = () => {
   return (
@@ -75,6 +76,8 @@ const AppRoutes = () => {
             path="/food/mang-inasal"
             element={<CatalogNameRedirect brandName="Mang Inasal" />}
           />
+
+          <Route path="/faq" element={<FAQ />} />
         </Route>
 
         <Route element={<ProtectedRoute role="driver" />}>
