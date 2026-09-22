@@ -301,6 +301,7 @@ const AuthPage = ({ mode }) => {
       onToggleMode={handleToggleMode}
 
       onForgotPassword={() => navigate('/forgot-password')}
+      onBrowseAsGuest={() => navigate('/home')}
 
       onEmailChange={(e) =>
         setEmail(e.target.value)

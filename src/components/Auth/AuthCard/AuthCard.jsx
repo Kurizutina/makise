@@ -25,6 +25,7 @@ const AuthCard = ({
   onRoleChange,
   onToggleMode,
   onForgotPassword,
+  onBrowseAsGuest,
 
   onEmailChange,
   onPasswordChange,
@@ -232,6 +233,12 @@ const AuthCard = ({
             )}
 
           </div>
+
+          {mode === 'login' && (
+            <button type="button" className="auth-secondary-link" onClick={onBrowseAsGuest}>
+              Browse the menu without an account
+            </button>
+          )}
 
         </div>
 
