@@ -27,10 +27,17 @@ const statusLabels = {
   out_for_delivery: 'Out for delivery', delivered: 'Delivered', cancelled: 'Cancelled'
 };
 
-const PaymentDocument = ({ url, name, type, label }) => {
+const PaymentDocument = ({ url, name, type, label, onZoom }) => {
   if (!url) return null;
   const isPdf = type === 'application/pdf' || /\.pdf(?:$|\?)/i.test(url);
-  return <a className="rider-payment-image" href={url} target="_blank" rel="noreferrer">{isPdf ? <span className="rider-payment-file"><i className="fa-solid fa-file-pdf" /></span> : <img src={url} alt={`Uploaded ${label}: ${name || 'document'}`} />}<span>{label}: {name || 'View document'}<small>Open to view</small></span></a>;
+  const alt = `Uploaded ${label}: ${name || 'document'}`;
+  // A PDF can't be zoomed as an image - that case still opens in a new tab
+  // (browsers render PDFs natively there). An image now zooms in place
+  // instead, so reviewing it doesn't navigate the rider away from the order.
+  if (isPdf) {
+    return <a className="rider-payment-image" href={url} target="_blank" rel="noreferrer"><span className="rider-payment-file"><i className="fa-solid fa-file-pdf" /></span><span>{label}: {name || 'View document'}<small>Open to view</small></span></a>;
+  }
+  return <button type="button" className="rider-payment-image" onClick={() => onZoom({ url, alt })}><img src={url} alt={alt} /><span>{label}: {name || 'View document'}<small>Tap to zoom</small></span></button>;
 };
 
 const formatEstimatedWait = (order, now) => {
@@ -71,6 +78,7 @@ const RiderDashboard = () => {
   const orders = useMemo(() => applyBackendTruth(localOrders, backendOrdersById), [localOrders, backendOrdersById]);
   const [activeSection, setActiveSection] = useState('food');
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [zoomedImage, setZoomedImage] = useState(null);
   const [now, setNow] = useState(Date.now());
   const selectedOrder = orders.find((order) => order.id === selectedOrderId);
   const sectionOrders = useMemo(() => orders.filter((order) => inferSection(order) === activeSection), [activeSection, orders]);
@@ -81,6 +89,13 @@ const RiderDashboard = () => {
     const countdown = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(countdown);
   }, []);
+
+  useEffect(() => {
+    if (!zoomedImage) return undefined;
+    const closeOnEscape = (event) => { if (event.key === 'Escape') setZoomedImage(null); };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [zoomedImage]);
 
   const logout = () => {
     clearSession();
@@ -138,7 +153,7 @@ const RiderDashboard = () => {
             {!!selectedOrder.items?.length ? (
               <div className="rider-detail-items"><h3>Items placed</h3><ul>{selectedOrder.items.map((item, index) => <li key={item.cartId || item.id || index}><div><strong>{item.name || `Item ${index + 1}`}</strong>{item.selectedOption && <span>{item.selectedOption}</span>}</div><b>×{item.quantity || 1}</b></li>)}</ul></div>
             ) : (
-              <div className="rider-detail-items"><h3>Payment request</h3><p>Payment status: <strong>{selectedOrder.details?.paymentStatus || 'pending'}</strong>. Review the uploaded documents before proceeding.</p><PaymentDocument url={selectedOrder.details?.billReceiptUrl} name={selectedOrder.details?.billReceiptName} type={selectedOrder.details?.billReceiptType} label="Receipt" /><PaymentDocument url={selectedOrder.details?.transferProofUrl} name={selectedOrder.details?.transferProofName} type={selectedOrder.details?.transferProofType} label="Proof of payment" /></div>
+              <div className="rider-detail-items"><h3>Payment request</h3><p>Payment status: <strong>{selectedOrder.details?.paymentStatus || 'pending'}</strong>. Review the uploaded documents before proceeding.</p><PaymentDocument url={selectedOrder.details?.billReceiptUrl} name={selectedOrder.details?.billReceiptName} type={selectedOrder.details?.billReceiptType} label="Receipt" onZoom={setZoomedImage} /><PaymentDocument url={selectedOrder.details?.transferProofUrl} name={selectedOrder.details?.transferProofName} type={selectedOrder.details?.transferProofType} label="Proof of payment" onZoom={setZoomedImage} /></div>
             )}
 
             {selectedOrder.details?.fulfillmentMethod === 'pickup' && <div className="rider-recipient"><h3>Pick Up recipient</h3><p><strong>{selectedOrder.details.recipientName}</strong> · {selectedOrder.details.recipientContact}</p><span>{selectedOrder.details.deliveryAddress}</span></div>}
@@ -149,6 +164,13 @@ const RiderDashboard = () => {
               {['delivered', 'cancelled'].includes(selectedOrder.status) && <button type="button" className="rider-close-order" onClick={() => setSelectedOrderId(null)}>Close</button>}
             </div>
           </section>
+        </div>
+      )}
+
+      {zoomedImage && (
+        <div className="rider-image-zoom-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setZoomedImage(null); }}>
+          <button type="button" className="rider-image-zoom-close" onClick={() => setZoomedImage(null)} aria-label="Close">×</button>
+          <img src={zoomedImage.url} alt={zoomedImage.alt} />
         </div>
       )}
     </main>
