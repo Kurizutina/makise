@@ -57,6 +57,41 @@ class OrderApiTest extends TestCase
         ]);
     }
 
+    public function test_order_persists_service_fee_and_adds_it_to_total(): void
+    {
+        $customer = $this->user('customer');
+        $product = $this->product(price: 150);
+
+        $response = $this->withToken($this->token($customer))->postJson('/api/orders', [
+            'items' => [['ProductID' => $product->ProductID, 'quantity' => 2]],
+            'deliveryAddress' => '123 Test Street',
+            'serviceFee' => 112.5,
+        ])->assertCreated();
+
+        $this->assertEquals(412.5, (float) $response->json('order.TotalPrice'));
+        $this->assertDatabaseHas('Orders', [
+            'UserID' => $customer->UserID, 'TotalPrice' => 412.5, 'ServiceFee' => 112.5,
+        ]);
+    }
+
+    public function test_order_rejects_a_service_fee_outside_the_sane_range(): void
+    {
+        $customer = $this->user('customer');
+        $product = $this->product();
+
+        $this->withToken($this->token($customer))->postJson('/api/orders', [
+            'items' => [['ProductID' => $product->ProductID, 'quantity' => 1]],
+            'deliveryAddress' => '123 Test Street',
+            'serviceFee' => -5,
+        ])->assertUnprocessable();
+
+        $this->withToken($this->token($customer))->postJson('/api/orders', [
+            'items' => [['ProductID' => $product->ProductID, 'quantity' => 1]],
+            'deliveryAddress' => '123 Test Street',
+            'serviceFee' => 9999,
+        ])->assertUnprocessable();
+    }
+
     public function test_order_rejects_inactive_or_missing_products(): void
     {
         $customer = $this->user('customer');
@@ -218,5 +253,44 @@ class OrderApiTest extends TestCase
         $this->withToken($this->token($admin))->patchJson("/api/orders/{$order->OrderID}/status", [
             'status' => 'cancelled',
         ])->assertUnprocessable();
+    }
+
+    // Reproduces the actual bug: the admin dashboard used to derive "total
+    // revenue" by summing whichever page of orders it had loaded for
+    // display (capped at 50, per_page=50). Create more than 50 real orders
+    // so a fix that's still secretly bounded by that same page size would
+    // get caught here, then confirm the endpoint's total matches every
+    // order's ServiceFee, not just the most recent 50.
+    public function test_admin_revenue_aggregates_every_order_not_just_the_first_page(): void
+    {
+        $customer = $this->user('customer');
+        $admin = $this->user('admin');
+
+        $expectedTotal = 0.0;
+        for ($i = 0; $i < 55; $i++) {
+            $fee = 75.0;
+            $expectedTotal += $fee;
+            Order::create([
+                'UserID' => $customer->UserID, 'TotalPrice' => 100 + $fee, 'ServiceFee' => $fee,
+                'DeliveryStatus' => 'delivered',
+            ]);
+        }
+        // A cancelled order's fee must not count toward revenue.
+        Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 175, 'ServiceFee' => 75, 'DeliveryStatus' => 'cancelled']);
+
+        $response = $this->withToken($this->token($admin))->getJson('/api/admin/revenue')->assertOk();
+
+        $this->assertEquals($expectedTotal, (float) $response->json('total'));
+        $this->assertEquals(55, $response->json('orderCount'));
+    }
+
+    public function test_only_admin_can_view_revenue(): void
+    {
+        $customer = $this->user('customer');
+        $driver = $this->user('driver');
+
+        $this->withToken($this->token($customer))->getJson('/api/admin/revenue')->assertForbidden();
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token($driver))->getJson('/api/admin/revenue')->assertForbidden();
     }
 }

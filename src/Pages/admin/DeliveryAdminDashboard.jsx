@@ -49,8 +49,6 @@ const getOrderTotal = (order) => (order.items || []).reduce(
   0
 );
 
-const getOrderServiceFee = (order) => Number(order.serviceFee ?? order.details?.serviceFee ?? 0) || 0;
-
 const getItemSummary = (order) => {
   if (!order.items?.length) return order.details?.billReceiptName || 'Bill payment request';
   return order.items.map((item) => `${item.quantity || 1}× ${item.name || 'Custom item'}`).join(', ');
@@ -157,17 +155,37 @@ const HistoryTab = ({ orders }) => {
   </section>;
 };
 
-const RevenueTab = ({ orders }) => {
-  const accepted = orders.filter((order) => order.status !== 'cancelled');
-  const totals = Object.keys(SERVICE_META).reduce((result, service) => ({
-    ...result,
-    [service]: accepted.filter((order) => inferService(order) === service).reduce((sum, order) => sum + getOrderServiceFee(order), 0)
-  }), {});
-  const grandTotal = Object.values(totals).reduce((sum, value) => sum + value, 0);
+// Revenue used to be derived by summing whatever page of `orders` the
+// dashboard already had loaded for display - correct-looking, but silently
+// wrong once total order volume passed the 50-per-page cap that list is
+// fetched with. This now calls the dedicated backend endpoint
+// (OrderController::revenue) that aggregates over every non-cancelled order
+// in the table, not just the ones currently in view.
+const RevenueTab = () => {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    const controller = new AbortController();
+    const api = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    fetch(`${api}/api/admin/revenue`, {
+      headers: { Authorization: `Bearer ${sessionStorage.getItem('otuzanAuthenticated')}` },
+      signal: controller.signal
+    })
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then(setData)
+      .catch(() => { if (!controller.signal.aborted) setError('Unable to load revenue right now. Try again shortly.'); });
+    return () => controller.abort();
+  }, []);
+
+  if (error) return <section><div className="admin-table-empty">{error}</div></section>;
+  if (!data) return <section><div className="admin-table-empty">Loading revenue…</div></section>;
+
+  const totals = data.byService || {};
+  const grandTotal = data.total || 0;
   const maximum = Math.max(...Object.values(totals), 1);
   return <section>
-    <div className="admin-stat-grid"><div className="admin-stat-card featured"><span>Total recorded revenue</span><strong>{formatCurrency(grandTotal)}</strong></div>{Object.entries(SERVICE_META).map(([key, meta]) => <div className="admin-stat-card" key={key}><span>{meta.label}</span><strong style={{ color: meta.color }}>{formatCurrency(totals[key])}</strong></div>)}</div>
-    <div className="admin-analytics-card"><h2>Revenue by service</h2><p>Calculated only from the delivery or service fee saved with each non-cancelled order.</p><div className="admin-revenue-bars">{Object.entries(SERVICE_META).map(([key, meta]) => <div key={key}><span>{meta.label}</span><div><i style={{ width: `${(totals[key] / maximum) * 100}%`, background: meta.color }} /></div><strong>{formatCurrency(totals[key])}</strong></div>)}</div></div>
+    <div className="admin-stat-grid"><div className="admin-stat-card featured"><span>Total recorded revenue</span><strong>{formatCurrency(grandTotal)}</strong></div>{Object.entries(SERVICE_META).map(([key, meta]) => <div className="admin-stat-card" key={key}><span>{meta.label}</span><strong style={{ color: meta.color }}>{formatCurrency(totals[key] || 0)}</strong></div>)}</div>
+    <div className="admin-analytics-card"><h2>Revenue by service</h2><p>Calculated from the delivery or service fee on every non-cancelled order on record, not just what's currently loaded.</p><div className="admin-revenue-bars">{Object.entries(SERVICE_META).map(([key, meta]) => <div key={key}><span>{meta.label}</span><div><i style={{ width: `${((totals[key] || 0) / maximum) * 100}%`, background: meta.color }} /></div><strong>{formatCurrency(totals[key] || 0)}</strong></div>)}</div></div>
   </section>;
 };
 
@@ -414,7 +432,7 @@ const DeliveryAdminDashboard = () => {
       {riderError && <p role="alert">{riderError}</p>}
       {activeTab === 'live' && <LiveOrdersTab orders={orders} onAssign={assignOrderToRider} onStatus={updateOrderStatus} riders={riders} />}
       {activeTab === 'history' && <HistoryTab orders={orders} />}
-      {activeTab === 'revenue' && <RevenueTab orders={orders} />}
+      {activeTab === 'revenue' && <RevenueTab />}
       {activeTab === 'payments' && <PaymentsTab orders={orders} onPaymentStatus={updatePaymentStatus} />}
       {activeTab === 'catalog' && <CatalogTab />}
       {activeTab === 'riders' && <AccountManagementTab role="driver" onAccountsChanged={() => setRiderRefresh((count) => count + 1)} />}

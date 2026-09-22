@@ -191,17 +191,22 @@ test('backend rider lookup failure prevents assigning an unavailable rider', asy
   expect(saved().orders[0].assignedRider).toBeUndefined();
 });
 
-test('revenue reports saved delivery fees rather than product prices', async () => {
+test('revenue tab renders the backend-aggregated total, not a locally-derived one', async () => {
   signIn(1, 'admin');
-  localStorage.setItem('otuzanCustomerActivity', JSON.stringify({ orders: [{
-    ...order,
-    status: 'delivered',
-    serviceFee: 65,
-    items: [{ id: 'expensive-item', name: 'Large order', price: 950, quantity: 1 }]
-  }], cart: [], notifications: [] }));
+  // Revenue used to be summed client-side from whatever page of orders the
+  // dashboard already had loaded (capped, per_page=50) - now it's a real
+  // fetch to OrderController::revenue, which aggregates every order.
+  // Route the shared fetch mock by URL so this test can hand back a
+  // deliberately different number from what any local order implies,
+  // proving the tab renders the backend's figure, not a recomputed one.
+  global.fetch.mockImplementation((url) => Promise.resolve({
+    ok: true,
+    json: async () => (String(url).includes('/api/admin/revenue')
+      ? { total: 65, byService: { food: 65, item: 0, bills: 0 }, daily: [], orderCount: 1 }
+      : { riders: [] })
+  }));
   render(<CustomerActivityProvider><DeliveryAdminDashboard /></CustomerActivityProvider>);
   fireEvent.click(screen.getByRole('button', { name: 'Revenue' }));
-  const revenueCard = screen.getByText('Total recorded revenue').parentElement;
-  expect(revenueCard).toHaveTextContent('₱65.00');
-  expect(revenueCard).not.toHaveTextContent('₱950.00');
+  const revenueCard = await screen.findByText('Total recorded revenue');
+  expect(revenueCard.parentElement).toHaveTextContent('₱65.00');
 });

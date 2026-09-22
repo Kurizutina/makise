@@ -29,12 +29,15 @@ class PaymentController extends Controller
             'billReceiptName' => ['nullable', 'string', 'max:255'],
             'transferProofUrl' => ['nullable', 'string', 'max:500'],
             'transferProofName' => ['nullable', 'string', 'max:255'],
+            'serviceFee' => ['nullable', 'numeric', 'min:0', 'max:500'],
         ]);
 
         $payment = DB::transaction(function () use ($data, $request) {
+            $serviceFee = (float) ($data['serviceFee'] ?? 0);
             $order = Order::create([
                 'UserID' => $request->user()->UserID,
-                'TotalPrice' => $data['amount'] ?? 0,
+                'TotalPrice' => ($data['amount'] ?? 0) + $serviceFee,
+                'ServiceFee' => $serviceFee,
                 'OrderDate' => now(),
                 'DeliveryAddress' => null,
                 'DeliveryStatus' => 'pending_rider',

@@ -41,6 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/notifications/read', [NotificationController::class, 'markAllRead']);
     Route::middleware('permission:orders.manage')->group(function () {
         Route::get('/admin/orders', [OrderController::class, 'indexAll']);
+        Route::get('/admin/revenue', [OrderController::class, 'revenue']);
         Route::patch('/orders/{order}/assign', [OrderController::class, 'assign']);
         Route::patch('/payments/{payment}/status', [PaymentController::class, 'updateStatus']);
     });

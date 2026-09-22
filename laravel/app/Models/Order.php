@@ -11,7 +11,7 @@ class Order extends Model
     protected $table = 'Orders';
     protected $primaryKey = 'OrderID';
     public $timestamps = false;
-    protected $fillable = ['UserID', 'AssignedRiderID', 'TotalPrice', 'OrderDate', 'DeliveryAddress', 'DeliveryStatus'];
+    protected $fillable = ['UserID', 'AssignedRiderID', 'TotalPrice', 'ServiceFee', 'OrderDate', 'DeliveryAddress', 'DeliveryStatus'];
 
     public function user(): BelongsTo { return $this->belongsTo(User::class, 'UserID'); }
     public function rider(): BelongsTo { return $this->belongsTo(User::class, 'AssignedRiderID'); }

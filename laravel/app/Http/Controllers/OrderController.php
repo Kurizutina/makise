@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Product;
@@ -22,18 +23,19 @@ class OrderController extends Controller
             'items.*.ProductID' => ['required', 'integer', 'distinct', 'exists:Product,ProductID'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],
             'deliveryAddress' => ['required', 'string', 'max:2000'],
+            'serviceFee' => ['nullable', 'numeric', 'min:0', 'max:500'],
         ]);
 
         $order = DB::transaction(function () use ($data, $request) {
             $productIds = collect($data['items'])->pluck('ProductID');
             $products = Product::whereIn('ProductID', $productIds)->where('IsActive', true)->get()->keyBy('ProductID');
 
-            $totalPrice = 0;
+            $itemsTotal = 0;
             $lineItems = [];
             foreach ($data['items'] as $item) {
                 $product = $products->get($item['ProductID']);
                 abort_unless($product, 422, 'One or more items are no longer available.');
-                $totalPrice += $product->ProductPrice * $item['quantity'];
+                $itemsTotal += $product->ProductPrice * $item['quantity'];
                 $lineItems[] = [
                     'ProductID' => $product->ProductID,
                     'OrderItemPrice' => $product->ProductPrice,
@@ -41,9 +43,12 @@ class OrderController extends Controller
                 ];
             }
 
+            $serviceFee = (float) ($data['serviceFee'] ?? 0);
+
             $order = Order::create([
                 'UserID' => $request->user()->UserID,
-                'TotalPrice' => $totalPrice,
+                'TotalPrice' => $itemsTotal + $serviceFee,
+                'ServiceFee' => $serviceFee,
                 'OrderDate' => now(),
                 'DeliveryAddress' => $data['deliveryAddress'],
                 'DeliveryStatus' => 'pending_rider',
@@ -89,6 +94,51 @@ class OrderController extends Controller
         $paginated = $query->paginate($perPage);
         $this->attachQueuePositions($paginated);
         return response()->json($paginated);
+    }
+
+    // Computes revenue directly from every non-cancelled order in the table,
+    // not from whatever page the admin dashboard happens to have loaded -
+    // indexAll()/the frontend used to derive "total revenue" by summing the
+    // capped, paginated order list it already had for display, so once order
+    // volume passed the 50-per-page cap, older orders silently fell out of
+    // the total. Revenue is the ServiceFee column (the delivery/service
+    // charge Otu-Zan actually earns), matching what the dashboard already
+    // showed - never the item subtotal or a bill's pass-through amount.
+    // Calendar-day bucketing uses Asia/Manila (UTC+8) since OrderDate is
+    // stored in UTC (config('app.timezone')) - a raw UTC-midnight boundary
+    // would flip an order into "yesterday" mid-afternoon local time.
+    public function revenue(): JsonResponse
+    {
+        $timezone = 'Asia/Manila';
+        $orders = Order::with(['items.product.brand.service', 'payments'])
+            ->where('DeliveryStatus', '!=', 'cancelled')
+            ->get();
+
+        $daily = [];
+        $byService = ['food' => 0.0, 'item' => 0.0, 'bills' => 0.0];
+        $total = 0.0;
+
+        foreach ($orders as $order) {
+            $fee = (float) $order->ServiceFee;
+            $total += $fee;
+
+            $date = Carbon::parse($order->OrderDate, 'UTC')->setTimezone($timezone)->toDateString();
+            $daily[$date] = ($daily[$date] ?? 0) + $fee;
+
+            $service = $order->payments->isNotEmpty()
+                ? 'bills'
+                : ($order->items->first()?->product?->brand?->service?->ServiceType === 'item' ? 'item' : 'food');
+            $byService[$service] = ($byService[$service] ?? 0) + $fee;
+        }
+
+        ksort($daily);
+
+        return response()->json([
+            'total' => round($total, 2),
+            'byService' => array_map(fn ($value) => round($value, 2), $byService),
+            'daily' => collect($daily)->map(fn ($value, $date) => ['date' => $date, 'revenue' => round($value, 2)])->values(),
+            'orderCount' => $orders->count(),
+        ]);
     }
 
     // Position is computed fresh on every request from the actual set of

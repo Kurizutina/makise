@@ -52,12 +52,6 @@ export const useBackendOrders = (endpoint) => {
 // staff would see nothing a customer placed from their own device, despite
 // the backend having the real data all along.
 //
-// serviceFee is a known gap, not an oversight: the delivery/service fee is
-// computed entirely client-side (utils/deliveryRates.js) and never sent to
-// or stored by the backend - Orders.TotalPrice is just the product total.
-// A synthesized order has no way to recover it, so revenue totals that
-// include cross-device orders will undercount until the backend persists
-// it too (tracked in TODO.md).
 const toLocalOrderShape = (backend) => {
   const payment = backend.payments?.[0];
   const isBill = Boolean(payment);
@@ -97,7 +91,7 @@ const toLocalOrderShape = (backend) => {
     status: backend.DeliveryStatus,
     assignedRider: backend.rider ? { id: backend.rider.UserID, name: backend.rider.UserName } : null,
     queuePosition: backend.queuePosition ?? null,
-    serviceFee: 0,
+    serviceFee: Number(backend.ServiceFee) || 0,
     createdAt: toUtcIso(backend.OrderDate),
     updatedAt: toUtcIso(backend.OrderDate)
   };

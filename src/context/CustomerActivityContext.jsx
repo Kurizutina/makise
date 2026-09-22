@@ -51,7 +51,7 @@ const patchStoredOrder = (localOrderId, patch) => {
 // (offline, backend down, brand not yet migrated) changes nothing the
 // customer sees. On success, patches the returned backend OrderID onto the
 // local order so later status/assignment changes can also be synced.
-const syncOrderToBackend = (localOrderId, items, deliveryAddress) => {
+const syncOrderToBackend = (localOrderId, items, deliveryAddress, serviceFee = 0) => {
   try {
     if (!items?.length || !items.every((item) => Number.isInteger(item.productId))) return;
     const headers = authHeaders();
@@ -61,7 +61,8 @@ const syncOrderToBackend = (localOrderId, items, deliveryAddress) => {
       headers,
       body: JSON.stringify({
         items: items.map((item) => ({ ProductID: item.productId, quantity: item.quantity || 1 })),
-        deliveryAddress: deliveryAddress || 'Not provided'
+        deliveryAddress: deliveryAddress || 'Not provided',
+        serviceFee: Number(serviceFee) || 0
       })
     })
       .then((response) => (response.ok ? response.json() : null))
@@ -101,7 +102,7 @@ const syncAssignmentToBackend = (backendOrderId, riderId) => {
 // OrderID (so status/assignment sync/override still work like any other
 // order) and the PaymentID (so payment verify/reject can be synced too)
 // onto the local order.
-const syncPaymentToBackend = (localOrderId, details) => {
+const syncPaymentToBackend = (localOrderId, details, serviceFee = 0) => {
   try {
     const headers = authHeaders();
     if (!headers || getSessionUser()?.role !== 'customer' || !details) return;
@@ -113,7 +114,8 @@ const syncPaymentToBackend = (localOrderId, details) => {
         billReceiptUrl: details.billReceiptUrl || null,
         billReceiptName: details.billReceiptName || null,
         transferProofUrl: details.transferProofUrl || null,
-        transferProofName: details.transferProofName || null
+        transferProofName: details.transferProofName || null,
+        serviceFee: Number(serviceFee) || 0
       })
     })
       .then((response) => (response.ok ? response.json() : null))
@@ -347,9 +349,9 @@ export const CustomerActivityProvider = ({ children }) => {
     };
     updateAll(cart, [order, ...orders], [notification, ...notifications]);
     if (section === 'bills') {
-      syncPaymentToBackend(order.id, details);
+      syncPaymentToBackend(order.id, details, order.serviceFee);
     } else {
-      syncOrderToBackend(order.id, items, customer.customerAddress);
+      syncOrderToBackend(order.id, items, customer.customerAddress, order.serviceFee);
     }
     return order;
   });
@@ -402,7 +404,7 @@ export const CustomerActivityProvider = ({ children }) => {
     }));
     const nextCart = source ? cart.filter((item) => item.source !== source) : [];
     updateAll(nextCart, [...newOrders, ...orders], [...newNotifications, ...notifications]);
-    newOrders.forEach((order) => syncOrderToBackend(order.id, order.items, customer.customerAddress));
+    newOrders.forEach((order) => syncOrderToBackend(order.id, order.items, customer.customerAddress, order.serviceFee));
     return newOrders[0];
   });
 
