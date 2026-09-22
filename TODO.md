@@ -551,10 +551,9 @@ items off as they land.
       assets this project doesn't have), and applying the new tokens to the
       remaining ~16 CSS files that still use raw hex literals directly (that's
       what "Dark mode" below is blocked on, not this item).
-- [ ] **Mobile brand grid should be a fixed 2 columns** (user testing, 9/22) —
-      currently `auto-fit, minmax(min(78px,100%), 84px)` at ≤767px, which packs
-      3+ narrow columns instead. Straightforward CSS change
-      (`FoodandItemsSection.css`).
+- [x] **Mobile brand grid should be a fixed 2 columns** (user testing, 9/22) —
+      changed to `repeat(2, minmax(0,1fr))` at ≤767px. Verified live at 375px.
+      (`f857600`)
 - [ ] **Best-selling products on the customer-facing home page** (user request,
       9/22) — needs a backend aggregation (top products by order count/quantity,
       likely windowed to a recent period so it reflects current demand, not
@@ -566,37 +565,48 @@ items off as they land.
       timestamp to key off (Eloquent's default `created_at` likely already
       exists but hasn't been checked), then a badge/section for items added
       within some recency window.
-- [ ] **FAQ / static answers for the most commonly asked questions about the
-      system** (user request, 9/22) — pure content, no backend. Cheap to add,
-      genuine value for a public-facing site with no support staff behind it.
-- [ ] **Category selection when adding a product (admin)** (user request, 9/22;
-      traced 9/22 during a full QA pass) — cheaper to finish than to build: the
-      backend already has `GET /api/admin/catalog/categories?brand_id=X`
-      (returns that brand's existing categories), and `CatalogTab`
-      (`DeliveryAdminDashboard.jsx`) already fetches it into a `categories`
-      state and even computes a merged `categoryOptions` list - but nothing
-      ever renders it. The product Add/Edit form has Brand, Price, Image, and
-      Description fields only; no category field at all, dead code sitting
-      right next to where it's needed. Just needs a `<select>` wired to
-      `form.category` (confirm the exact `Product` column name) added to the
-      existing product-form JSX using the `categoryOptions` that's already
-      computed. Avoids typo'd near-duplicate categories fragmenting the sticky
-      category-nav chips added above.
-- [ ] **"Remember me" on login** (user request, 9/22) — remember the email (or
+- [x] **FAQ / static answers for the most commonly asked questions about the
+      system** (user request, 9/22) — new `/faq` page (guest-accessible),
+      linked from the footer. 8 real questions grounded in actual system
+      behavior (flat ₱75 delivery fee + night surcharge, COD vs. Pay Bills'
+      receipt-verification flow, self-cancel window, tracking), not generic
+      filler. (`f857600`)
+- [x] **Category selection when adding a product (admin)** (user request, 9/22;
+      traced 9/22 during a full QA pass) — turned out to be dead code sitting
+      right next to where it was needed: the backend already had
+      `GET /api/admin/catalog/categories?brand_id=X`, and `CatalogTab` already
+      fetched it into a `categoryOptions` list, but nothing ever rendered it -
+      the product form just had a plain "Description" textarea (which is
+      actually the field the customer-facing sticky category nav groups by).
+      Replaced it with an `<input list="admin-category-options">` +
+      `<datalist>` for products specifically, labeled "Category," pre-filled
+      with the product's real existing value. Verified live editing a real
+      McDonald's product: correctly pre-filled ("Rice Bowls") with all 16 of
+      that brand's actual categories offered as suggestions. (`ab2df5e`)
+- [x] **"Remember me" on login** (user request, 9/22) — remember the email (or
       extend the session token's persistence via an explicit opt-in,
       `sessionStorage` → `localStorage`), never the password. Caching a raw
       password client-side for autofill convenience is a credential-exposure
       risk, not a UX nice-to-have - out of scope regardless of how it's asked
-      for.
-- [ ] **Reject disposable/mass-produced emails at signup** (user request, 9/22)
+      for. Implemented as remember-the-email via `localStorage`, pre-fills
+      and pre-checks on return to the login screen; unchecking on a
+      subsequent login clears it. Verified live end-to-end both ways.
+      (`27f54d9`)
+- [x] **Reject disposable/mass-produced emails at signup** (user request, 9/22)
       — two tiers, needs a decision on which: (a) cheap, no infra - block
       registration against a maintained disposable-email-domain list
       (mailinator.com, guerrillamail.com, etc.); (b) proper - real email
       verification (send a confirmation link via Laravel Mail, block login
       until clicked), which requires wiring up an actual SMTP sender (Gmail/
-      Mailtrap) for local dev, since nothing sends mail today. Recommend
-      starting with (a); treat (b) as a stretch goal since capstone
-      environments rarely have a real mail server configured.
+      Mailtrap) for local dev, since nothing sends mail today. Went with (a) -
+      Laravel Mail/PasswordResetMail already exist and MAIL_MAILER is
+      configured for Gmail SMTP, but MAIL_PASSWORD is blank, so (b) doesn't
+      actually work yet regardless and isn't this session's call to fix
+      unilaterally (needs the team's own Gmail app password). Added a
+      maintained denylist checked at registration, case-insensitive exact-
+      domain match. Backend test added covering the reject case, case-
+      insensitivity, and the "notmailinator.com" substring false-positive
+      guard. Verified live against the real running backend. (`363b141`)
 - [ ] *(Needs clarification before scoping)* **"Make it OOP"** (user request,
       9/22) — as stated this doesn't map to a concrete change. The Laravel
       backend already is OOP (Eloquent models, controller classes) - nothing to
@@ -625,14 +635,20 @@ items off as they land.
       header the way foodpanda/Deliveroo were used for the entry-point and hero
       work above, or describe concretely what's not working about the current
       one.
-- [ ] **Sync Jollibee onto the database-driven catalog** (teammate request, 9/20,
-      "add the Jollibee menu") — Jollibee's 30 products already exist in the DB
-      catalog (`Product` table, BrandID 1) via the admin Brand & Service Catalog
-      manager, but the customer-facing `/food/jollibee` page is hardcoded to a
-      static file (`jollibeeMenuData.js`) instead of pulling from that catalog the
-      way Manuela's does. Admin edits to Jollibee's catalog currently have zero
-      effect on what customers see. Likely fix: route Jollibee through the same
-      dynamic `CatalogBrandMenu` component the database-driven brands already use.
+- [x] **Sync Jollibee onto the database-driven catalog** (teammate request, 9/20,
+      "add the Jollibee menu") — confirmed `/food/jollibee` was already
+      unreachable from normal navigation (Home.jsx's brand click already
+      routed straight to `/catalog/brands/1`), but still live and stale if
+      anyone hit the URL directly. Swapped it to `CatalogNameRedirect`, same
+      pattern the other database-driven brands use; deleted the now-fully-dead
+      `JollibeeMenu.jsx` + `jollibeeMenuData.js` (confirmed unused elsewhere).
+      **Related dead code noticed but out of scope for this item**: the
+      default-exported `McDonaldsMenu` in the same file (fetch-manifest mode,
+      `manifestUrl="/images/Mcdo.../menu-manifest.json"`) is *also* already
+      unreferenced by any route - McDonald's goes through `CatalogNameRedirect`
+      too. Not touched here since it wasn't part of what was asked; worth a
+      follow-up cleanup pass. Verified live: `/food/jollibee` redirects to the
+      real, admin-editable catalog. (`9499a07`)
 - [ ] Delete dead Express backend (`backend/`) + hardcoded access codes in
       `src/config/roles.js` — not currently exploitable (Laravel ignores role/accessCode
       on register), but it's a loaded gun sitting in the repo. **Half-done on disk
@@ -647,17 +663,35 @@ items off as they land.
       backend turns up zero references to that column outside the migration
       itself. Nothing validates it, decrements it, or blocks ordering an
       item that's actually out of stock - a customer can order any quantity
-      of anything regardless of real availability. Not urgent for a capstone
-      demo, but worth a decision: either wire it up for real (validate on
-      order, decrement on confirm) or remove the unused column so the schema
-      doesn't imply inventory tracking that doesn't exist.
-- [ ] Rate limiting on `/uploads/bill-documents` (no throttle currently, upload spam =
-      storage-exhaustion DoS risk).
+      of anything regardless of real availability. **Found the team's own
+      answer already sitting in the repo, unrun**: there's an existing
+      migration, `2026_09_17_000006_remove_product_stock.php`, that drops
+      this exact column - the team already decided "remove it," just never
+      ran that migration against the dev database (it's still there, hence
+      this finding). Left un-run rather than running it unilaterally: that's
+      a real schema change to a live shared database, worth confirming the
+      team still wants before applying.
+- [x] Rate limiting on `/uploads/bill-documents` (no throttle currently, upload spam =
+      storage-exhaustion DoS risk). Added the same 20/min throttle already used
+      on orders/payments. (`ba3cd93`)
 - [ ] Backend test coverage for order/payment flows (best done once 1b–1e exist).
-- [ ] Server-side image compression on admin catalog uploads (mirrors the client-side
-      fix already applied to bill-payment uploads).
-- [ ] **Login page mobile hero (UX)** — decorative "Welcome Back!" card pushes the
-      actual email/password fields below the fold on phone screens.
+- [x] Server-side image compression on admin catalog uploads (mirrors the client-side
+      fix already applied to bill-payment uploads) — implemented in
+      `CatalogController` (cap longest edge at 1280px), keeping the original
+      format instead of forcing JPEG (brand/product images are frequently
+      PNGs with real transparency) and leaving GIFs untouched (avoids
+      flattening an animated logo to one frame). Best-effort: no-ops safely if
+      GD isn't loaded (confirmed to be this machine's actual default - the
+      DLL is present but disabled in both PHP installs' php.ini) or if
+      compression fails for any reason, rather than blocking the save.
+      Verified the real GD calls in isolation, then added a test exercising
+      the full HTTP upload path with a genuine 2000x1500 image - passes with
+      GD enabled, skips itself (not fails) without it. (`b3e867b`)
+- [x] **Login page mobile hero (UX)** — decorative "Welcome Back!" card pushes the
+      actual email/password fields below the fold on phone screens. Reordered
+      via flex `order` (form first on ≤900px) rather than touching markup/tab
+      order. Verified live at 375px - form immediately visible, no scroll
+      needed. (`f857600`)
 - [ ] **Inconsistent empty states (UX)** — Admin's Payments tab has a proper
       icon+heading+subtext empty state; Riders/Customers/Brands tables just show flat
       "No X found." text. Apply the good pattern everywhere. **Confirmed this is worse
@@ -666,8 +700,12 @@ items off as they land.
       `CatalogTab` has no loading state at all, so the empty-table render and the
       "still fetching" state are visually identical. An admin landing on a
       slower connection has no way to tell "empty" from "not done loading yet."
-- [ ] Add `laravel/public/uploads/` to `.gitignore` — found 4 untracked test-upload
-      images sitting in the repo; user-generated uploads shouldn't be tracked.
+- [x] Add `laravel/public/uploads/` to `.gitignore` — scoped to just
+      `bill-documents/*` (customer-submitted receipts), not the whole uploads
+      tree, since `brands/`/`products/` hold admin-curated catalog assets this
+      project still versions in git (no separate image host yet). Untracked
+      the 4 already-committed stray test uploads too, with a `.gitkeep` so the
+      directory itself still exists after a fresh clone. (`f857600`)
 
 ## Low
 
@@ -705,14 +743,14 @@ items off as they land.
       content/photography task (someone needs to actually photograph the dishes),
       not a code fix — but worth prioritizing over purely cosmetic items given it's
       shown to affect whether people order at all.
-- [ ] **"Back to top" control on long menu pages** (web research, 9/21) — GrabFood's
+- [x] **"Back to top" control on long menu pages** (web research, 9/21) — GrabFood's
       menu pages use continuous scrolling through many categories with no way back
       to the top except manually scrolling up, flagged as a usability gap in a UX
       pattern analysis
       ([source](https://rubienguyen.medium.com/grabfood-patterns-and-flows-63f7153f039f)).
-      Otu-Zan's menu pages (Jollibee, McDonald's, Manuela's, etc.) have the exact
-      same structure — multiple category sections in one long scroll, no back-to-top
-      button. Small, low-risk, easy fix.
+      Added a floating button to the shared `RestaurantMenu` component (every
+      catalog-backed brand's menu page gets it for free) - appears after
+      scrolling 600px, scrolls smoothly back to top. Verified live. (`f857600`)
 - [ ] *(Research note)* The same GrabFood UX analysis flags carousel-style browsing
       (swipeable cards) as having low discoverability per NNGroup research — most
       users stop swiping after 3-4 cards. Otu-Zan's category-grouped list layout
@@ -779,13 +817,18 @@ items off as they land.
 - [ ] **Admin table loading state (UX)** — no spinner/skeleton distinguishes "still
       loading" from "genuinely empty," so switching tabs can briefly show a false
       "No X found."
-- [ ] **Flaky time-of-day-dependent test** — `OrderWorkflow.test.jsx` ("direct and
+- [x] **Flaky time-of-day-dependent test** — `OrderWorkflow.test.jsx` ("direct and
       cart orders retain the signed-in customer account ID") calls `placeOrder`
       without freezing time, and `calculateDeliveryFee` defaults to real wall-clock
       time. Fails whenever the suite runs late at night (night surcharge kicks in
-      and the expected `serviceFee` no longer matches). Fix: pass an explicit
-      `orderTime` in the test instead of relying on `new Date()`. Pre-existing,
-      unrelated to any work this session.
+      and the expected `serviceFee` no longer matches). Fixed with explicit fixed
+      timestamps - **and found a second, previously-masked bug while fixing it**:
+      the rapid-repeat-click guard (`isPlacingOrderRef`, added by the adversarial
+      QA pass) was silently blocking the test's second order placement too, since
+      it fires immediately after the first with no elapsed time. Never surfaced
+      before because the test always failed on the time-of-day bug first. Fixed
+      both - full suite now passes (was one of the 5 documented pre-existing
+      failures; frontend suite is now 21/25, not 20/25). (`54b7bbc`)
 - [ ] **6 more pre-existing, stale test failures found 9/21** (via `git stash`
       comparison while verifying steps 1e/1f/the cross-device fix — confirmed
       unrelated to this session's changes, not fixed, just newly documented so
@@ -815,10 +858,8 @@ items off as they land.
       assertions still pass — this is a harmless warning, not a failure — but worth
       cleaning up (e.g. mock `fetch` more precisely per test, or expose a way to flush
       pending syncs in tests) so real leaks don't get lost in the noise later.
-- [ ] **Add `.gitignore` entry for test artifacts** — 4 stray images sit untracked in
-      `laravel/public/uploads/bill-documents/` from earlier live-testing this session.
-      Same fix as the existing `.gitignore` item above; just a reminder they're still
-      there.
+- [x] **Add `.gitignore` entry for test artifacts** — same fix as the
+      `.gitignore` item above, resolved together. (`f857600`)
 
 ## Non-code / academic
 
