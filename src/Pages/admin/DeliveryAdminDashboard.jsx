@@ -172,13 +172,29 @@ const RevenueTab = ({ orders }) => {
 };
 
 const PaymentsTab = ({ orders, onPaymentStatus }) => {
+  const [zoomedImage, setZoomedImage] = useState(null);
+  useEffect(() => {
+    if (!zoomedImage) return undefined;
+    const closeOnEscape = (event) => { if (event.key === 'Escape') setZoomedImage(null); };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [zoomedImage]);
   const payments = orders.filter((order) => inferService(order) === 'bills');
-  return <div className="admin-payment-list">{payments.map((order) => <article className="admin-payment-card" key={order.id}>
-    <div><small>{order.id}</small><OrderCustomerDetails order={order} /><span>{order.source}</span></div>
-    <div><small>Uploaded bill</small><strong>{order.details?.billReceiptName || 'No receipt uploaded'}</strong><span>{order.details?.transferProofName || 'No transfer proof'}</span><div className="admin-payment-documents">{order.details?.billReceiptUrl && <a href={order.details.billReceiptUrl} target="_blank" rel="noreferrer"><img src={order.details.billReceiptUrl} alt="Uploaded bill receipt" /><span>View receipt</span></a>}{order.details?.transferProofUrl && <a href={order.details.transferProofUrl} target="_blank" rel="noreferrer"><img src={order.details.transferProofUrl} alt="Uploaded proof of payment" /><span>View proof</span></a>}{order.details?.billReceiptUrl && <a className="admin-payment-download" href={order.details.billReceiptUrl} download={order.details.billReceiptName || true}>Download receipt</a>}{order.details?.transferProofUrl && <a className="admin-payment-download" href={order.details.transferProofUrl} download={order.details.transferProofName || true}>Download proof</a>}</div></div>
-    <span className={`admin-payment-status ${order.details?.paymentStatus || 'pending'}`}>{order.details?.paymentStatus || 'pending'}</span>
-    {(order.details?.paymentStatus || 'pending') === 'pending' && <div className="admin-payment-actions"><button className="primary" type="button" onClick={() => onPaymentStatus(order, 'verified')}>Verify</button><button type="button" onClick={() => onPaymentStatus(order, 'rejected')}>Reject</button></div>}
-  </article>)}{!payments.length && <div className="admin-page-empty"><i className="fa-solid fa-file-invoice" /><h2>No payment requests</h2><p>Customer bill-payment submissions will appear here.</p></div>}</div>;
+  return <>
+    <div className="admin-payment-list">{payments.map((order) => <article className="admin-payment-card" key={order.id}>
+      <div><small>{order.id}</small><OrderCustomerDetails order={order} /><span>{order.source}</span></div>
+      <div><small>Uploaded bill</small><strong>{order.details?.billReceiptName || 'No receipt uploaded'}</strong><span>{order.details?.transferProofName || 'No transfer proof'}</span><div className="admin-payment-documents">{order.details?.billReceiptUrl && <button type="button" className="admin-payment-thumb" onClick={() => setZoomedImage({ url: order.details.billReceiptUrl, alt: 'Uploaded bill receipt' })}><img src={order.details.billReceiptUrl} alt="Uploaded bill receipt" /><span>View receipt</span></button>}{order.details?.transferProofUrl && <button type="button" className="admin-payment-thumb" onClick={() => setZoomedImage({ url: order.details.transferProofUrl, alt: 'Uploaded proof of payment' })}><img src={order.details.transferProofUrl} alt="Uploaded proof of payment" /><span>View proof</span></button>}</div></div>
+      <span className={`admin-payment-status ${order.details?.paymentStatus || 'pending'}`}>{order.details?.paymentStatus || 'pending'}</span>
+      {(order.details?.paymentStatus || 'pending') === 'pending' && <div className="admin-payment-actions"><button className="primary" type="button" onClick={() => onPaymentStatus(order, 'verified')}>Verify</button><button type="button" onClick={() => onPaymentStatus(order, 'rejected')}>Reject</button></div>}
+    </article>)}{!payments.length && <div className="admin-page-empty"><i className="fa-solid fa-file-invoice" /><h2>No payment requests</h2><p>Customer bill-payment submissions will appear here.</p></div>}</div>
+
+    {zoomedImage && (
+      <div className="admin-image-zoom-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setZoomedImage(null); }}>
+        <button type="button" className="admin-image-zoom-close" onClick={() => setZoomedImage(null)} aria-label="Close">×</button>
+        <img src={zoomedImage.url} alt={zoomedImage.alt} />
+      </div>
+    )}
+  </>;
 };
 
 const CatalogTab = () => {
