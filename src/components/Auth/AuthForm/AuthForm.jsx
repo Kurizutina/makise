@@ -7,6 +7,8 @@ const AuthForm = ({
   confirmPassword,
   accessCode,
   showPassword,
+  rememberMe,
+  onRememberMeChange,
   selectedRole,
   roles,
   username,
@@ -268,6 +270,20 @@ const AuthForm = ({
         </button>
 
       </div>
+
+      {/* Remember me - remembers the email only, never the password */}
+      {!isRegister && (
+        <div className="form-group remember-me-group">
+          <label className="remember-me-label">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={onRememberMeChange}
+            />
+            Remember my email
+          </label>
+        </div>
+      )}
 
       {/* Confirm Password */}
       {isRegister && (

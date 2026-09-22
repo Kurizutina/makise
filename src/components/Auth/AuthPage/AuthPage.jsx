@@ -23,8 +23,13 @@ const AuthPage = ({ mode }) => {
   const [selectedRole, setSelectedRole] =
     useState(ROLES.CUSTOMER.key);
 
+  const REMEMBERED_EMAIL_KEY = 'otuzanRememberedEmail';
+
   const [email, setEmail] =
-    useState('');
+    useState(() => (mode === 'login' ? (localStorage.getItem(REMEMBERED_EMAIL_KEY) || '') : ''));
+
+  const [rememberMe, setRememberMe] =
+    useState(() => (mode === 'login' && Boolean(localStorage.getItem(REMEMBERED_EMAIL_KEY))));
 
   const [password, setPassword] =
     useState('');
@@ -237,6 +242,10 @@ const AuthPage = ({ mode }) => {
         ? { ...result.user, address: customerAddress }
         : result.user;
       setSession(result.token, sessionUser);
+      if (mode === 'login') {
+        if (rememberMe) localStorage.setItem(REMEMBERED_EMAIL_KEY, email.trim());
+        else localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+      }
       if (result.user.role === 'customer' && customerAddress) {
         localStorage.setItem(addressKey, customerAddress);
         localStorage.setItem('otuzanCustomerProfile', JSON.stringify({
@@ -281,6 +290,8 @@ const AuthPage = ({ mode }) => {
 
       email={email}
       password={password}
+      rememberMe={rememberMe}
+      onRememberMeChange={(e) => setRememberMe(e.target.checked)}
       confirmPassword={confirmPassword}
       accessCode={accessCode}
 

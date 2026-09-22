@@ -12,6 +12,8 @@ const AuthCard = ({
   confirmPassword,
   accessCode,
   showPassword,
+  rememberMe,
+  onRememberMeChange,
 
   message,
   roles,
@@ -161,6 +163,8 @@ const AuthCard = ({
             password={password}
             confirmPassword={confirmPassword}
             accessCode={accessCode}
+            rememberMe={rememberMe}
+            onRememberMeChange={onRememberMeChange}
 
             showPassword={showPassword}
 
