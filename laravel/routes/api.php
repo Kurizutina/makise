@@ -32,7 +32,7 @@ Route::middleware('auth:sanctum')->group(function () {
         $filename = Str::uuid()->toString().'.'.$file->extension();
         $file->move($directory, $filename);
         return response()->json(['url' => '/uploads/bill-documents/'.$filename, 'name' => $file->getClientOriginalName()], 201);
-    });
+    })->middleware('throttle:20,1');
     Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:20,1');
     Route::get('/orders', [OrderController::class, 'index']);
     Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus']);
