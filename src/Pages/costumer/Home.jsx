@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/home/Header/Header';
+import HomeHero from '../../components/home/HomeHero/HomeHero';
 import Footer from '../../components/home/Footer/Footer';
 import FoodandItemsSection from '../../components/home/FoodandItem/FoodandItemsSection/FoodandItemsSection';
 import OthersOrderForm from '../../components/home/OthersOrderForm/OthersOrderForm';
@@ -79,6 +80,8 @@ const Home = () => {
         services={services}
         onSearch={setSearch}
       />
+
+      <HomeHero brandCount={services.reduce((total, service) => total + (service.brands?.length || 0), 0)} />
 
       {catalogLoading && <p role="status" className="home-catalog-error">Loading catalog...</p>}
       {catalogError && <p role="alert" className="home-catalog-error">{catalogError} <button type="button" onClick={() => setReloadCatalog((count) => count + 1)}>Retry</button></p>}
