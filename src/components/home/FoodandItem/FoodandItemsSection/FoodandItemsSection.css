@@ -66,9 +66,9 @@
   width: 100%;
 
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 180px));
+  grid-template-columns: repeat(auto-fit, minmax(min(96px, 100%), 108px));
 
-  gap: 18px;
+  gap: 18px 14px;
 
   padding-bottom: 8px;
   justify-content: start;
@@ -98,14 +98,8 @@
   }
 
   .brand-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(min(78px, 100%), 84px));
+    gap: 14px 10px;
   }
 
-}
-
-@media (max-width: 300px) {
-  .brand-list {
-    grid-template-columns: 1fr;
-  }
 }
