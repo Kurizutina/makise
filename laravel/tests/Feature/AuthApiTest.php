@@ -37,6 +37,23 @@ class AuthApiTest extends TestCase
         $this->postJson('/api/auth/register', $data)->assertConflict();
     }
 
+    public function test_registration_rejects_known_disposable_email_domains(): void
+    {
+        $data = [
+            'username' => 'Throwaway', 'email' => 'someone@mailinator.com', 'password' => 'secret123',
+            'contact' => '09123456789', 'userType' => 'non_student',
+        ];
+        $this->postJson('/api/auth/register', $data)->assertUnprocessable()
+            ->assertJsonStructure(['error']);
+        $this->assertDatabaseMissing('Users', ['Email' => 'someone@mailinator.com']);
+        // Case-insensitive and mixed-case domain both caught, not just the exact lowercase form.
+        $data['email'] = 'Someone@MAILINATOR.com';
+        $this->postJson('/api/auth/register', $data)->assertUnprocessable();
+        // A real domain that merely contains a blocked one as a substring must not be caught.
+        $data['email'] = 'someone@notmailinator.com';
+        $this->postJson('/api/auth/register', $data)->assertCreated();
+    }
+
     public function test_login_accepts_migrated_bcryptjs_password_hash_and_preserves_id(): void
     {
         $user = $this->account();

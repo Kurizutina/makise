@@ -14,6 +14,30 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
+    // Well-known disposable/temporary-inbox domains, blocked at registration so
+    // an account can't be thrown away the moment it's inconvenient (spam,
+    // abuse, or just skirting the one-account-per-person assumption the rest
+    // of the system relies on - e.g. duplicate-email rejection below only
+    // works against a real, ownable inbox). Not exhaustive - new disposable
+    // services appear constantly - but it stops the mass-produced/dummy
+    // accounts that use a handful of well-known, widely-abused providers.
+    // Deliberately not a full email-verification flow (send-a-link-and-wait):
+    // that needs a real SMTP sender configured (MAIL_PASSWORD is blank in
+    // .env.example), which isn't this project's call to make unilaterally.
+    private const DISPOSABLE_EMAIL_DOMAINS = [
+        'mailinator.com', 'guerrillamail.com', 'guerrillamail.info', '10minutemail.com',
+        'tempmail.com', 'temp-mail.org', 'throwawaymail.com', 'yopmail.com', 'trashmail.com',
+        'getnada.com', 'fakeinbox.com', 'dispostable.com', 'sharklasers.com', 'mintemail.com',
+        'maildrop.cc', 'mailnesia.com', 'mailcatch.com', 'mohmal.com', 'moakt.com',
+        'discard.email', 'emailondeck.com', 'spamgourmet.com', 'mytemp.email', 'tempinbox.com',
+    ];
+
+    private function isDisposableEmail(string $email): bool
+    {
+        $domain = strtolower(substr(strrchr($email, '@'), 1));
+        return in_array($domain, self::DISPOSABLE_EMAIL_DOMAINS, true);
+    }
+
     public function register(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -25,6 +49,9 @@ class AuthController extends Controller
             'address' => ['nullable', 'string', 'max:2000'],
         ]);
         $email = strtolower(trim($data['email']));
+        if ($this->isDisposableEmail($email)) {
+            return response()->json(['error' => 'Please use a real, permanent email address to register.'], 422);
+        }
         if (User::where('Email', $email)->exists()) {
             return response()->json(['error' => 'email is already registered'], 409);
         }
