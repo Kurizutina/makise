@@ -280,6 +280,26 @@
   gap: 17px;
 }
 
+.restaurant-show-more {
+  display: block;
+  margin: 18px auto 0;
+  padding: 10px 22px;
+  border: 1px solid var(--color-primary, #da1c5c);
+  border-radius: var(--radius-pill, 999px);
+  background: transparent;
+  color: var(--color-primary, #da1c5c);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.restaurant-show-more:hover,
+.restaurant-show-more:focus-visible {
+  background: var(--color-primary, #da1c5c);
+  color: #fff;
+}
+
 .jollibee-product-card {
   min-width: 0;
   overflow: hidden;

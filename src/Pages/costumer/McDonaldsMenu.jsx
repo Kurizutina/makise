@@ -121,6 +121,18 @@ export const RestaurantMenu = ({
     return groups;
   }, []), [products]);
 
+  // Real brands run well past a hundred products (measured: Jollibee 121,
+  // McDonald's 184, Manuela's 185) - mounting every <img> in a category at
+  // once left most of them still loading many seconds in, even with
+  // loading="lazy" (audit finding, 9/23). Each category starts collapsed to
+  // a page and reveals more on demand instead.
+  const PRODUCTS_PAGE_SIZE = 12;
+  const [visibleCounts, setVisibleCounts] = useState({});
+  const showMore = (category) => setVisibleCounts((current) => ({
+    ...current,
+    [category]: (current[category] ?? PRODUCTS_PAGE_SIZE) + PRODUCTS_PAGE_SIZE
+  }));
+
   // Sticky category chips only earn their place once there's actually
   // somewhere meaningful to jump to - skip them for the one/two-category
   // brands (research note in TODO.md).
@@ -292,24 +304,34 @@ export const RestaurantMenu = ({
 
           {isLoading && <div className="restaurant-menu-loading"><i className="fa-solid fa-spinner fa-spin" /> Loading menu…</div>}
 
-          {categories.map(({ category, products: categoryProducts }) => (
-            <section
-              className="jollibee-category"
-              key={category}
-              id={`category-${sourceKey}-${category}`}
-              data-category={category}
-              ref={(element) => { categorySectionRefs.current[category] = element; }}
-            >
-              <div className="jollibee-category-heading">
-                <h2>{category}</h2><span>{categoryProducts.length} items</span>
-              </div>
-              <div className="jollibee-product-grid">
-                {categoryProducts.map((product) => (
-                  <RestaurantProductCard key={product.id} product={product} onAddToCart={addToCart} showFoodIcons={showFoodIcons} />
-                ))}
-              </div>
-            </section>
-          ))}
+          {categories.map(({ category, products: categoryProducts }) => {
+            const visibleCount = visibleCounts[category] ?? PRODUCTS_PAGE_SIZE;
+            const visibleProducts = categoryProducts.slice(0, visibleCount);
+            const remaining = categoryProducts.length - visibleProducts.length;
+            return (
+              <section
+                className="jollibee-category"
+                key={category}
+                id={`category-${sourceKey}-${category}`}
+                data-category={category}
+                ref={(element) => { categorySectionRefs.current[category] = element; }}
+              >
+                <div className="jollibee-category-heading">
+                  <h2>{category}</h2><span>{categoryProducts.length} items</span>
+                </div>
+                <div className="jollibee-product-grid">
+                  {visibleProducts.map((product) => (
+                    <RestaurantProductCard key={product.id} product={product} onAddToCart={addToCart} showFoodIcons={showFoodIcons} />
+                  ))}
+                </div>
+                {remaining > 0 && (
+                  <button type="button" className="restaurant-show-more" onClick={() => showMore(category)}>
+                    Show {Math.min(remaining, PRODUCTS_PAGE_SIZE)} more of {remaining} remaining
+                  </button>
+                )}
+              </section>
+            );
+          })}
           {!isLoading && !categories.length && <p className="restaurant-menu-loading">No products available yet. You can request an item above.</p>}
         </div>
 
