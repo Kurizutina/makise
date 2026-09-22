@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FaUtensils } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerActivity } from '../../context/CustomerActivityContext';
@@ -111,6 +111,39 @@ export const RestaurantMenu = ({
     return groups;
   }, []), [products]);
 
+  // Sticky category chips only earn their place once there's actually
+  // somewhere meaningful to jump to - skip them for the one/two-category
+  // brands (research note in TODO.md).
+  const showCategoryNav = categories.length > 2;
+  const categorySectionRefs = useRef({});
+  const [activeCategory, setActiveCategory] = useState('');
+
+  useEffect(() => {
+    if (categories.length && !categories.some((group) => group.category === activeCategory)) {
+      setActiveCategory(categories[0].category);
+    }
+  }, [categories, activeCategory]);
+
+  useEffect(() => {
+    if (!showCategoryNav) return undefined;
+    // Treats a category as "current" once it's scrolled into the band just
+    // below the sticky header+chip row, not only once it's fully in view -
+    // rootMargin shrinks the observed viewport to roughly that top band.
+    const observer = new IntersectionObserver((entries) => {
+      const topMost = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((first, second) => first.boundingClientRect.top - second.boundingClientRect.top)[0];
+      if (topMost) setActiveCategory(topMost.target.dataset.category);
+    }, { rootMargin: '-140px 0px -70% 0px' });
+    Object.values(categorySectionRefs.current).forEach((section) => section && observer.observe(section));
+    return () => observer.disconnect();
+  }, [categories, showCategoryNav]);
+
+  const scrollToCategory = (category) => {
+    categorySectionRefs.current[category]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setActiveCategory(category);
+  };
+
   const itemCount = useMemo(
     () => cart.reduce((total, item) => total + item.quantity, 0),
     [cart]
@@ -187,6 +220,21 @@ export const RestaurantMenu = ({
         </button>
       </header>
 
+      {showCategoryNav && (
+        <nav className="jollibee-category-nav" aria-label={`${restaurantName} menu categories`}>
+          {categories.map(({ category }) => (
+            <button
+              key={category}
+              type="button"
+              className={activeCategory === category ? 'active' : ''}
+              onClick={() => scrollToCategory(category)}
+            >
+              {category}
+            </button>
+          ))}
+        </nav>
+      )}
+
       {notice && <div className="jollibee-notice" role="status">{notice}</div>}
 
       {/* Mobile only (see @media rules in JollibeeMenu.css): the embedded cart
@@ -235,7 +283,13 @@ export const RestaurantMenu = ({
           {isLoading && <div className="restaurant-menu-loading"><i className="fa-solid fa-spinner fa-spin" /> Loading menu…</div>}
 
           {categories.map(({ category, products: categoryProducts }) => (
-            <section className="jollibee-category" key={category}>
+            <section
+              className="jollibee-category"
+              key={category}
+              id={`category-${sourceKey}-${category}`}
+              data-category={category}
+              ref={(element) => { categorySectionRefs.current[category] = element; }}
+            >
               <div className="jollibee-category-heading">
                 <h2>{category}</h2><span>{categoryProducts.length} items</span>
               </div>

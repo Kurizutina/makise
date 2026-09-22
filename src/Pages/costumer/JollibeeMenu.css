@@ -212,8 +212,47 @@
   cursor: pointer;
 }
 
+.jollibee-category-nav {
+  position: sticky;
+  top: 78px;
+  z-index: 90;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 12px clamp(18px, 4vw, 58px);
+  background: #fffafa;
+  border-bottom: 1px solid #eee4e8;
+  scrollbar-width: none;
+}
+
+.jollibee-category-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.jollibee-category-nav button {
+  flex-shrink: 0;
+  padding: 7px 16px;
+  border: 1px solid #eee4e8;
+  border-radius: 999px;
+  background: #fff;
+  color: #6b5b62;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.jollibee-category-nav button.active {
+  border-color: #da1c5c;
+  background: #da1c5c;
+  color: #fff;
+}
+
 .jollibee-category {
   margin-bottom: 38px;
+  /* Keeps the category heading from being hidden behind the sticky
+     header + chip row when a chip scrolls this section into view. */
+  scroll-margin-top: 140px;
 }
 
 .jollibee-category-heading {
@@ -609,6 +648,10 @@
     gap: 5px;
     padding: 0 7px;
     font-size: 11px;
+  }
+
+  .jollibee-category-nav {
+    padding-inline: 12px;
   }
 
   .jollibee-layout {
