@@ -90,13 +90,6 @@ const Home = () => {
       {catalogLoading && <p role="status" className="home-catalog-error">Loading catalog...</p>}
       {catalogError && <p role="alert" className="home-catalog-error">{catalogError} <button type="button" onClick={() => setReloadCatalog((count) => count + 1)}>Retry</button></p>}
 
-      <BestSellersSection
-        products={bestSellers}
-        onProductSelect={(product) => navigate(`/catalog/brands/${product.BrandID}`, {
-          state: { highlightProductId: product.ProductID }
-        })}
-      />
-
       {/* Brand Cards */}
       <FoodandItemsSection
         title={getSectionTitle()}
@@ -121,6 +114,18 @@ const Home = () => {
             setCustomOrderBrand(brand);
           }
         }}
+      />
+
+      {/* Below the brand grid, not above it - foodpanda and GrabFood both
+          lead with broad category/cuisine navigation first and put curated
+          picks (foodpanda's "daily deals") after it, not before (checked
+          live, 9/23). Leading with specific products before the customer's
+          picked a kind of food read as backwards next to those. */}
+      <BestSellersSection
+        products={bestSellers}
+        onProductSelect={(product) => navigate(`/catalog/brands/${product.BrandID}`, {
+          state: { highlightProductId: product.ProductID }
+        })}
       />
 
       {customOrderBrand && (
