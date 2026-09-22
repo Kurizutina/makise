@@ -56,7 +56,7 @@ const FAQ = () => (
         ))}
       </div>
     </main>
-    <Footer onServiceChange={() => {}} />
+    <Footer />
   </div>
 );
 

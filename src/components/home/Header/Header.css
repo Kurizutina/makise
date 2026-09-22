@@ -23,7 +23,17 @@
   align-items: center;
 }
 
-.header-brand-lockup { gap: 12px; flex-shrink: 0; }
+.header-brand-lockup {
+  gap: 12px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
 
 .header-logo,
 .header-logo .logo-container {

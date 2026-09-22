@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import Home from './Home';
 
 const mockNavigate = jest.fn();
-jest.mock('react-router-dom', () => ({ useNavigate: () => mockNavigate }));
+jest.mock('react-router-dom', () => ({ useNavigate: () => mockNavigate, useLocation: () => ({ state: null }) }));
 jest.mock('../../context/CustomerActivityContext', () => ({ useCustomerActivity: () => ({ addToCart: jest.fn(), placeOrder: jest.fn() }) }));
 jest.mock('../../components/home/Header/Header', () => ({ services, selectedService, onServiceChange }) => (
   <nav>{services.map((service) => <button key={service.ServiceID} onClick={() => onServiceChange(service.ServiceID)} aria-pressed={selectedService === service.ServiceID}>{service.ServiceName}</button>)}</nav>

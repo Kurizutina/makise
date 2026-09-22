@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Header from '../../components/home/Header/Header';
 import Footer from '../../components/home/Footer/Footer';
 import FoodandItemsSection from '../../components/home/FoodandItem/FoodandItemsSection/FoodandItemsSection';
@@ -13,7 +13,13 @@ import { getSessionUser } from '../../utils/session';
 
 const Home = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { addToCart, placeOrder } = useCustomerActivity();
+  // Set once, from Footer's "Food/Item/Pay Bills" links (navigate('/home',
+  // { state: { selectedServiceType } })) - cleared after it's applied once
+  // so it doesn't keep overriding a manual tab switch on later catalog
+  // refetches (e.g. the visibilitychange reload below).
+  const requestedServiceType = useRef(location.state?.selectedServiceType ?? null);
 
   // Currently selected service
   const [selectedService, setSelectedService] = useState(null);
@@ -40,8 +46,25 @@ const Home = () => {
         const data = await getCatalog();
         if (!active) return;
         setServices(data.services);
-        setSelectedService((current) => data.services.some((service) => service.ServiceID === current)
-          ? current : (data.services[0]?.ServiceID ?? null));
+        // Mutating requestedServiceType.current from inside the
+        // setSelectedService updater used to work locally but broke under
+        // React 18 StrictMode, which intentionally invokes a state updater
+        // twice in dev to catch exactly this kind of impurity - the first
+        // call's side effect (clearing the ref) made the second call see it
+        // already cleared, so the requested service was found but then
+        // silently discarded in favor of the default. The ref mutation now
+        // happens once, as a plain statement, outside any updater.
+        let requestedServiceId = null;
+        if (requestedServiceType.current) {
+          const requested = data.services.find((service) => service.ServiceType === requestedServiceType.current);
+          requestedServiceType.current = null;
+          requestedServiceId = requested?.ServiceID ?? null;
+        }
+        setSelectedService((current) => {
+          if (requestedServiceId) return requestedServiceId;
+          return data.services.some((service) => service.ServiceID === current)
+            ? current : (data.services[0]?.ServiceID ?? null);
+        });
         setCatalogError('');
       } catch (error) { if (active) setCatalogError(error.message); }
       finally { if (active) setCatalogLoading(false); }
@@ -186,10 +209,7 @@ const Home = () => {
         />
       )}
 
-      <Footer onServiceChange={(type) => {
-        const service = services.find((item) => item.ServiceType === type);
-        if (service) setSelectedService(service.ServiceID);
-      }} />
+      <Footer />
     </div>
   );
 };

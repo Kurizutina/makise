@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import Logo from '../../common/Logo/Logo';
 import './Header.css';
 import SearchBar from './SearchBar/SearchBar';
@@ -20,11 +21,16 @@ const Header = ({
   services,
   onSearch
 }) => {
+  const navigate = useNavigate();
 
   return (
     <header className="home-header">
       <div className="header-container">
-        <div className="header-brand-lockup">
+        {/* The one persistent "take me back" control on every customer page
+            (menus, FAQ) - previously nothing in the header linked anywhere,
+            so a page like FAQ that also has no back button left guests with
+            no way back to browsing at all (reported live, 9/23). */}
+        <button type="button" className="header-brand-lockup" onClick={() => navigate('/home')}>
           <div className="header-logo">
             <Logo />
           </div>
@@ -32,7 +38,7 @@ const Header = ({
             <strong>Otu Zan Delivery</strong>
             <span>Let us help with your daily errands.</span>
           </div>
-        </div>
+        </button>
 
         <div className="header-tools">
           <div className="header-search">
