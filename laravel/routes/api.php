@@ -18,6 +18,7 @@ Route::post('/auth/forgot-password', [AuthController::class, 'requestPasswordRes
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:10,1');
 Route::get('/catalog', [CatalogController::class, 'publicCatalog']);
 Route::get('/catalog/brands/{brand}/products', [CatalogController::class, 'publicProducts']);
+Route::get('/catalog/best-sellers', [CatalogController::class, 'bestSellers']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::patch('/auth/me', [AuthController::class, 'updateProfile']);

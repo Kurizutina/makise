@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Brand;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Service;
 use Illuminate\Http\JsonResponse;
@@ -21,6 +22,51 @@ class CatalogController extends Controller
                 ->orderByRaw("CASE WHEN BrandName LIKE 'Others%' THEN 1 ELSE 0 END")
                 ->orderBy('BrandName')])
             ->orderBy('ServiceID')->get()]);
+    }
+
+    // Windowed to the last 30 days, not all-time, so this reflects current
+    // demand rather than whatever sold well once months ago. Cancelled
+    // orders don't count as real demand for a product. Products whose brand
+    // has since been deactivated are filtered out after the aggregation
+    // (rather than joined out up front) since that's the rare case, not the
+    // common one, and keeping the SUM query itself simple matters more here.
+    public function bestSellers(Request $request): JsonResponse
+    {
+        $limit = min(max((int) $request->query('limit', 8), 1), 20);
+
+        $unitsSoldByProductId = OrderItem::query()
+            ->select('OrderItem.ProductID')
+            ->selectRaw('SUM(OrderItem.ProductQuantity) as units_sold')
+            ->join('Orders', 'Orders.OrderID', '=', 'OrderItem.OrderID')
+            ->where('Orders.OrderDate', '>=', now()->subDays(30))
+            ->where('Orders.DeliveryStatus', '!=', 'cancelled')
+            ->groupBy('OrderItem.ProductID')
+            ->orderByDesc('units_sold')
+            ->limit($limit)
+            ->pluck('units_sold', 'OrderItem.ProductID');
+
+        if ($unitsSoldByProductId->isEmpty()) {
+            return response()->json(['products' => []]);
+        }
+
+        $products = Product::whereIn('ProductID', $unitsSoldByProductId->keys())
+            ->where('IsActive', true)
+            ->with(['brand' => fn ($query) => $query->where('IsActive', true)])
+            ->get()
+            ->filter(fn (Product $product) => $product->brand !== null)
+            ->sortByDesc(fn (Product $product) => $unitsSoldByProductId[$product->ProductID])
+            ->values()
+            ->map(fn (Product $product) => [
+                'ProductID' => $product->ProductID,
+                'ProductName' => $product->ProductName,
+                'ProductPrice' => $product->ProductPrice,
+                'ImagePath' => $product->ImagePath,
+                'BrandID' => $product->BrandID,
+                'BrandName' => $product->brand->BrandName,
+                'unitsSold' => $unitsSoldByProductId[$product->ProductID],
+            ]);
+
+        return response()->json(['products' => $products]);
     }
 
     public function publicProducts(Brand $brand): JsonResponse

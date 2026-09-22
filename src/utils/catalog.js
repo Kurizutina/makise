@@ -10,3 +10,10 @@ export const getCatalog = async (signal) => {
   if (!response.ok) throw new Error('Unable to load the catalog. Please try again.');
   return response.json();
 };
+
+export const getBestSellers = async (signal) => {
+  const response = await fetch(`${API_BASE_URL}/api/catalog/best-sellers`, { signal });
+  if (!response.ok) throw new Error('Unable to load best sellers.');
+  const body = await response.json();
+  return body.products || [];
+};

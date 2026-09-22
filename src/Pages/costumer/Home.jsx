@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../../components/home/Header/Header';
 import Footer from '../../components/home/Footer/Footer';
 import FoodandItemsSection from '../../components/home/FoodandItem/FoodandItemsSection/FoodandItemsSection';
+import BestSellersSection from '../../components/home/BestSellers/BestSellersSection';
 import OthersOrderForm from '../../components/home/OthersOrderForm/OthersOrderForm';
 import PayBillsForm from '../../components/home/PayBillsForm/PayBillsForm';
 import { useCustomerActivity } from '../../context/CustomerActivityContext';
-import { catalogImageUrl, getCatalog } from '../../utils/catalog';
+import { catalogImageUrl, getCatalog, getBestSellers } from '../../utils/catalog';
 import { getSessionUser } from '../../utils/session';
 
 
@@ -23,7 +24,13 @@ const Home = () => {
   const [search, setSearch] = useState('');
   const [customOrderBrand, setCustomOrderBrand] = useState(null);
   const [paymentBrand, setPaymentBrand] = useState(null);
+  const [bestSellers, setBestSellers] = useState([]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    getBestSellers(controller.signal).then(setBestSellers).catch(() => {});
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -82,6 +89,11 @@ const Home = () => {
 
       {catalogLoading && <p role="status" className="home-catalog-error">Loading catalog...</p>}
       {catalogError && <p role="alert" className="home-catalog-error">{catalogError} <button type="button" onClick={() => setReloadCatalog((count) => count + 1)}>Retry</button></p>}
+
+      <BestSellersSection
+        products={bestSellers}
+        onProductSelect={(product) => navigate(`/catalog/brands/${product.BrandID}`)}
+      />
 
       {/* Brand Cards */}
       <FoodandItemsSection

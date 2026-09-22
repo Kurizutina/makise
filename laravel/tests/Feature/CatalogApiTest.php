@@ -183,4 +183,33 @@ class CatalogApiTest extends TestCase
         $this->assertSame(185, Product::where('BrandID', $brand->BrandID)->count());
         $this->assertEquals(125, $item->fresh()->ProductPrice);
     }
+
+    public function test_best_sellers_ranks_by_recent_units_sold_and_excludes_cancelled_and_stale_orders(): void
+    {
+        $brand = Brand::create(['BrandName' => 'Test Brand', 'IsActive' => true]);
+        $popular = Product::create(['ProductName' => 'Popular Item', 'BrandID' => $brand->BrandID, 'ProductPrice' => 100, 'IsActive' => true]);
+        $niche = Product::create(['ProductName' => 'Niche Item', 'BrandID' => $brand->BrandID, 'ProductPrice' => 100, 'IsActive' => true]);
+        $stale = Product::create(['ProductName' => 'Old Trend Item', 'BrandID' => $brand->BrandID, 'ProductPrice' => 100, 'IsActive' => true]);
+        $customer = User::create(['UserName' => 'Cust', 'Email' => 'cust@example.com', 'Role' => 'customer', 'Contact' => '09123456789', 'PasswordHash' => Hash::make('secret123')]);
+
+        $makeOrder = function (\App\Models\Product $product, int $quantity, string $status, \DateTimeInterface $orderDate) use ($customer) {
+            $order = \App\Models\Order::create([
+                'UserID' => $customer->UserID, 'TotalPrice' => $product->ProductPrice * $quantity,
+                'OrderDate' => $orderDate, 'DeliveryStatus' => $status,
+            ]);
+            $order->items()->create(['ProductID' => $product->ProductID, 'OrderItemPrice' => $product->ProductPrice, 'ProductQuantity' => $quantity]);
+        };
+
+        $makeOrder($popular, 5, 'delivered', now()->subDays(2));
+        $makeOrder($niche, 1, 'delivered', now()->subDays(2));
+        // Cancelled - real demand doesn't include an order nobody actually got.
+        $makeOrder($popular, 50, 'cancelled', now()->subDays(2));
+        // Outside the 30-day window - was popular once, isn't current demand.
+        $makeOrder($stale, 99, 'delivered', now()->subDays(45));
+
+        $response = $this->getJson('/api/catalog/best-sellers')->assertOk();
+        $names = collect($response->json('products'))->pluck('ProductName')->all();
+
+        $this->assertSame(['Popular Item', 'Niche Item'], $names);
+    }
 }
