@@ -68,6 +68,32 @@ items off as they land.
       below, nothing new. All test accounts/orders/tokens/uploads created
       during this pass cleaned up afterward.
 
+- [x] **Full commissioned-quality-bar QA pass (9/22)** — did the entire
+      customer → admin → rider round trip live, start to finish, as three
+      genuinely separate accounts (a real account created through the actual
+      registration form, not a synthetic session), the way a real user
+      actually would: registered → browsed as a guest → logged in → added
+      real items to cart → placed a real order → admin saw it appear
+      cross-device with correct customer info → admin assigned a rider →
+      rider confirmed → preparing → out for delivery → delivered → customer's
+      notification panel showed the complete, correctly-ordered trail (order
+      request sent → accepted → preparing → out for delivery → delivered),
+      each with a real timestamp. **Every step of that core loop worked
+      correctly, no shortcuts, no synthetic data standing in for the real
+      flow.** This is the load-bearing result of this pass: the actual
+      product works end-to-end.
+
+      Everything found *wrong* during this pass is written up as its own item
+      where it belongs rather than duplicated here: the Revenue-tracking bug
+      and the pre-deployment checklist (`APP_DEBUG`, first-admin bootstrap,
+      dev-only CORS patterns) are under High/Low below, the dead-code-on-disk
+      discovery and the unenforced `StockQuantity` column are under Medium,
+      and the admin-table loading-state race is folded into the existing
+      "Inconsistent empty states" item. None of it changes the finding above -
+      the core transaction loop a real customer/admin/rider depends on is
+      solid; what's left is hardening and polish around it, not a broken
+      foundation.
+
 - [x] **Admin/rider dashboards only showed orders already in that browser's own
       localStorage — invisible to orders placed on any other device** (found
       9/21 while verifying step 1f's queue positions live). `applyBackendTruth`
@@ -319,6 +345,23 @@ items off as they land.
       visibility in the cross-device order-visibility fix (Critical, above).
 - [x] Backend-persisted notifications — delivered in step 1g (Critical,
       above).
+- [x] **Let customers cancel their own order before it's confirmed** (user
+      request, 9/21) — previously a customer had zero way to cancel, even
+      seconds after placing an order, even though admin hadn't touched it
+      yet. Real cost both ways: the business ends up preparing/assigning a
+      rider to something nobody wants delivered, and the customer has no
+      way to stop it. Added a `window.confirm`-guarded "Cancel Order"
+      button, and a narrowly-scoped backend allowance
+      (`OrderController::updateStatus`): the order's own customer can set
+      it to `cancelled`, and only that status, and only while still
+      `pending_rider` — the moment admin confirms it, that window closes.
+      Also fixed a wording bug this would have made actively misleading:
+      the cancelled state hardcoded "Cancelled by rider" regardless of who
+      actually cancelled it; now just "Cancelled," accurate either way.
+      Verified live end-to-end (real cancel succeeds, another customer
+      blocked, the owning customer can't use this to *confirm* their own
+      order, and the window correctly closes once admin confirms it).
+      (`efc639f` backend, `5b7dd9e` frontend)
 - [x] **Redundant per-item CTAs (UX)** — every product card had both "Add to Cart"
       and "Place Order." Confirmed this was a real, not just theoretical, problem —
       walked through it live on 9/21: user wanted to order 2 items together, got
@@ -336,40 +379,134 @@ items off as they land.
       exists between customer and rider today. Real feature, not a quick fix; needs
       its own design pass (in-app chat vs. just exposing contact numbers, etc.)
       before implementation.
+- [ ] **Admin "Revenue" tab is not actually tracking revenue — it's silently
+      capped at the 50 most recent orders, ever** (user testing, 9/22, reported as
+      "revenue resets every day"). Traced the actual cause before writing this up:
+      there is no revenue table and no date-based aggregation anywhere in the
+      backend - `RevenueTab` (`DeliveryAdminDashboard.jsx`) just sums whatever
+      `orders` happen to be loaded in the browser, and those come from
+      `useBackendOrders('/api/admin/orders?per_page=50')` - page 1 only, never
+      paginated further, and `OrderController::indexAll` defaults/caps at that
+      same 50. Once total order volume passes 50, older orders (and their
+      revenue) silently fall out of view entirely. That will look exactly like
+      "revenue resetting" without being a UTC/midnight bug at all - it's data
+      being dropped from what admin can see, not mis-dated.
+
+      The right fix is the one already proposed: persist revenue server-side
+      instead of computing it from whatever page of orders the browser happens
+      to have. Scope: (1) a `DailyRevenue` (or similar) table keyed by calendar
+      date in the business's actual local timezone (not raw UTC boundaries -
+      confirm the intended timezone with the team, likely Asia/Manila/UTC+8,
+      since a UTC-midnight boundary would flip revenue between days mid-afternoon
+      local time), (2) compute/insert it from real order data on order
+      completion or via a daily aggregation job - either works, pick based on
+      whether "today so far" needs to be live or can be end-of-day only, (3) a
+      dedicated `GET /api/admin/revenue?range=...` endpoint the dashboard queries
+      instead of deriving totals from the capped orders list. Also fixes the
+      already-known undercounting gap where a synthesized cross-device order's
+      `serviceFee` is always 0 (documented in the cross-device-visibility Critical
+      item above) - persisting the fee at order-creation time on the backend
+      closes that gap too, for free. Directly enables the Data Analytics section
+      below, which needs this same historical data as its foundation.
 
 ## Medium
 
-- [ ] **Let customers browse without logging in** (user request, 9/21, noticed while
-      browsing foodpanda themselves) — confirmed highly feasible: the backend
-      catalog API (`GET /api/catalog`, `GET /api/catalog/brands/{id}/products`) is
-      *already* public with zero auth required (verified with a bare `curl` request,
-      no token, works fine). The only thing blocking guest browsing today is the
-      frontend's `ProtectedRoute` wrapper on `/home`, `/food/*`, and
-      `/catalog/brands/:id` — it unconditionally redirects anyone not logged in to
-      `/login` before they can see a single menu. Matches how foodpanda/Grab
-      actually work: browse everything freely, only prompt login at
-      cart/checkout when the customer is ready to place an order. This is one of
-      the most well-documented conversion killers in e-commerce UX — forcing
-      signup before letting people see what's for sale. Scope: relax the route
-      guard for browsing pages only; keep cart placement/checkout gated behind
-      login as it already effectively needs to be (orders are tied to a customer
-      account).
-- [ ] **Sticky category navigation within a menu page** (user request, 9/21,
-      noticed on foodpanda) — this is a known, named UX pattern: category "chips"
-      (e.g. Chickenjoy, Burgers, Sides) stick below the header once you scroll past
-      it, tapping one jumps the page to that section, and the active chip highlights
-      as you scroll
-      ([Smashing Magazine: Designing Sticky
-      Menus](https://www.smashingmagazine.com/2023/05/sticky-menus-ux-guidelines/);
-      [example implementation
-      discussion](https://github.com/hedonarc/foodio/issues/169)). Directly
-      addresses Otu-Zan's long single-scroll category-grouped menus (Jollibee,
-      McDonald's, Manuela's, etc.) — customers currently have no way to jump
-      straight to "Burgers" without scrolling past everything above it. Technical
-      note from the research: use `scroll-padding-top` in CSS so the jump doesn't
-      hide the section title behind the sticky chip row. Caveat also noted: skip the
-      chips entirely for brands with only one or two categories — the row only
-      earns its place when there's somewhere meaningful to jump to.
+- [x] **Let customers browse without logging in** (user request, 9/21, noticed while
+      browsing foodpanda themselves) — the backend catalog API was already public;
+      the only blocker was the frontend's `ProtectedRoute` wrapper on `/home`,
+      `/food/*`, and `/catalog/brands/:id` unconditionally redirecting guests to
+      `/login`. Replaced it with a new `CustomerBrowseRoute` on those routes -
+      lets a guest through, still bounces an already-logged-in admin/driver back
+      to their own dashboard if stale browser history lands them here (same
+      `getDashboardPath` logic `ProtectedRoute` already used).
+
+      Login is gated at the actual order-placement step instead, not the page.
+      Found and fixed **four** real checkout entry points, not the one expected:
+      `RestaurantMenu`'s shared `checkoutCart` (the actual primary path every
+      catalog-backed brand uses), the header's global cart `confirmCart`, and
+      Home.jsx's two `placeOrder` calls for bill payments/custom "Others" orders
+      (also gated at brand-selection, before the guest invests effort filling out
+      a form - `PayBillsForm` starts uploading receipts to an authenticated
+      endpoint as soon as a file is picked, so waiting until submit would be too
+      late anyway). Added a backstop guard directly in
+      `CustomerActivityContext`'s `guardOrderPlacement` too: without a session,
+      it now returns `null` before creating anything, so even a future call site
+      that forgets the check can't create a local-only order that
+      `syncOrderToBackend`/`syncPaymentToBackend` would then silently never sync
+      (both already no-op without an auth token) - would have looked like a
+      success to the guest while being completely invisible to admin/rider.
+
+      **Found and fixed a real pre-existing bug while adding this**:
+      `checkoutCart` showed "Order placed with N items" and closed the cart
+      unconditionally, even when `placeCartOrder` returned `null` (e.g. the
+      existing duplicate-click guard blocking a second rapid click) - a false
+      success message. Now checks the return value first.
+
+      `CustomerMenu`'s account icon sends a guest straight to `/login` instead of
+      opening a popover that would 401 on every action (edit profile, etc.).
+
+      Verified live end-to-end as a real guest (cleared storage, no session):
+      browsed Home and the Jollibee catalog page freely, added an item to cart,
+      confirmed clicking "Place Order" redirected to `/login` with **zero**
+      backend order created (checked `GET /api/orders` directly) instead of a
+      false success message. Logged in with the same browser (cart survived,
+      it's independent of session) and placed the same order for real - landed
+      on the backend correctly, then cancelled it via the self-cancel feature to
+      clean up test data. Separately verified an authenticated non-customer
+      (admin) session still gets bounced away from `/home` to their own
+      dashboard, not let through. Full frontend suite re-run clean (20/25, same
+      5 pre-existing unrelated failures - one test fixture in
+      `CustomerMenu.test.jsx` needed updating since it only seeded half of what
+      a real login sets, which happened to not matter before this change).
+      Backend suite unaffected (27/30, same pre-existing failures, no backend
+      files touched). (`d6a5685`)
+
+      **Follow-up found by the user immediately after (9/22)**: the routing/
+      checkout-gating fix above was real but incomplete - nothing on the actual
+      entry point (the login screen at `/`) ever told a guest that browsing
+      without an account was possible, or linked them to `/home`. Landing on the
+      site still looked and felt fully locked behind login, just with dead code
+      underneath that only worked if you already knew to type `/home` directly.
+      Added a "Browse the menu without an account" link to `AuthCard` (login mode
+      only), navigating straight to `/home`. Verified live: clicking it from a
+      cleared/guest session lands on the real catalog, no redirect back to login.
+      Full frontend suite re-run clean (20/25, same 5 pre-existing failures).
+      (`daf77c2`)
+
+      **Second follow-up (9/22)**: still felt fully gated even with the above -
+      the user pointed at foodpanda specifically: opening their site shows the
+      whole catalog immediately, with an explicit "Login/Sign Up" button in the
+      header, not a login wall you have to escape from. Made `/` itself redirect
+      straight to `/home` (through the same `CustomerBrowseRoute` guard, so an
+      already-signed-in admin/driver still lands on their own dashboard, not the
+      guest catalog) instead of rendering `<Login />`. Made `CustomerMenu`
+      guest-aware: a guest now sees an explicit white "Log In / Sign Up" pill
+      button in the header (matching Grab/foodpanda's pattern) instead of the
+      plain account icon that only redirected once clicked. Verified live: root
+      URL with no session shows the catalog immediately with the header button
+      visible; logged-in customer visiting `/` still sees the normal account
+      icon and popover (Edit Profile/Log Out), unaffected. Full frontend suite
+      re-run clean (20/25, same 5 pre-existing failures). (`6dd1b93`)
+- [x] **Sticky category navigation within a menu page** (user request, 9/21,
+      noticed on foodpanda) — implemented in the shared `RestaurantMenu` component
+      (`McDonaldsMenu.jsx`), so every catalog-backed brand gets it automatically
+      (Jollibee, McDonald's, Manuela's, Mang Inasal, etc.) with zero duplicated
+      markup. Chips stick below the page header (`position: sticky; top: 78px`),
+      clicking one smooth-scrolls that category into view, and the active chip
+      updates via `IntersectionObserver` as the customer scrolls manually too - not
+      just on click. Used `scroll-margin-top` on each category section (the modern
+      equivalent of the researched `scroll-padding-top` approach - sets the offset
+      on the target instead of the scroll container, which is more robust here
+      since the page scrolls at the document level, not a wrapped container).
+      Caveat from the research applied as specified: `categories.length > 2` gates
+      whether the nav renders at all.
+
+      Verified live at both desktop (961px) and mobile (375×812) viewports:
+      clicking a chip scrolls smoothly with the heading fully clear of the sticky
+      bars, the correct chip highlights, and manually scrolling (not clicking)
+      also updates the active chip correctly and auto-scrolls the chip row to keep
+      it visible on mobile's narrower width. Full frontend suite re-run clean
+      (20/25, same 5 pre-existing failures, no new ones). (`3dd5a61`)
 - [ ] **"Similar brands" section before the footer** (user request, 9/21, noticed on
       foodpanda) — a discovery/cross-sell section at the bottom of a brand's menu
       page suggesting other brands in the same category (e.g. viewing Jollibee
@@ -383,6 +520,111 @@ items off as they land.
 - [ ] **Rider name visible in customer notifications** (teammate request, 9/20) —
       confirmed gap: no customer-facing component currently reads `assignedRider`
       at all, so a customer never sees who's delivering their order.
+- [x] **Design system overhaul — typography, color tokens, brand tiles** (user
+      request, 9/22, comparing against a classmate's project + live reference
+      against GrabFood, Uber Eats, and foodpanda.ph) — landed in stages as the
+      user reacted to each one live:
+
+      **Stage 1**: swapped the body font from `Tahoma` (a dated Windows-era
+      font `App.css` was silently forcing over `index.css`'s own modern
+      system-font stack) to Poppins via Google Fonts. Added `:root` design
+      tokens in `index.css` for the color palette/radius/card-shadow -
+      available repo-wide now, applied to the components touched this pass
+      (not a full repo-wide rewrite; still the documented prerequisite for
+      "Dark mode" below when that gets picked up). Redesigned `BrandCard` from
+      a boxed white card to a bare circular tile + label matching
+      Grab/foodpanda's cuisine-tile pattern, and tightened `FoodandItemsSection`'s
+      grid to match - closes the "more compact brand list layout" item below
+      too (7 brands now fit one row on desktop instead of a wrapping 4-wide
+      card grid). (`9ae9095`)
+
+      **Stage 2 (guest-browsing entry point, same conversation)**: the initial
+      route-guard fix left the actual entry point (`/`) still showing Login
+      first with no visible way off it - see the "Let customers browse without
+      logging in" item's two follow-up notes above for the full history
+      (`daf77c2`, `6dd1b93`). Landed a proper Grab/foodpanda-style entry point:
+      `/` opens straight into the catalog, and a guest sees an explicit white
+      "Log In / Sign Up" pill button in the header instead of a hidden icon.
+
+      Not done in this pass (deliberately deferred, still open items below):
+      a floating-card-over-photo hero (would need real photography/stock
+      assets this project doesn't have), and applying the new tokens to the
+      remaining ~16 CSS files that still use raw hex literals directly (that's
+      what "Dark mode" below is blocked on, not this item).
+- [ ] **Mobile brand grid should be a fixed 2 columns** (user testing, 9/22) —
+      currently `auto-fit, minmax(min(78px,100%), 84px)` at ≤767px, which packs
+      3+ narrow columns instead. Straightforward CSS change
+      (`FoodandItemsSection.css`).
+- [ ] **Best-selling products on the customer-facing home page** (user request,
+      9/22) — needs a backend aggregation (top products by order count/quantity,
+      likely windowed to a recent period so it reflects current demand, not
+      all-time). Pairs naturally with the Revenue-tracking fix above once that
+      exists, and is one of the concrete outputs the Data Analytics plan below
+      calls for anyway - worth building once, not twice.
+- [ ] **"Newly added" indicator when browsing a brand's menu** (user request,
+      9/22) — needs confirming `Product` actually has a reliable creation
+      timestamp to key off (Eloquent's default `created_at` likely already
+      exists but hasn't been checked), then a badge/section for items added
+      within some recency window.
+- [ ] **FAQ / static answers for the most commonly asked questions about the
+      system** (user request, 9/22) — pure content, no backend. Cheap to add,
+      genuine value for a public-facing site with no support staff behind it.
+- [ ] **Category selection when adding a product (admin)** (user request, 9/22;
+      traced 9/22 during a full QA pass) — cheaper to finish than to build: the
+      backend already has `GET /api/admin/catalog/categories?brand_id=X`
+      (returns that brand's existing categories), and `CatalogTab`
+      (`DeliveryAdminDashboard.jsx`) already fetches it into a `categories`
+      state and even computes a merged `categoryOptions` list - but nothing
+      ever renders it. The product Add/Edit form has Brand, Price, Image, and
+      Description fields only; no category field at all, dead code sitting
+      right next to where it's needed. Just needs a `<select>` wired to
+      `form.category` (confirm the exact `Product` column name) added to the
+      existing product-form JSX using the `categoryOptions` that's already
+      computed. Avoids typo'd near-duplicate categories fragmenting the sticky
+      category-nav chips added above.
+- [ ] **"Remember me" on login** (user request, 9/22) — remember the email (or
+      extend the session token's persistence via an explicit opt-in,
+      `sessionStorage` → `localStorage`), never the password. Caching a raw
+      password client-side for autofill convenience is a credential-exposure
+      risk, not a UX nice-to-have - out of scope regardless of how it's asked
+      for.
+- [ ] **Reject disposable/mass-produced emails at signup** (user request, 9/22)
+      — two tiers, needs a decision on which: (a) cheap, no infra - block
+      registration against a maintained disposable-email-domain list
+      (mailinator.com, guerrillamail.com, etc.); (b) proper - real email
+      verification (send a confirmation link via Laravel Mail, block login
+      until clicked), which requires wiring up an actual SMTP sender (Gmail/
+      Mailtrap) for local dev, since nothing sends mail today. Recommend
+      starting with (a); treat (b) as a stretch goal since capstone
+      environments rarely have a real mail server configured.
+- [ ] *(Needs clarification before scoping)* **"Make it OOP"** (user request,
+      9/22) — as stated this doesn't map to a concrete change. The Laravel
+      backend already is OOP (Eloquent models, controller classes) - nothing to
+      change there. If this means converting React function components back to
+      class components, that's a step backward from current React best practice
+      and not recommended. If it means extracting business logic out of fat
+      controllers into dedicated Service classes, that's a legitimate
+      maintainability refactor, but it's internal-architecture-only (no visible
+      behavior change) and refactors like that are exactly where regressions
+      hide close to a deadline - confirm which is actually meant (and whether
+      it's coming from a specific rubric requirement) before touching anything.
+- [ ] *(Needs a decision before scoping)* **OpenLeaflet map for delivery
+      location** (user request, 9/22) — the biggest/riskiest item raised this
+      round, not a quick add. Today's delivery-fee system
+      (`utils/deliveryRates.js`) is keyed off fixed named zones (CLSU Main
+      Campus, Bagong Sikat, etc.) with a flat fee per zone. A real map means
+      arbitrary lat/lng pins, which doesn't map onto that fee model without
+      deciding: (a) snap-to-nearest-zone - keeps current pricing logic, the map
+      is just a nicer picker than a dropdown, or (b) real distance-based
+      pricing - a bigger change, and needs a geocoding call (Nominatim for
+      OpenStreetMap, free but rate-limited, usage-policy compliance required)
+      to turn a picked point into an address. Needs (a) vs (b) decided before
+      any implementation starts.
+- [ ] *(Needs specifics)* **"Make the header better"** (user request, 9/22) —
+      too vague to scope as stated. Either point at a specific reference site's
+      header the way foodpanda/Deliveroo were used for the entry-point and hero
+      work above, or describe concretely what's not working about the current
+      one.
 - [ ] **Sync Jollibee onto the database-driven catalog** (teammate request, 9/20,
       "add the Jollibee menu") — Jollibee's 30 products already exist in the DB
       catalog (`Product` table, BrandID 1) via the admin Brand & Service Catalog
@@ -393,7 +635,22 @@ items off as they land.
       dynamic `CatalogBrandMenu` component the database-driven brands already use.
 - [ ] Delete dead Express backend (`backend/`) + hardcoded access codes in
       `src/config/roles.js` — not currently exploitable (Laravel ignores role/accessCode
-      on register), but it's a loaded gun sitting in the repo.
+      on register), but it's a loaded gun sitting in the repo. **Half-done on disk
+      already (9/22, found during this session, not done by me)**: the `backend/`
+      directory is gone from the working tree but the deletion is uncommitted
+      and `git status` still shows those files - if that was intentional,
+      commit it; if not, `git checkout` will bring them back. `src/config/roles.js`
+      still exists untouched either way.
+- [ ] **`Product.StockQuantity` exists in the schema but is completely
+      unenforced** (found during the full QA pass, 9/22) - every product in
+      the live catalog reads `StockQuantity: 0`, and grepping the entire
+      backend turns up zero references to that column outside the migration
+      itself. Nothing validates it, decrements it, or blocks ordering an
+      item that's actually out of stock - a customer can order any quantity
+      of anything regardless of real availability. Not urgent for a capstone
+      demo, but worth a decision: either wire it up for real (validate on
+      order, decrement on confirm) or remove the unused column so the schema
+      doesn't imply inventory tracking that doesn't exist.
 - [ ] Rate limiting on `/uploads/bill-documents` (no throttle currently, upload spam =
       storage-exhaustion DoS risk).
 - [ ] Backend test coverage for order/payment flows (best done once 1b–1e exist).
@@ -403,7 +660,12 @@ items off as they land.
       actual email/password fields below the fold on phone screens.
 - [ ] **Inconsistent empty states (UX)** — Admin's Payments tab has a proper
       icon+heading+subtext empty state; Riders/Customers/Brands tables just show flat
-      "No X found." text. Apply the good pattern everywhere.
+      "No X found." text. Apply the good pattern everywhere. **Confirmed this is worse
+      than cosmetic during a full QA pass (9/22)**: the Brands tab genuinely flashed
+      "No brands found." on a real page load with 16 real brands in the database -
+      `CatalogTab` has no loading state at all, so the empty-table render and the
+      "still fetching" state are visually identical. An admin landing on a
+      slower connection has no way to tell "empty" from "not done loading yet."
 - [ ] Add `laravel/public/uploads/` to `.gitignore` — found 4 untracked test-upload
       images sitting in the repo; user-generated uploads shouldn't be tracked.
 
@@ -417,13 +679,16 @@ items off as they land.
       up front. Would need real prep-time data per brand/service to be honest, not
       just decorative (tie to `calculateEstimatedWaitMinutes`, already used inside
       each menu page, just not surfaced one level up).
-- [ ] **More compact brand list layout** (Grab/foodpanda reference, 9/21) — both
-      foodpanda and Grab present brand/restaurant options as compact horizontal
-      rows (logo + name + ETA) rather than large square tiles, fitting more options
-      on screen at once and reducing scrolling. Otu-Zan's current large square tiles
-      (`src/Pages/costumer/Home.jsx`) take noticeably more space per brand. Related
-      to the mobile-screen-space concerns already flagged under "Mobile cart
-      placement" above.
+- [x] **More compact brand list layout** (Grab/foodpanda reference, 9/21) —
+      closed as part of the design system pass above (`9ae9095`): `BrandCard`
+      is now a bare circular tile instead of a large boxed square card, and the
+      grid packs noticeably tighter. Went with a denser wrapping grid rather
+      than Grab/foodpanda's horizontal-scroll row - Otu-Zan's own research note
+      below (carousel discoverability) argues against introducing horizontal
+      scroll/carousel patterns without a clear need, and a wrapping grid gets
+      the same "more options, less scrolling" benefit without that tradeoff.
+      No per-brand ETA added (separate item below, needs real prep-time data
+      first).
 - [ ] *(Research note)* Couldn't get live reference for foodpanda's actual menu/
       cart/checkout screens — hit a reCAPTCHA wall navigating into a restaurant page,
       did not attempt to bypass it. GrabFood gates restaurant browsing behind login.
@@ -479,6 +744,38 @@ items off as they land.
       which doesn't natively run a persistent Laravel backend. Decide:
       Vercel-for-frontend + different host for Laravel, or reconsider hosting —
       then actually deploy.
+- [ ] **Pre-deployment checklist** (found during a full end-to-end QA pass, 9/22 -
+      customer/admin/rider order lifecycle tested live start to finish and works
+      correctly; these are separate, real gaps found alongside that, specifically
+      about going live safely, not about correctness of the flows themselves):
+      - **`APP_DEBUG=true` must become `false` in the production `.env`.**
+        Confirmed live: any unhandled backend error currently returns a full
+        stack trace, including real server file paths
+        (`C:\xampp\htdocs\Otu-Zan\laravel\vendor\...`), to the raw HTTP
+        response. Fine for local dev (`APP_ENV=local` is correctly set that
+        way right now) - a real, well-known Laravel misconfiguration if it
+        ships to production unchanged, since it leaks internal structure to
+        anyone who trips an error.
+      - **No documented way to create the very first admin account.**
+        `AuthController::register` hardcodes every signup to `role: customer`
+        (by design - not a bug, already covered by the QA pass above) and
+        `DatabaseSeeder` deliberately seeds no accounts. `POST
+        /api/admin/accounts/{role}` exists and works for an *already-logged-in*
+        admin to create more staff accounts - but nothing bootstraps the first
+        one on a fresh deployment. Needs either a documented `php artisan
+        tinker` snippet (what this session used for testing) or a dedicated
+        `artisan make:admin` command in the deployment runbook, so whoever
+        stands this up for real isn't stuck.
+      - **Dev-only CORS origin patterns should come out before going live**
+        (`laravel/config/cors.php`'s `allowed_origins_patterns` permits any
+        `localhost`/`127.0.0.1` port, intentionally, for local dev convenience).
+        Not a live vulnerability - production traffic won't arrive from
+        "localhost" - but it's dev scaffolding that should be removed as part
+        of a real deploy, not left in "just in case."
+      - Confirm `laravel/.env` is never committed (already correctly
+        gitignored; `.env.example` exists as the template) - just re-verify
+        this before every deploy, since it's the one file that would leak
+        real database credentials if it ever slipped in.
 - [ ] **Admin table loading state (UX)** — no spinner/skeleton distinguishes "still
       loading" from "genuinely empty," so switching tabs can briefly show a false
       "No X found."
@@ -525,9 +822,86 @@ items off as they land.
 
 ## Non-code / academic
 
-- [ ] **Research emerging technologies — Data Analytics** (teammate request, 9/20).
-      Note: your team's meeting minutes (Aug 26) had the emerging-tech slot as
-      AI-based ETA prediction, later deprioritized in favor of simple status labels.
-      Data Analytics looks like the new direction — worth confirming with the team
-      before it goes into the paper, since it's a different pivot than what's
-      currently documented.
+- [ ] **Research emerging technologies — Data Analytics** (teammate request, 9/20;
+      researched 9/22). Note: your team's meeting minutes (Aug 26) had the
+      emerging-tech slot as AI-based ETA prediction, later deprioritized in favor
+      of simple status labels. Data Analytics is a different pivot from what's
+      currently documented - **still confirm the switch with your instructor/team
+      before it goes into the paper**, but here's a concrete, achievable plan to
+      bring to that conversation instead of an open question.
+
+      Researched how real delivery platforms and e-commerce systems apply data
+      analytics, and grounded the plan in what Otu-Zan's schema already collects
+      (Orders, OrderItems, Products, Payments, Queue, Users) rather than proposing
+      something that needs data the system doesn't have. Three layers, each a
+      real, citable analytics technique - not just "we made some charts":
+
+      1. **Descriptive** (what happened) - daily/weekly revenue trends, best-selling
+         products, and peak-ordering-time patterns (hour-of-day / day-of-week).
+         This tier is a hard dependency on the Revenue-tracking fix above - you
+         cannot report a revenue *trend* from a system that doesn't persist
+         revenue by date yet. Best-sellers and peak-time heatmaps are already
+         separately requested above; this is the same underlying work framed as
+         the paper's analytics chapter instead of a UX feature. Dashboard design
+         research consistently recommends keeping each view to a handful of
+         KPIs with a clear primary metric, not a wall of numbers
+         ([Improvado: Dashboard Design Best
+         Practices](https://improvado.io/blog/dashboard-design-guide)).
+
+      2. **Diagnostic — RFM customer segmentation** (who, and why they matter) -
+         a well-established framework scoring each customer on Recency (days
+         since last order), Frequency (order count), and Monetary value (total
+         spend) to classify customers into segments like loyal/at-risk/new
+         ([CleverTap: RFM Analysis for Customer
+         Segmentation](https://clevertap.com/blog/rfm-analysis/);
+         [ScienceDirect/JTAER: Customer Segmentation Using an Extended RFM Model
+         and Clustering Algorithms in
+         E-Commerce](https://doi.org/10.3390/jtaer21050142)). Genuinely
+         achievable with plain SQL aggregation over the existing `Orders` table -
+         no machine-learning library needed, and it gives the paper a named,
+         citable methodology instead of "we counted things."
+
+      3. **Predictive (lightweight)** - a simple demand forecast (e.g. a rolling
+         average or day-of-week seasonal average of past order volume) to project
+         expected orders for the next day/hour, framed as informing rider
+         staffing. Real platforms do this with full ML pipelines analyzing
+         historical sales, seasonality, and local events
+         ([Kody Technolab: Predictive Analytics in
+         Delivery](https://kodytechnolab.com/blog/predictive-analytics-in-delivery/);
+         [Deliverect: How Data Analytics is Revolutionizing Online Food
+         Ordering](https://www.deliverect.com/en-us/blog/trending/how-data-analytics-is-revolutionizing-the-online-food-ordering-industry)) -
+         a capstone timeline doesn't support that, but a moving-average forecast
+         computed in plain PHP/SQL is still legitimately "predictive analytics"
+         for the paper without needing an ML stack Otu-Zan doesn't have anywhere
+         else in its architecture.
+
+      Recommended order: layer 1 first (blocked on the revenue fix landing
+      anyway), layer 2 next (cheapest of the three - it's a query, not a
+      feature), layer 3 last and only if time allows - it's the most
+      "emerging-tech-sounding" for the paper but the least load-bearing for the
+      actual system.
+
+      **Validated this is mainstream industry practice, not speculative
+      (9/22)**, using primary sources - each company's *own* engineering blog,
+      not a third-party summary: DoorDash's engineering team publishes exactly
+      the demand-forecasting approach in layer 3
+      ([doordash.engineering: Managing Supply and Demand Balance Through
+      Machine Learning](https://doordash.engineering/2021/06/29/managing-supply-and-demand-balance-through-machine-learning/);
+      [How DoorDash Built an Ensemble Model for Time Series
+      Forecasting](https://careersatdoordash.com/blog/how-doordash-built-an-ensemble-learning-model-for-time-series-forecasting/)).
+      Uber's own blog documents DeepETA, and Uber Eats specifically improved
+      delivery-time-estimate accuracy by 26% using ML on historical trip data
+      ([uber.com: DeepETA — How Uber Predicts Arrival
+      Times](https://www.uber.com/en-CA/blog/deepeta-how-uber-predicts-arrival-times/);
+      [bestpractice.ai case
+      study](https://www.bestpractice.ai/ai-case-study-best-practice/uber_eats_improves_estimated_time_of_delivery_information_accuracy_by_26%25_using_machine_learning_algorithms)).
+      RFM (layer 2) isn't niche either - it's a decades-old technique now a
+      built-in feature of mainstream CRM/marketing platforms (Salesforce,
+      HubSpot, Klaviyo, CleverTap all ship it out of the box), which is exactly
+      why it's citable as an industry-standard method rather than something
+      invented for this paper. And adoption is broad, not just tech giants:
+      Gartner's own 2025 research puts 81% of organizations using analytics or
+      AI for key business decisions, with 89% of executives planning to
+      increase analytics investment
+      ([Gartner: Top Data & Analytics Predictions
+      2025](https://www.gartner.com/en/newsroom/press-releases/2025-06-17-gartner-announces-top-data-and-analytics-predictions)).
