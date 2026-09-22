@@ -24,6 +24,37 @@ class CatalogApiTest extends TestCase
         return $user->createToken('test')->plainTextToken;
     }
 
+    public function test_oversized_catalog_images_are_downscaled_on_upload(): void
+    {
+        if (!extension_loaded('gd')) {
+            $this->markTestSkipped('GD extension not enabled in this PHP install.');
+        }
+        $token = $this->token('admin');
+        $service = $this->withToken($token)->postJson('/api/admin/catalog/services', [
+            'ServiceName' => 'Food Delivery', 'ServiceType' => 'food', 'IsActive' => true,
+        ])->assertCreated()->json();
+        $brand = $this->withToken($token)->postJson('/api/admin/catalog/brands', [
+            'BrandName' => 'Big Image Test', 'ServiceID' => $service['ServiceID'], 'IsActive' => true,
+        ])->assertCreated()->json();
+
+        $oversized = imagecreatetruecolor(2000, 1500);
+        $tempPath = tempnam(sys_get_temp_dir(), 'catalog-test-').'.jpg';
+        imagejpeg($oversized, $tempPath, 95);
+        imagedestroy($oversized);
+
+        $upload = $this->withToken($token)->post('/api/admin/catalog/brands/'.$brand['BrandID'], [
+            '_method' => 'PUT', 'BrandName' => 'Big Image Test', 'ServiceID' => $service['ServiceID'],
+            'Logo' => new UploadedFile($tempPath, 'oversized.jpg', 'image/jpeg', null, true),
+        ])->assertOk();
+
+        $storedPath = public_path(ltrim($upload->json('ImagePath'), '/'));
+        [$width, $height] = getimagesize($storedPath);
+        $this->assertLessThanOrEqual(1280, max($width, $height));
+
+        @unlink($tempPath);
+        @unlink($storedPath);
+    }
+
     public function test_admin_can_manage_catalog_and_products_require_a_brand(): void
     {
         $token = $this->token('admin');

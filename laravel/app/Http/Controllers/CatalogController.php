@@ -111,12 +111,7 @@ class CatalogController extends Controller
             'Logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:20480'],
         ], ['Logo.max' => 'The brand logo must be 20 MB or smaller.']);
         if ($r->hasFile('Logo')) {
-            $file = $r->file('Logo');
-            $directory = public_path('uploads/brands');
-            if (!is_dir($directory)) mkdir($directory, 0755, true);
-            $filename = Str::uuid()->toString().'.'.$file->extension();
-            $file->move($directory, $filename);
-            $data['ImagePath'] = '/uploads/brands/'.$filename;
+            $data['ImagePath'] = '/uploads/brands/'.$this->storeCompressedImage($r->file('Logo'), public_path('uploads/brands'));
         }
         unset($data['Logo']);
         return $data;
@@ -131,14 +126,67 @@ class CatalogController extends Controller
             'IsActive' => ['boolean'], 'Image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:20480'],
         ], ['Image.max' => 'The product image must be 20 MB or smaller.']);
         if ($r->hasFile('Image')) {
-            $file = $r->file('Image');
-            $directory = public_path('uploads/products');
-            if (!is_dir($directory)) mkdir($directory, 0755, true);
-            $filename = Str::uuid()->toString().'.'.$file->extension();
-            $file->move($directory, $filename);
-            $data['ImagePath'] = '/uploads/products/'.$filename;
+            $data['ImagePath'] = '/uploads/products/'.$this->storeCompressedImage($r->file('Image'), public_path('uploads/products'));
         }
         unset($data['Image']);
         return $data;
+    }
+
+    // Moves the uploaded file, then downsizes it in place (best-effort - if
+    // anything about compression fails, the original upload that's already
+    // on disk is left exactly as uploaded rather than blocking the save).
+    // Mirrors the client-side compression already applied to bill-payment
+    // uploads (PayBillsForm.jsx's compressImage: cap the longest edge at
+    // 1280px), but keeps the original format instead of forcing JPEG -
+    // brand/product images are frequently PNGs with real transparency
+    // (logos), and flattening those to JPEG would bake in a visible
+    // background. GIFs are left untouched entirely so an animated logo
+    // doesn't get reduced to its first frame.
+    private function storeCompressedImage($file, string $directory): string
+    {
+        if (!is_dir($directory)) mkdir($directory, 0755, true);
+        $filename = Str::uuid()->toString().'.'.$file->extension();
+        $file->move($directory, $filename);
+        $this->compressImageInPlace($directory.DIRECTORY_SEPARATOR.$filename);
+        return $filename;
+    }
+
+    private function compressImageInPlace(string $path): void
+    {
+        if (!extension_loaded('gd')) return;
+        $maxDimension = 1280;
+        try {
+            $info = @getimagesize($path);
+            if (!$info) return;
+            [$width, $height, $type] = $info;
+            if (!$width || !$height || max($width, $height) <= $maxDimension) return;
+            $scale = $maxDimension / max($width, $height);
+            $newWidth = (int) round($width * $scale);
+            $newHeight = (int) round($height * $scale);
+            $source = match ($type) {
+                IMAGETYPE_JPEG => imagecreatefromjpeg($path),
+                IMAGETYPE_PNG => imagecreatefrompng($path),
+                IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? imagecreatefromwebp($path) : null,
+                default => null, // GIF (animation) and anything else: leave untouched
+            };
+            if (!$source) return;
+            $resized = imagecreatetruecolor($newWidth, $newHeight);
+            if ($type === IMAGETYPE_PNG) {
+                imagealphablending($resized, false);
+                imagesavealpha($resized, true);
+            }
+            imagecopyresampled($resized, $source, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+            match ($type) {
+                IMAGETYPE_JPEG => imagejpeg($resized, $path, 80),
+                IMAGETYPE_PNG => imagepng($resized, $path, 6),
+                IMAGETYPE_WEBP => function_exists('imagewebp') ? imagewebp($resized, $path, 80) : null,
+                default => null,
+            };
+            imagedestroy($source);
+            imagedestroy($resized);
+        } catch (\Throwable $error) {
+            // Best-effort only - never let a compression failure block an
+            // otherwise-successful catalog save.
+        }
     }
 }
