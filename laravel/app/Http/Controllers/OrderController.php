@@ -229,12 +229,26 @@ class OrderController extends Controller
             'riderId' => ['nullable', 'integer', 'exists:Users,UserID'],
         ]);
 
-        if ($data['riderId'] ?? null) {
-            $rider = User::find($data['riderId']);
+        $riderId = $data['riderId'] ?? null;
+        if ($riderId) {
+            $rider = User::find($riderId);
             abort_unless($rider && $rider->Role === 'driver', 422, 'That user is not a rider.');
         }
 
-        $order->update(['AssignedRiderID' => $data['riderId'] ?? null]);
+        DB::transaction(function () use ($order, $riderId) {
+            $updates = ['AssignedRiderID' => $riderId];
+            if ($riderId && $order->DeliveryStatus === 'pending_rider') {
+                $updates['DeliveryStatus'] = 'confirmed';
+            }
+
+            $order->update($updates);
+
+            if (($updates['DeliveryStatus'] ?? null) === 'confirmed') {
+                $order->queueEntries()->where('QueueStatus', 'waiting')->update(['QueueStatus' => 'done']);
+                $this->notifyStatusChange($order, 'confirmed');
+            }
+        });
+
         return response()->json(['order' => $order->fresh(['items.product', 'rider'])]);
     }
 }

@@ -171,7 +171,9 @@ class OrderApiTest extends TestCase
 
         $this->withToken($this->token($admin))->patchJson("/api/orders/{$order->OrderID}/assign", [
             'riderId' => $rider->UserID,
-        ])->assertOk()->assertJsonPath('order.AssignedRiderID', $rider->UserID);
+        ])->assertOk()
+            ->assertJsonPath('order.AssignedRiderID', $rider->UserID)
+            ->assertJsonPath('order.DeliveryStatus', 'confirmed');
 
         $this->withToken($this->token($admin))->patchJson("/api/orders/{$order->OrderID}/assign", [
             'riderId' => null,
@@ -223,6 +225,35 @@ class OrderApiTest extends TestCase
         $this->withToken($this->token($admin))->patchJson("/api/orders/{$order->OrderID}/status", [
             'status' => 'delivered',
         ])->assertOk()->assertJsonPath('order.DeliveryStatus', 'delivered');
+    }
+
+    public function test_customer_can_cancel_only_before_a_rider_is_selected(): void
+    {
+        $customer = $this->user('customer');
+        $admin = $this->user('admin');
+        $rider = $this->user('driver');
+        $firstOrder = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'DeliveryStatus' => 'pending_rider']);
+        $secondOrder = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'DeliveryStatus' => 'pending_rider']);
+
+        $this->withToken($this->token($customer))->patchJson("/api/orders/{$firstOrder->OrderID}/status", [
+            'status' => 'cancelled',
+        ])->assertOk()->assertJsonPath('order.DeliveryStatus', 'cancelled');
+
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token($admin))->patchJson("/api/orders/{$secondOrder->OrderID}/assign", [
+            'riderId' => $rider->UserID,
+        ])->assertOk()->assertJsonPath('order.DeliveryStatus', 'confirmed');
+
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token($customer))->patchJson("/api/orders/{$secondOrder->OrderID}/status", [
+            'status' => 'cancelled',
+        ])->assertForbidden();
+
+        $this->assertDatabaseHas('Orders', [
+            'OrderID' => $secondOrder->OrderID,
+            'AssignedRiderID' => $rider->UserID,
+            'DeliveryStatus' => 'confirmed',
+        ]);
     }
 
     public function test_unassigned_rider_and_customer_cannot_update_status(): void
