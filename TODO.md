@@ -26,7 +26,7 @@ flipping the box, to keep this split meaningful over time.
 | --- | --- | --- | --- | --- |
 | Fix cross-device receipt images | Recommended | High - completed | Duplicate / completed | Fixed: persist backend-relative upload paths and resolve legacy localhost URLs against the configured API host. Verify with the deployed/LAN API URL before release. |
 | Customer-rider in-app communication | Recommended with Changes | High | Duplicate | Build order-scoped, authenticated messaging only after a rider is assigned; retain messages, rate-limit them, and close messaging after delivery/cancellation. Do not expose personal phone numbers. |
-| Separate today's history from older orders | Recommended with Changes | Medium | New | Add Today and Previous tabs/filters to the existing history, using the business timezone and keeping search/filter access. Do not duplicate order records or create a separate history store. |
+| Separate today's history from older orders | Recommended with Changes | Medium - completed | New / completed | Fixed 9/23: added an All dates/Today/Previous filter to the admin History tab, using the Asia/Manila business-timezone convention already established for Revenue. Defaults to "All dates" to preserve existing behavior. See Completed Work below. |
 | Show product images in Order Details | Recommended with Changes | Medium | New | Show small lazy-loaded product thumbnails where an image exists, with a clean fallback. Keep receipt/proof images separate from order-item media and avoid loading full-size images in long lists. |
 | Improve scrolling smoothness system-wide | Recommended with Changes | Medium | Related | Treat this as a measured performance pass: profile long lists, preserve pagination/lazy image loading, and address actual jank. Do not add decorative smooth-scroll behavior that can reduce accessibility or mask rendering problems. |
 | Make the brand logo square | Recommended with Changes | Low | Related | Use a square logo container with `object-fit: contain`; do not crop or distort brand artwork. This complements the existing compact brand-tile work. |
@@ -709,6 +709,23 @@ AI for key business decisions
 
 ## Medium
 
+- [x] **Today/Previous date filter on the admin order History tab**
+      (client-reviewed intake, 9/23; fixed same day) - history was one flat,
+      unbounded table with no way to separate today's activity from the full
+      record. Added an All dates/Today/Previous filter alongside the
+      existing service filter, using the same Asia/Manila business-timezone
+      convention already established for the Revenue endpoint (calendar-day
+      comparison, not the admin's own machine's local time). Defaults to
+      "All dates," not "Today" - defaulting to today would have silently
+      hidden every past order until something happens today, a real
+      behavior change, not just an addition; caught this from the existing
+      test suite (`OrderCustomerDetails.test.jsx` already asserted a
+      fixed-past-date order was visible by default) and fixed the default
+      rather than adapting the test around a worse one. Purely a
+      client-side filter over data the tab already has - no new endpoint,
+      no separate history store, per the review's explicit scope. Verified
+      live against real historical + same-day orders; all three modes
+      correct. Regression test added. (`8776a55`)
 - [x] **Best-sellers section (own feature, shipped same day) had a padding
       mismatch, dead-end clicks, and wrong section order; separately, no way
       back to Home from the FAQ page at all** (both user-reported live,
