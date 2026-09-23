@@ -201,19 +201,66 @@ export const RestaurantMenu = ({
     }
   }, [categories, activeCategory]);
 
+  // Found live (9/24): the previous IntersectionObserver band (a narrow
+  // ~90px slice computed from a guessed, hardcoded rootMargin) left the
+  // active chip stuck on a stale category whenever nothing happened to
+  // intersect that slice - most visibly at the very top of the page, where
+  // the intro/heading content pushes the first category section below the
+  // band, so scrolling to the top left whichever category was active
+  // *before* stuck highlighted instead of resetting to the first one.
+  //
+  // Replaced with a direct reference-line check instead: the active
+  // category is whichever section's top has scrolled up to (or past) the
+  // real, live-measured bottom edge of the sticky header+nav - the last one
+  // that's "been reached," which is correct at the very top (nothing's
+  // been reached yet, so it stays on the first category), the very bottom
+  // (the last category, since its top eventually scrolls past the line
+  // too), and everywhere in between. Measuring the sticky elements' actual
+  // rendered height (rather than a guessed constant) also means this stays
+  // correct if the mobile/desktop nav variants ever end up different
+  // heights.
   useEffect(() => {
     if (!showCategoryNav) return undefined;
-    // Treats a category as "current" once it's scrolled into the band just
-    // below the sticky header+chip row, not only once it's fully in view -
-    // rootMargin shrinks the observed viewport to roughly that top band.
-    const observer = new IntersectionObserver((entries) => {
-      const topMost = entries
-        .filter((entry) => entry.isIntersecting)
-        .sort((first, second) => first.boundingClientRect.top - second.boundingClientRect.top)[0];
-      if (topMost) setActiveCategory(topMost.target.dataset.category);
-    }, { rootMargin: '-140px 0px -70% 0px' });
-    Object.values(categorySectionRefs.current).forEach((section) => section && observer.observe(section));
-    return () => observer.disconnect();
+    let ticking = false;
+
+    const getReferenceY = () => {
+      const header = document.querySelector('.jollibee-page-header');
+      const visibleNav = [...document.querySelectorAll('.jollibee-category-nav')]
+        .find((element) => getComputedStyle(element).display !== 'none');
+      return visibleNav?.getBoundingClientRect().bottom
+        ?? header?.getBoundingClientRect().bottom
+        ?? 0;
+    };
+
+    const updateActiveCategory = () => {
+      ticking = false;
+      // +20px tolerance: browsers' own "sticky-aware" scrollIntoView (used
+      // by clicking a chip, below) doesn't land pixel-exact against the
+      // sticky elements' measured height - observed landing a handful of
+      // pixels short, which without slack flipped the active chip back to
+      // the previous category the instant the smooth scroll settled.
+      const referenceY = getReferenceY() + 20;
+      let current = categories[0]?.category;
+      categories.forEach((group) => {
+        const element = categorySectionRefs.current[group.category];
+        if (element && element.getBoundingClientRect().top <= referenceY) current = group.category;
+      });
+      setActiveCategory(current);
+    };
+
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(updateActiveCategory);
+    };
+
+    updateActiveCategory();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
   }, [categories, showCategoryNav]);
 
   const scrollToCategory = (category) => {
