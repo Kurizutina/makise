@@ -20,24 +20,19 @@ flipping the box, to keep this split meaningful over time.
       its own design pass (in-app chat vs. just exposing contact numbers, etc.)
       before implementation.
 
-- [ ] **History (and Live Orders, and Payments) all read from the same
-      50-order-capped fetch** (`useBackendOrders('/api/admin/orders?per_page=50')`)
-      (found 9/24, while scoping the date-filter request below) — the exact
-      same bug class as the Revenue tab bug fixed 9/23: a client-side filter
-      over an already-capped list silently misses anything older than the
-      most recent 50 orders. Not urgent yet at current order volume, but a
-      prerequisite for the exact-date History filter below to actually be
-      reliable once volume grows - needs its own backend-driven query
-      (mirroring how `OrderController::revenue` was built), not just a
-      bigger `per_page` number.
 - [ ] **Exact-date filter for History and Revenue, plus a Revenue line
       graph** (user request, 9/24 - scope narrowed from date-picker+graph
       down to just a trend arrow for now, see Completed Work; the rest of
       the original request is still open). Concrete, buildable pieces:
       - History: pick a specific date (e.g. September 23, 2026), see only
-        that day's orders - depends on the pagination-cap fix directly
-        above, since a client-side date filter over a capped list would
-        have the same silent-gap problem.
+        that day's orders. **The prerequisite for this is now done (9/24)**
+        - History's shared 50-order pagination cap is fixed (see Completed
+          Work), so real data is reachable. One interim limitation carries
+          over though: the service/date filters still apply client-side to
+          only the current page's 20 rows, so picking a specific date needs
+          the filter to become a real server-side query param (`GET
+          /api/admin/orders?date=2026-09-23`), not just search the page
+          you're currently on.
       - Revenue: pick a specific date, see that day's total - needs a date
         param added to `GET /api/admin/revenue` (currently aggregates
         all-time unconditionally); the `daily` breakdown it already returns
@@ -646,6 +641,38 @@ AI for key business decisions
 
 ## High
 
+- [x] **History's 50-order pagination cap** (found 9/24 while scoping the
+      exact-date-filter request; fixed same day) - History, Live Orders, and
+      Payments all read from one `useBackendOrders('/api/admin/orders?per_page=50')`
+      fetch, capped at the most recent 50 orders and never paginated
+      further. Fine for Live Orders/Payments (a bounded, active working
+      set) but wrong for History, which only grows - a client-side filter
+      over that capped list silently lost anything older than the most
+      recent 50, the same bug class as the Revenue tab bug fixed 9/23.
+
+      `OrderController::indexAll` already had real server-side pagination
+      implemented, just never exposed in the UI. History now does its own
+      fetch straight against it (`status=delivered,cancelled`, real
+      page/per_page params) with Next/Previous controls, decoupled from the
+      shared capped list Live Orders/Payments still use. Extended the
+      status filter to accept a comma-separated list (`delivered,cancelled`
+      in one request) - a single status still works unchanged. Reused
+      `useBackendOrders.js`'s `toLocalOrderShape` (now exported) instead of
+      duplicating the shape conversion.
+
+      **Known interim limitation, tracked as the next step above**: the
+      service/date filters still apply client-side to only the current
+      page's 20 rows, so a filter can show nothing even though another page
+      has matches. The actual bug (records becoming permanently
+      unreachable) is fixed; server-side filtering is the follow-up.
+
+      Verified live: seeded 25 extra historical orders (35 total delivered/
+      cancelled), confirmed "Page 1 of 2 (35 total)," confirmed Next/
+      Previous correctly page through real data with Next disabling on the
+      last page. Backend tests added for single- and multi-status
+      filtering; frontend History tests rewritten to mock the new fetch.
+      Full frontend/backend suites re-run clean - same pre-existing
+      failures only. Test data cleaned up after. (`bc0589e`)
 - [x] **Cross-user notification leak after logout** (client-reviewed intake,
       9/23; fixed same day) - a real privacy/session-isolation bug, not just
       stale UI, reproduced live before fixing it: logged in as a customer,
