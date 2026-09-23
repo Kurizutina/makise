@@ -583,5 +583,17 @@ export const useCustomerActivity = () => {
       notifications: context.notifications.filter((notification) => orderIds.has(notification.orderId))
     };
   }
-  return context;
+  // Admin intentionally sees every order/notification unfiltered - that's
+  // the whole point of the admin dashboard, not a gap.
+  if (user?.role === 'admin') return context;
+  // No session: a guest browsing, or a customer who just logged out (or
+  // closed the tab last time without logging out - sessionStorage clears on
+  // its own then too). otuzanCustomerActivity isn't scoped per account, so
+  // without this branch a guest fell through to the same unfiltered
+  // `context` as admin and saw whichever customer's orders/notifications
+  // were last synced to this browser (found live, 9/23 - a real cross-user
+  // data exposure, not just stale UI). Cart is left untouched: guest
+  // browsing intentionally lets a guest build a cart before being asked to
+  // log in at checkout, and that's not customer-identifying data.
+  return { ...context, orders: [], notifications: [] };
 };

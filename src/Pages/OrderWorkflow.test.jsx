@@ -72,6 +72,24 @@ test('a customer sees notifications only for orders linked to their account', ()
   expect(actions.notifications).toEqual([{ id: 'OWN-NOTIFICATION', orderId: 'OWN-ORDER' }]);
 });
 
+// Regression test for a real cross-user privacy leak (found live, 9/23):
+// otuzanCustomerActivity's localStorage blob isn't scoped per account, and
+// useCustomerActivity() used to have no explicit branch for "no session" -
+// it fell through to the same unfiltered `return context` used for admin.
+// A guest (or a customer who just logged out) on the same browser could see
+// whichever customer's orders/notifications were last synced there.
+test('a guest (no session) sees no orders or notifications, even when some are cached locally', () => {
+  const someonesOrder = { ...order, customerId: 42, id: 'SOMEONES-ORDER' };
+  localStorage.setItem('otuzanCustomerActivity', JSON.stringify({
+    orders: [someonesOrder],
+    cart: [],
+    notifications: [{ id: 'SOMEONES-NOTIFICATION', orderId: 'SOMEONES-ORDER' }]
+  }));
+  render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
+  expect(actions.orders).toEqual([]);
+  expect(actions.notifications).toEqual([]);
+});
+
 test('direct and cart orders retain the signed-in customer account ID', async () => {
   signIn(42, 'customer');
   localStorage.setItem('otuzanCustomerProfile', JSON.stringify({ id: 42, username: 'Full Name', address: 'Address', email: 'customer@example.com' }));
