@@ -19,6 +19,23 @@ flipping the box, to keep this split meaningful over time.
       exists between customer and rider today. Real feature, not a quick fix; needs
       its own design pass (in-app chat vs. just exposing contact numbers, etc.)
       before implementation.
+
+### Reviewed Product Intake (9/23)
+
+| Request | Verdict | Priority | Relationship | Product review / scope |
+| --- | --- | --- | --- | --- |
+| Fix cross-device receipt images | Recommended | High - completed | Duplicate / completed | Fixed: persist backend-relative upload paths and resolve legacy localhost URLs against the configured API host. Verify with the deployed/LAN API URL before release. |
+| Customer-rider in-app communication | Recommended with Changes | High | Duplicate | Build order-scoped, authenticated messaging only after a rider is assigned; retain messages, rate-limit them, and close messaging after delivery/cancellation. Do not expose personal phone numbers. |
+| Separate today's history from older orders | Recommended with Changes | Medium | New | Add Today and Previous tabs/filters to the existing history, using the business timezone and keeping search/filter access. Do not duplicate order records or create a separate history store. |
+| Show product images in Order Details | Recommended with Changes | Medium | New | Show small lazy-loaded product thumbnails where an image exists, with a clean fallback. Keep receipt/proof images separate from order-item media and avoid loading full-size images in long lists. |
+| Improve scrolling smoothness system-wide | Recommended with Changes | Medium | Related | Treat this as a measured performance pass: profile long lists, preserve pagination/lazy image loading, and address actual jank. Do not add decorative smooth-scroll behavior that can reduce accessibility or mask rendering problems. |
+| Make the brand logo square | Recommended with Changes | Low | Related | Use a square logo container with `object-fit: contain`; do not crop or distort brand artwork. This complements the existing compact brand-tile work. |
+| Research competitor color schemes and refine the palette | Recommended with Changes | Medium | Duplicate | Continue the existing token/palette-consolidation item. Use competitor research for conventions, not imitation; define accessible primary, hover, surface, text, and semantic status colors around the Otu-Zan logo. |
+| Stop notifications after logout | Recommended | High | New | Treat as a privacy/session-isolation bug: clear in-memory notification state, cancel polling, and prevent stale local notifications from appearing for a subsequent or logged-out user. |
+| Put the mobile sign-in card at the top | Not Recommended as a standalone task | Not Recommended | Related | Fold this into the modal-authentication work below. A separate top-of-page login layout conflicts with the current guest-browsing entry point and would create two competing auth experiences. |
+| Show current/general location in the header, while allowing a delivery location selection | Recommended with Changes | Medium | Duplicate | Surface the saved delivery zone in the header with a clear change action. Ask for device location only with consent and provide a manual fallback; the selected billable delivery zone remains the source of truth for fees. |
+| Open Login/Sign Up as a modal over a blurred homepage | Recommended with Changes | Medium | Related | Keep guest browsing, then open an accessible modal from the header. Use focus trapping, Escape/backdrop close, and a mobile full-screen sheet rather than a blurred, cramped card; preserve the current direct auth route as a fallback. |
+
 ## Medium Priority
 
 ### Design
