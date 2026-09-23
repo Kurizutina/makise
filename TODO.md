@@ -31,7 +31,7 @@ flipping the box, to keep this split meaningful over time.
 | Improve scrolling smoothness system-wide | Recommended with Changes | Medium | Related | Treat this as a measured performance pass: profile long lists, preserve pagination/lazy image loading, and address actual jank. Do not add decorative smooth-scroll behavior that can reduce accessibility or mask rendering problems. |
 | Make the brand logo square | Recommended with Changes | Low | Related | Use a square logo container with `object-fit: contain`; do not crop or distort brand artwork. This complements the existing compact brand-tile work. |
 | Research competitor color schemes and refine the palette | Recommended with Changes | Medium | Duplicate | Continue the existing token/palette-consolidation item. Use competitor research for conventions, not imitation; define accessible primary, hover, surface, text, and semantic status colors around the Otu-Zan logo. |
-| Stop notifications after logout | Recommended | High | New | Treat as a privacy/session-isolation bug: clear in-memory notification state, cancel polling, and prevent stale local notifications from appearing for a subsequent or logged-out user. |
+| Stop notifications after logout | Recommended | High - completed | New / completed | Fixed 9/23: `useCustomerActivity()` had no branch for "no session," so a guest fell through to the same unfiltered path as admin and could see whichever customer's orders/notifications were last cached on that browser. See Completed Work below for the reproduction and fix. |
 | Put the mobile sign-in card at the top | Not Recommended as a standalone task | Not Recommended | Related | Fold this into the modal-authentication work below. A separate top-of-page login layout conflicts with the current guest-browsing entry point and would create two competing auth experiences. |
 | Show current/general location in the header, while allowing a delivery location selection | Recommended with Changes | Medium | Duplicate | Surface the saved delivery zone in the header with a clear change action. Ask for device location only with consent and provide a manual fallback; the selected billable delivery zone remains the source of truth for fees. |
 | Open Login/Sign Up as a modal over a blurred homepage | Recommended with Changes | Medium | Related | Keep guest browsing, then open an accessible modal from the header. Use focus trapping, Escape/backdrop close, and a mobile full-screen sheet rather than a blurred, cramped card; preserve the current direct auth route as a fallback. |
@@ -602,6 +602,35 @@ AI for key business decisions
 
 ## High
 
+- [x] **Cross-user notification leak after logout** (client-reviewed intake,
+      9/23; fixed same day) - a real privacy/session-isolation bug, not just
+      stale UI, reproduced live before fixing it: logged in as a customer,
+      placed a real order (writes a local notification to the shared
+      `otuzanCustomerActivity` localStorage blob, which isn't scoped per
+      account), logged out, then browsed as a guest on the same browser -
+      the notification bell showed the previous customer's private order
+      update ("Your McDonald's order... is waiting for a rider").
+
+      Root cause: `useCustomerActivity()`'s role-based filter had explicit
+      branches for `customer` and `driver`, but none for `admin` or for no
+      session at all - both fell through to the same unfiltered
+      `return context`. Admin needs that (the whole point of the admin
+      dashboard is seeing every order); a guest doesn't, since a guest has
+      no orders of their own. Fixed by adding an explicit `admin` branch
+      (unchanged, still unfiltered) and a default no-session branch that
+      returns empty `orders`/`notifications` instead of the raw shared blob.
+      `cart` is left untouched - guest browsing intentionally lets a guest
+      build a cart before being asked to log in at checkout, and it isn't
+      customer-identifying data.
+
+      Verified live end-to-end: reproduced the leak, confirmed the fix
+      closes it, confirmed the same customer logging back in still sees
+      their own notification (nothing was deleted, just no longer exposed
+      to whoever's currently unauthenticated), and confirmed admin still
+      sees every order unfiltered. Added a regression test
+      (`OrderWorkflow.test.jsx`). Full frontend/backend suites re-run clean
+      - same pre-existing failures only. Test accounts/orders cleaned up
+      after. (`00cfe36`)
 - [x] **Best-selling products on the customer-facing home page** (user request,
       9/22; built 9/23 right after the Revenue tab fix, which supplied the
       aggregation foundation this needed). `GET /api/catalog/best-sellers`
