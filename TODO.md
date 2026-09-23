@@ -20,6 +20,50 @@ flipping the box, to keep this split meaningful over time.
       its own design pass (in-app chat vs. just exposing contact numbers, etc.)
       before implementation.
 
+- [ ] **History (and Live Orders, and Payments) all read from the same
+      50-order-capped fetch** (`useBackendOrders('/api/admin/orders?per_page=50')`)
+      (found 9/24, while scoping the date-filter request below) — the exact
+      same bug class as the Revenue tab bug fixed 9/23: a client-side filter
+      over an already-capped list silently misses anything older than the
+      most recent 50 orders. Not urgent yet at current order volume, but a
+      prerequisite for the exact-date History filter below to actually be
+      reliable once volume grows - needs its own backend-driven query
+      (mirroring how `OrderController::revenue` was built), not just a
+      bigger `per_page` number.
+- [ ] **Exact-date filter for History and Revenue, plus a Revenue line
+      graph** (user request, 9/24 - scope narrowed from date-picker+graph
+      down to just a trend arrow for now, see Completed Work; the rest of
+      the original request is still open). Concrete, buildable pieces:
+      - History: pick a specific date (e.g. September 23, 2026), see only
+        that day's orders - depends on the pagination-cap fix directly
+        above, since a client-side date filter over a capped list would
+        have the same silent-gap problem.
+      - Revenue: pick a specific date, see that day's total - needs a date
+        param added to `GET /api/admin/revenue` (currently aggregates
+        all-time unconditionally); the `daily` breakdown it already returns
+        makes this a small addition, not new infrastructure.
+      - Revenue: a real line graph of revenue over time, using the `daily`
+        data the endpoint already returns (built 9/23 specifically for
+        this) - genuinely low-risk, no backend change needed, just a chart
+        component.
+      - Both dates should share one consistent date-filter UI pattern
+        rather than two different pickers, per the user's explicit "more
+        specific and consistent across the system" ask.
+      **Two open decisions block the *correct final number*, not the
+      infrastructure above** - flagging these again since they were asked
+      and not yet answered:
+      - Does "Revenue" mean the delivery/service fee only (current,
+        deliberate definition since 9/23), or the customer's full order
+        total?
+      - Should revenue count any non-cancelled order (current), or only
+        `delivered` ones? Right now a still-`pending_rider`/`confirmed`/
+        `preparing`/`out_for_delivery` order's fee counts as revenue
+        immediately, before it's actually completed.
+      The date-filter/graph infrastructure can be (and should be) built now
+      against the current definition - changing the definition later is a
+      small, isolated change to what `OrderController::revenue` sums, not a
+      rebuild of the date-picker or the graph.
+
 ### Reviewed Product Intake (9/23)
 
 | Request | Verdict | Priority | Relationship | Product review / scope |
