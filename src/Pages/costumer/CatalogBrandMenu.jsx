@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { RestaurantMenu } from './McDonaldsMenu';
 import { API_BASE_URL, catalogImageUrl } from '../../utils/catalog';
@@ -24,20 +24,34 @@ const CatalogBrandMenu = () => {
     return () => controller.abort();
   }, [brandId]);
 
+  // Was recomputed inline on every render, handing RestaurantMenu a new
+  // array reference each time even though the data hadn't changed - its
+  // internal effects (product sync, category refs, the scroll-tracking
+  // added for the category-nav fix) all key off this array's identity, so
+  // that churn caused them to keep tearing down and rebuilding. Confirmed
+  // live: a category's section ref would end up null mid-rebuild, so
+  // clicking its chip silently didn't scroll at all - the same root cause
+  // behind the active category lagging behind the real scroll position.
+  // Hooks can't sit after the early returns below, so this stays null-safe
+  // and runs unconditionally, same as every other hook in this component.
+  const products = useMemo(() => {
+    if (!catalog) return [];
+    const brandLogo = catalog.brand.BrandName === "Manuela's"
+      ? catalogImageUrl(catalog.brand.ImagePath)
+      : null;
+    return catalog.products.map((product) => ({
+      id: `catalog-${product.ProductID}`,
+      productId: product.ProductID,
+      name: product.ProductName,
+      price: Number(product.ProductPrice),
+      image: catalogImageUrl(product.ImagePath) || brandLogo,
+      category: product.Description || 'Products'
+    }));
+  }, [catalog]);
+
   if (error) return <main className="jollibee-page"><p role="alert">{error}</p><a href="/home">Back to Home</a></main>;
   if (!catalog) return <main className="jollibee-page" role="status">Loading products...</main>;
 
-  const brandLogo = catalog.brand.BrandName === "Manuela's"
-    ? catalogImageUrl(catalog.brand.ImagePath)
-    : null;
-  const products = catalog.products.map((product) => ({
-    id: `catalog-${product.ProductID}`,
-    productId: product.ProductID,
-    name: product.ProductName,
-    price: Number(product.ProductPrice),
-    image: catalogImageUrl(product.ImagePath) || brandLogo,
-    category: product.Description || 'Products'
-  }));
   return <RestaurantMenu
     restaurantName={catalog.brand.BrandName}
     sourceKey={catalog.brand.BrandName}

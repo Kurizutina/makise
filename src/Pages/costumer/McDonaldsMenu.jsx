@@ -13,20 +13,36 @@ const formatPrice = (price) => new Intl.NumberFormat('en-PH', {
   maximumFractionDigits: 2
 }).format(price);
 
-const CategoryNavigation = ({ activeCategory, categories, onSelect, restaurantName, variant }) => (
-  <nav className={`jollibee-category-nav jollibee-category-nav--${variant}`} aria-label={`${restaurantName} menu categories`}>
-    {categories.map(({ category }) => (
-      <button
-        key={category}
-        type="button"
-        className={activeCategory === category ? 'active' : ''}
-        onClick={() => onSelect(category)}
-      >
-        {category}
-      </button>
-    ))}
-  </nav>
-);
+const CategoryNavigation = ({ activeCategory, categories, onSelect, restaurantName, variant }) => {
+  // Desktop-only: the chip row scrolls horizontally (overflow-x: auto), but
+  // nothing kept the active chip inside that visible strip as the page
+  // scrolled - on a brand with enough categories to overflow it (most of
+  // them), the highlighted chip could scroll out of the strip entirely,
+  // which reads as "the bar isn't following along." Mobile's row is short
+  // enough in practice and wasn't reported broken, so this only runs for
+  // the desktop variant to avoid touching mobile's existing behavior.
+  const activeButtonRef = useRef(null);
+  useEffect(() => {
+    if (variant !== 'desktop') return;
+    activeButtonRef.current?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+  }, [activeCategory, variant]);
+
+  return (
+    <nav className={`jollibee-category-nav jollibee-category-nav--${variant}`} aria-label={`${restaurantName} menu categories`}>
+      {categories.map(({ category }) => (
+        <button
+          key={category}
+          ref={activeCategory === category ? activeButtonRef : null}
+          type="button"
+          className={activeCategory === category ? 'active' : ''}
+          onClick={() => onSelect(category)}
+        >
+          {category}
+        </button>
+      ))}
+    </nav>
+  );
+};
 
 const RestaurantProductCard = ({ product, onAddToCart, showFoodIcons }) => {
   const [variantIndex, setVariantIndex] = useState(0);
