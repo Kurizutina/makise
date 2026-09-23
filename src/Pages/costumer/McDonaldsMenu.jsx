@@ -13,6 +13,21 @@ const formatPrice = (price) => new Intl.NumberFormat('en-PH', {
   maximumFractionDigits: 2
 }).format(price);
 
+const CategoryNavigation = ({ activeCategory, categories, onSelect, restaurantName, variant }) => (
+  <nav className={`jollibee-category-nav jollibee-category-nav--${variant}`} aria-label={`${restaurantName} menu categories`}>
+    {categories.map(({ category }) => (
+      <button
+        key={category}
+        type="button"
+        className={activeCategory === category ? 'active' : ''}
+        onClick={() => onSelect(category)}
+      >
+        {category}
+      </button>
+    ))}
+  </nav>
+);
+
 const RestaurantProductCard = ({ product, onAddToCart, showFoodIcons }) => {
   const [variantIndex, setVariantIndex] = useState(0);
   const variant = product.variants?.[variantIndex];
@@ -283,18 +298,13 @@ export const RestaurantMenu = ({
       </header>
 
       {showCategoryNav && (
-        <nav className="jollibee-category-nav" aria-label={`${restaurantName} menu categories`}>
-          {categories.map(({ category }) => (
-            <button
-              key={category}
-              type="button"
-              className={activeCategory === category ? 'active' : ''}
-              onClick={() => scrollToCategory(category)}
-            >
-              {category}
-            </button>
-          ))}
-        </nav>
+        <CategoryNavigation
+          activeCategory={activeCategory}
+          categories={categories}
+          onSelect={scrollToCategory}
+          restaurantName={restaurantName}
+          variant="mobile"
+        />
       )}
 
       {notice && <div className="jollibee-notice" role="status">{notice}</div>}
@@ -316,6 +326,16 @@ export const RestaurantMenu = ({
 
       <div className="jollibee-layout">
         <div className="jollibee-menu-content">
+          {showCategoryNav && (
+            <CategoryNavigation
+              activeCategory={activeCategory}
+              categories={categories}
+              onSelect={scrollToCategory}
+              restaurantName={restaurantName}
+              variant="desktop"
+            />
+          )}
+
           <section className="jollibee-intro">
             <div>
               <p className={`jollibee-eyebrow ${eyebrowClass}`}>Choose your favorites</p>

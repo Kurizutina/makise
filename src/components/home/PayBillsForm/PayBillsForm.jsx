@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import './PayBillsForm.css';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../../../utils/catalog';
 
 const MAX_IMAGE_DIMENSION = 1280;
 const compressImage = (file) => new Promise((resolve) => {
@@ -43,7 +42,9 @@ const uploadDocument = async (file) => {
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || 'Unable to upload the payment document.');
-  return { ...data, url: data.url.startsWith('http') ? data.url : `${API_BASE_URL}${data.url}` };
+  // Keep the backend path relative. Persisting a device-specific localhost
+  // origin makes the receipt unavailable to admin and rider devices.
+  return data;
 };
 const embedDocument = (file) => new Promise((resolve, reject) => {
   const reader = new FileReader();

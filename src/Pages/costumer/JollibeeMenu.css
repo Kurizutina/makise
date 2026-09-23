@@ -106,7 +106,7 @@
 
 .jollibee-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 310px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 310px);
   align-items: start;
   gap: 28px;
   width: min(1450px, 100%);
@@ -223,6 +223,26 @@
   background: #fffafa;
   border-bottom: 1px solid #eee4e8;
   scrollbar-width: none;
+}
+
+/* The desktop row belongs to the products grid track, so its sticky width is
+   constrained by that track instead of the viewport. The original row stays
+   in place for the mobile layout. */
+.jollibee-category-nav--desktop {
+  display: none;
+}
+
+@media (min-width: 761px) {
+  .jollibee-category-nav--mobile {
+    display: none;
+  }
+
+  .jollibee-category-nav--desktop {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    padding-inline: 0;
+  }
 }
 
 .jollibee-category-nav::-webkit-scrollbar {
@@ -714,6 +734,10 @@
 
   .jollibee-category-nav {
     padding-inline: 12px;
+  }
+
+  .jollibee-category-nav--desktop {
+    display: none;
   }
 
   .jollibee-layout {

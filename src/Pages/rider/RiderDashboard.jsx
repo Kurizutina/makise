@@ -9,6 +9,7 @@ import './RiderDashboard.css';
 import OrderCustomerDetails from '../../components/common/OrderCustomerDetails/OrderCustomerDetails';
 import { clearSession, getSessionUser, isAssignedTo } from '../../utils/session';
 import { applyBackendTruth, useBackendOrders } from '../../hooks/useBackendOrders';
+import { apiAssetUrl } from '../../utils/catalog';
 
 const sections = [
   { key: 'food', label: 'Food Delivery', icon: 'fa-utensils' },
@@ -29,15 +30,16 @@ const statusLabels = {
 
 const PaymentDocument = ({ url, name, type, label, onZoom }) => {
   if (!url) return null;
-  const isPdf = type === 'application/pdf' || /\.pdf(?:$|\?)/i.test(url);
+  const documentUrl = apiAssetUrl(url);
+  const isPdf = type === 'application/pdf' || /\.pdf(?:$|\?)/i.test(documentUrl);
   const alt = `Uploaded ${label}: ${name || 'document'}`;
   // A PDF can't be zoomed as an image - that case still opens in a new tab
   // (browsers render PDFs natively there). An image now zooms in place
   // instead, so reviewing it doesn't navigate the rider away from the order.
   if (isPdf) {
-    return <a className="rider-payment-image" href={url} target="_blank" rel="noreferrer"><span className="rider-payment-file"><i className="fa-solid fa-file-pdf" /></span><span>{label}: {name || 'View document'}<small>Open to view</small></span></a>;
+    return <a className="rider-payment-image" href={documentUrl} target="_blank" rel="noreferrer"><span className="rider-payment-file"><i className="fa-solid fa-file-pdf" /></span><span>{label}: {name || 'View document'}<small>Open to view</small></span></a>;
   }
-  return <button type="button" className="rider-payment-image" onClick={() => onZoom({ url, alt })}><img src={url} alt={alt} /><span>{label}: {name || 'View document'}<small>Tap to zoom</small></span></button>;
+  return <button type="button" className="rider-payment-image" onClick={() => onZoom({ url: documentUrl, alt })}><img src={documentUrl} alt={alt} /><span>{label}: {name || 'View document'}<small>Tap to zoom</small></span></button>;
 };
 
 const formatEstimatedWait = (order, now) => {
