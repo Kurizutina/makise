@@ -145,13 +145,34 @@ const LiveOrdersTab = ({ orders, onAssign, onStatus, riders }) => {
   </section>;
 };
 
+// Business calendar date (Asia/Manila), not the browser's own local
+// timezone - matches the convention OrderController::revenue already uses
+// server-side, so "today" means the same day here as it does on the admin's
+// Revenue tab, regardless of what timezone the admin's own machine is set
+// to. en-CA formats as YYYY-MM-DD, which sorts/compares correctly as a
+// plain string.
+const manilaDateString = (value) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date(value));
+
 const HistoryTab = ({ orders }) => {
-  const [filter, setFilter] = useState('all');
+  const [serviceFilter, setServiceFilter] = useState('all');
+  // Defaults to 'all' rather than 'today' - defaulting to today would
+  // silently hide every past order the moment nothing has happened yet
+  // today, which is a real behavior change on top of just adding the
+  // option (an admin's first instinct on an empty-looking History tab
+  // shouldn't be "is something broken"). Today/Previous are explicit picks.
+  const [dateFilter, setDateFilter] = useState('all');
+  const today = useMemo(() => manilaDateString(Date.now()), []);
   const rows = orders.filter((order) => ['delivered', 'cancelled'].includes(order.status))
-    .filter((order) => filter === 'all' || inferService(order) === filter);
+    .filter((order) => serviceFilter === 'all' || inferService(order) === serviceFilter)
+    .filter((order) => {
+      if (dateFilter === 'all') return true;
+      const isToday = manilaDateString(order.createdAt) === today;
+      return dateFilter === 'today' ? isToday : !isToday;
+    });
   return <section>
-    <div className="admin-filter-row">{['all', 'food', 'item', 'bills'].map((key) => <button className={filter === key ? 'active' : ''} type="button" onClick={() => setFilter(key)} key={key}>{key === 'all' ? 'All services' : SERVICE_META[key].label}</button>)}</div>
-    <div className="admin-table-wrap"><table><thead><tr><th>Order ID</th><th>Service</th><th>Customer</th><th>Date</th><th>Total</th><th>Rider</th><th>Status</th></tr></thead><tbody>{rows.map((order) => <tr key={order.id}><td>{order.id}</td><td><ServiceBadge service={inferService(order)} /></td><td><OrderCustomerDetails order={order} /></td><td>{new Date(order.createdAt).toLocaleString()}</td><td>{formatCurrency(getOrderTotal(order))}</td><td>{order.assignedRider?.name || '—'}</td><td><span className={`admin-history-status ${order.status}`}>{order.status}</span></td></tr>)}</tbody></table>{!rows.length && <div className="admin-table-empty">No completed transactions yet.</div>}</div>
+    <div className="admin-filter-row">{['all', 'today', 'previous'].map((key) => <button className={dateFilter === key ? 'active' : ''} type="button" onClick={() => setDateFilter(key)} key={key}>{key === 'all' ? 'All dates' : key === 'today' ? 'Today' : 'Previous'}</button>)}</div>
+    <div className="admin-filter-row">{['all', 'food', 'item', 'bills'].map((key) => <button className={serviceFilter === key ? 'active' : ''} type="button" onClick={() => setServiceFilter(key)} key={key}>{key === 'all' ? 'All services' : SERVICE_META[key].label}</button>)}</div>
+    <div className="admin-table-wrap"><table><thead><tr><th>Order ID</th><th>Service</th><th>Customer</th><th>Date</th><th>Total</th><th>Rider</th><th>Status</th></tr></thead><tbody>{rows.map((order) => <tr key={order.id}><td>{order.id}</td><td><ServiceBadge service={inferService(order)} /></td><td><OrderCustomerDetails order={order} /></td><td>{new Date(order.createdAt).toLocaleString()}</td><td>{formatCurrency(getOrderTotal(order))}</td><td>{order.assignedRider?.name || '—'}</td><td><span className={`admin-history-status ${order.status}`}>{order.status}</span></td></tr>)}</tbody></table>{!rows.length && <div className="admin-table-empty">{dateFilter === 'today' ? 'No completed transactions today yet.' : 'No completed transactions yet.'}</div>}</div>
   </section>;
 };
 
