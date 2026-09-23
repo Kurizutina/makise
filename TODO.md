@@ -911,6 +911,11 @@ AI for key business decisions
 
 ## Low
 
+- [x] **Revenue trend arrow** (user request, 9/24) — up/down indicator on the
+      "Total recorded revenue" card, comparing today vs yesterday from the
+      revenue endpoint's existing daily breakdown (Asia/Manila calendar
+      day). No backend change needed. Verified live in all three states
+      (up/down/flat). (`5312f22`)
 - [x] **More compact brand list layout** (Grab/foodpanda reference, 9/21) —
       closed as part of the design system pass above: `BrandCard` is now a bare
       circular tile instead of a large boxed square card. Went with a denser
