@@ -204,8 +204,37 @@ const RevenueTab = () => {
   const totals = data.byService || {};
   const grandTotal = data.total || 0;
   const maximum = Math.max(...Object.values(totals), 1);
+
+  // Trend arrow compares today's revenue-so-far against yesterday's - both
+  // read straight from the same `daily` breakdown the line-graph data would
+  // use, bucketed by Asia/Manila calendar day (matches the History filter's
+  // convention). A day with no orders at all just isn't in `daily`, so a
+  // missing entry means 0, not "no data" - a day that earned nothing really
+  // did earn less than a day that earned something.
+  const dailyByDate = Object.fromEntries((data.daily || []).map((day) => [day.date, day.revenue]));
+  const todayKey = manilaDateString(Date.now());
+  const yesterdayKey = manilaDateString(Date.now() - 24 * 60 * 60 * 1000);
+  const todayRevenue = dailyByDate[todayKey] || 0;
+  const yesterdayRevenue = dailyByDate[yesterdayKey] || 0;
+  const trend = todayRevenue > yesterdayRevenue ? 'up' : todayRevenue < yesterdayRevenue ? 'down' : 'flat';
+  const trendIcon = { up: 'fa-arrow-trend-up', down: 'fa-arrow-trend-down', flat: 'fa-minus' }[trend];
+  const trendLabel = {
+    up: `Up from ${formatCurrency(yesterdayRevenue)} yesterday`,
+    down: `Down from ${formatCurrency(yesterdayRevenue)} yesterday`,
+    flat: `Same as yesterday (${formatCurrency(yesterdayRevenue)})`
+  }[trend];
+
   return <section>
-    <div className="admin-stat-grid"><div className="admin-stat-card featured"><span>Total recorded revenue</span><strong>{formatCurrency(grandTotal)}</strong></div>{Object.entries(SERVICE_META).map(([key, meta]) => <div className="admin-stat-card" key={key}><span>{meta.label}</span><strong style={{ color: meta.color }}>{formatCurrency(totals[key] || 0)}</strong></div>)}</div>
+    <div className="admin-stat-grid">
+      <div className="admin-stat-card featured">
+        <span>Total recorded revenue</span>
+        <strong>{formatCurrency(grandTotal)}</strong>
+        <span className={`admin-revenue-trend admin-revenue-trend-${trend}`} title={trendLabel}>
+          <i className={`fa-solid ${trendIcon}`} aria-hidden="true" /> {trendLabel}
+        </span>
+      </div>
+      {Object.entries(SERVICE_META).map(([key, meta]) => <div className="admin-stat-card" key={key}><span>{meta.label}</span><strong style={{ color: meta.color }}>{formatCurrency(totals[key] || 0)}</strong></div>)}
+    </div>
     <div className="admin-analytics-card"><h2>Revenue by service</h2><p>Calculated from the delivery or service fee on every non-cancelled order on record, not just what's currently loaded.</p><div className="admin-revenue-bars">{Object.entries(SERVICE_META).map(([key, meta]) => <div key={key}><span>{meta.label}</span><div><i style={{ width: `${((totals[key] || 0) / maximum) * 100}%`, background: meta.color }} /></div><strong>{formatCurrency(totals[key] || 0)}</strong></div>)}</div></div>
   </section>;
 };
