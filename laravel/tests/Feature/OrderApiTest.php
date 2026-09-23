@@ -162,6 +162,29 @@ class OrderApiTest extends TestCase
         $this->assertCount(2, $response->json('data'));
     }
 
+    // History fetches its own page directly from this endpoint (instead of
+    // reading from the same capped list Live Orders uses) filtered to
+    // delivered+cancelled in one request - covers both the existing
+    // single-status filter and the new comma-separated multi-status one.
+    public function test_admin_order_list_filters_by_one_or_several_statuses(): void
+    {
+        $customer = $this->user('customer');
+        $admin = $this->user('admin');
+        Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'DeliveryStatus' => 'pending_rider']);
+        Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 200, 'DeliveryStatus' => 'delivered']);
+        Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 300, 'DeliveryStatus' => 'cancelled']);
+
+        $token = $this->token($admin);
+        $single = $this->withToken($token)->getJson('/api/admin/orders?status=delivered')->assertOk();
+        $this->assertCount(1, $single->json('data'));
+        $this->assertEquals('delivered', $single->json('data.0.DeliveryStatus'));
+
+        $this->app['auth']->forgetGuards();
+        $multi = $this->withToken($this->token($admin))->getJson('/api/admin/orders?status=delivered,cancelled')->assertOk();
+        $statuses = collect($multi->json('data'))->pluck('DeliveryStatus')->sort()->values()->all();
+        $this->assertEquals(['cancelled', 'delivered'], $statuses);
+    }
+
     public function test_admin_can_assign_and_unassign_a_rider(): void
     {
         $customer = $this->user('customer');

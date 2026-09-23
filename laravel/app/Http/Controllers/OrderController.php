@@ -87,8 +87,11 @@ class OrderController extends Controller
     public function indexAll(Request $request): JsonResponse
     {
         $query = Order::query()->with(['items.product.brand.service', 'user', 'rider', 'payments'])->orderByDesc('OrderDate');
+        // Comma-separated so the History tab can ask for delivered+cancelled
+        // in one request instead of two - a single status still works
+        // exactly as before.
         $status = $request->query('status');
-        if ($status) $query->where('DeliveryStatus', $status);
+        if ($status) $query->whereIn('DeliveryStatus', explode(',', $status));
 
         $perPage = min(max((int) $request->query('per_page', 10), 1), 50);
         $paginated = $query->paginate($perPage);

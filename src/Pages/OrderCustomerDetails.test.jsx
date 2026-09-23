@@ -8,14 +8,50 @@ jest.mock('../context/CustomerActivityContext', () => ({
   calculateEstimatedWaitMinutes: () => 40,
   useCustomerActivity: () => ({
     orders: [
-      { id: 'live-1', assignedRider: { id: 1 }, label: 'Lunch', source: "Manuela's", section: 'food', status: 'pending_rider', createdAt: '2026-09-13T01:00:00Z', customerName: 'Ana Cruz', customerAddress: '12 Mabini Street, Muñoz', items: [] },
-      { id: 'history-1', label: 'Dinner', source: 'Jollibee', section: 'food', status: 'delivered', createdAt: '2026-09-12T01:00:00Z', customerName: 'Ben Santos', customerAddress: '34 Rizal Street, San Jose', items: [] },
-      { id: 'legacy-1', label: 'Old order', source: 'Jollibee', section: 'food', status: 'cancelled', createdAt: '2026-09-11T01:00:00Z', items: [] },
-      { id: 'today-1', label: 'Snack', source: 'Jollibee', section: 'food', status: 'delivered', createdAt: new Date().toISOString(), customerName: 'Cara Reyes', customerAddress: '5 Luna Street', items: [] }
+      { id: 'live-1', assignedRider: { id: 1 }, label: 'Lunch', source: "Manuela's", section: 'food', status: 'pending_rider', createdAt: '2026-09-13T01:00:00Z', customerName: 'Ana Cruz', customerAddress: '12 Mabini Street, Muñoz', items: [] }
     ],
     updateOrderStatus: jest.fn(), assignOrderToRider: jest.fn()
   })
 }));
+
+// History now fetches its own page straight from GET /api/admin/orders
+// (see DeliveryAdminDashboard.jsx's HistoryTab) instead of reading from the
+// shared, 50-order-capped useBackendOrders list - so these fixtures are raw
+// backend Order shapes (what OrderController::indexAll actually returns),
+// not the pre-converted local-order shape the old test used.
+// Laravel serializes OrderDate as a naive "Y-m-d H:i:s" string with no 'Z' -
+// toUtcIso (used by toLocalOrderShape) assumes exactly that shape and just
+// appends 'Z', so these fixtures must match it rather than using a
+// pre-formed ISO string (which would get a second, invalid 'Z' appended).
+const naiveDatetime = (isoString) => isoString.slice(0, 19).replace('T', ' ');
+
+const buildBackendOrder = (overrides) => ({
+  OrderID: 1, UserID: 1, TotalPrice: 200, ServiceFee: 0,
+  OrderDate: '2026-09-12 01:00:00', DeliveryAddress: null, DeliveryStatus: 'delivered',
+  items: [], user: null, rider: null, payments: [], queuePosition: null,
+  ...overrides
+});
+
+const historyOrder = buildBackendOrder({
+  OrderID: 501, OrderDate: '2026-09-12 01:00:00', DeliveryStatus: 'delivered',
+  DeliveryAddress: '34 Rizal Street, San Jose', user: { UserID: 2, UserName: 'Ben Santos', Contact: '09170000000' }
+});
+const legacyOrder = buildBackendOrder({ OrderID: 502, OrderDate: '2026-09-11 01:00:00', DeliveryStatus: 'cancelled' });
+const todayOrder = buildBackendOrder({
+  OrderID: 503, OrderDate: naiveDatetime(new Date().toISOString()), DeliveryStatus: 'delivered',
+  DeliveryAddress: '5 Luna Street', user: { UserID: 3, UserName: 'Cara Reyes', Contact: '09171111111' }
+});
+
+const mockFetchForHistory = () => {
+  global.fetch = jest.fn((url) => {
+    const href = String(url);
+    if (href.includes('/api/admin/orders')) {
+      const data = [historyOrder, legacyOrder, todayOrder];
+      return Promise.resolve({ ok: true, json: async () => ({ data, current_page: 1, last_page: 1, total: data.length }) });
+    }
+    return Promise.resolve({ ok: true, json: async () => ({ riders: [] }) });
+  });
+};
 
 test('rider cards and order details display the saved customer identity', () => {
   sessionStorage.setItem('otuzanAuthenticated', 'test-token');
@@ -29,37 +65,40 @@ test('rider cards and order details display the saved customer identity', () => 
   expect(within(screen.getByRole('dialog')).getByText('12 Mabini Street, Muñoz')).toBeInTheDocument();
 });
 
-afterEach(() => sessionStorage.clear());
+afterEach(() => { sessionStorage.clear(); delete global.fetch; });
 
-test('admin live orders and history display names, addresses, and missing-data fallbacks', () => {
+test('admin live orders and history display names, addresses, and missing-data fallbacks', async () => {
+  mockFetchForHistory();
   render(<DeliveryAdminDashboard />);
   expect(screen.getByText('Ana Cruz')).toBeInTheDocument();
   expect(screen.getByText('12 Mabini Street, Muñoz')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'History' }));
-  const row = screen.getByText('history-1').closest('tr');
-  expect(within(row).getByText('Ben Santos')).toBeInTheDocument();
-  expect(within(row).getByText('34 Rizal Street, San Jose')).toBeInTheDocument();
+  const row = await screen.findByText('BACKEND-501');
+  const rowElement = row.closest('tr');
+  expect(within(rowElement).getByText('Ben Santos')).toBeInTheDocument();
+  expect(within(rowElement).getByText('34 Rizal Street, San Jose')).toBeInTheDocument();
   expect(screen.getByText('Name not provided')).toBeInTheDocument();
   expect(screen.getByText('Address not provided')).toBeInTheDocument();
 });
 
-test('admin History tab separates today from previous without hiding anything by default', () => {
+test('admin History tab separates today from previous without hiding anything by default', async () => {
+  mockFetchForHistory();
   render(<DeliveryAdminDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'History' }));
 
   // Default view ('All dates') must not change existing behavior - every
   // past delivered/cancelled order still shows up.
-  expect(screen.getByText('history-1')).toBeInTheDocument();
-  expect(screen.getByText('legacy-1')).toBeInTheDocument();
-  expect(screen.getByText('today-1')).toBeInTheDocument();
+  await screen.findByText('BACKEND-501');
+  expect(screen.getByText('BACKEND-502')).toBeInTheDocument();
+  expect(screen.getByText('BACKEND-503')).toBeInTheDocument();
 
   fireEvent.click(screen.getByRole('button', { name: 'Today' }));
-  expect(screen.getByText('today-1')).toBeInTheDocument();
-  expect(screen.queryByText('history-1')).not.toBeInTheDocument();
-  expect(screen.queryByText('legacy-1')).not.toBeInTheDocument();
+  expect(screen.getByText('BACKEND-503')).toBeInTheDocument();
+  expect(screen.queryByText('BACKEND-501')).not.toBeInTheDocument();
+  expect(screen.queryByText('BACKEND-502')).not.toBeInTheDocument();
 
   fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
-  expect(screen.getByText('history-1')).toBeInTheDocument();
-  expect(screen.getByText('legacy-1')).toBeInTheDocument();
-  expect(screen.queryByText('today-1')).not.toBeInTheDocument();
+  expect(screen.getByText('BACKEND-501')).toBeInTheDocument();
+  expect(screen.getByText('BACKEND-502')).toBeInTheDocument();
+  expect(screen.queryByText('BACKEND-503')).not.toBeInTheDocument();
 });

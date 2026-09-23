@@ -5,7 +5,7 @@ import './DeliveryAdminDashboard.css';
 import OrderCustomerDetails from '../../components/common/OrderCustomerDetails/OrderCustomerDetails';
 import { apiAssetUrl, catalogImageUrl } from '../../utils/catalog';
 import { clearSession } from '../../utils/session';
-import { applyBackendTruth, useBackendOrders } from '../../hooks/useBackendOrders';
+import { applyBackendTruth, toLocalOrderShape, useBackendOrders } from '../../hooks/useBackendOrders';
 
 const SERVICE_META = {
   food: { label: 'Food Delivery', icon: 'fa-utensils', color: '#f9c12f' },
@@ -153,7 +153,18 @@ const LiveOrdersTab = ({ orders, onAssign, onStatus, riders }) => {
 // plain string.
 const manilaDateString = (value) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date(value));
 
-const HistoryTab = ({ orders }) => {
+const HISTORY_PAGE_SIZE = 20;
+
+// History used to read from the same 50-order-capped fetch Live Orders and
+// Payments use (useBackendOrders + applyBackendTruth), which is fine for
+// those - a bounded "what's active right now" working set - but wrong for
+// History, which only grows over the business's lifetime. A client-side
+// filter over that capped list would silently lose anything older than the
+// most recent 50 orders (the exact bug the Revenue tab had, found 9/23).
+// History now does its own fetch straight against indexAll's real server-
+// side pagination (already implemented, just never exposed in the UI) so
+// every order is actually reachable, just a page away rather than gone.
+const HistoryTab = () => {
   const [serviceFilter, setServiceFilter] = useState('all');
   // Defaults to 'all' rather than 'today' - defaulting to today would
   // silently hide every past order the moment nothing has happened yet
@@ -161,8 +172,30 @@ const HistoryTab = ({ orders }) => {
   // option (an admin's first instinct on an empty-looking History tab
   // shouldn't be "is something broken"). Today/Previous are explicit picks.
   const [dateFilter, setDateFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
   const today = useMemo(() => manilaDateString(Date.now()), []);
-  const rows = orders.filter((order) => ['delivered', 'cancelled'].includes(order.status))
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const api = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    const params = new URLSearchParams({ status: 'delivered,cancelled', per_page: String(HISTORY_PAGE_SIZE), page: String(page) });
+    fetch(`${api}/api/admin/orders?${params}`, {
+      headers: { Authorization: `Bearer ${sessionStorage.getItem('otuzanAuthenticated')}` },
+      signal: controller.signal
+    })
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then(setResult)
+      .catch(() => { if (!controller.signal.aborted) setError('Unable to load history right now. Try again shortly.'); });
+    return () => controller.abort();
+  }, [page]);
+
+  if (error) return <section><div className="admin-table-empty">{error}</div></section>;
+  if (!result) return <section><div className="admin-table-empty">Loading history…</div></section>;
+
+  const orders = result.data.map(toLocalOrderShape);
+  const rows = orders
     .filter((order) => serviceFilter === 'all' || inferService(order) === serviceFilter)
     .filter((order) => {
       if (dateFilter === 'all') return true;
@@ -172,7 +205,14 @@ const HistoryTab = ({ orders }) => {
   return <section>
     <div className="admin-filter-row">{['all', 'today', 'previous'].map((key) => <button className={dateFilter === key ? 'active' : ''} type="button" onClick={() => setDateFilter(key)} key={key}>{key === 'all' ? 'All dates' : key === 'today' ? 'Today' : 'Previous'}</button>)}</div>
     <div className="admin-filter-row">{['all', 'food', 'item', 'bills'].map((key) => <button className={serviceFilter === key ? 'active' : ''} type="button" onClick={() => setServiceFilter(key)} key={key}>{key === 'all' ? 'All services' : SERVICE_META[key].label}</button>)}</div>
-    <div className="admin-table-wrap"><table><thead><tr><th>Order ID</th><th>Service</th><th>Customer</th><th>Date</th><th>Total</th><th>Rider</th><th>Status</th></tr></thead><tbody>{rows.map((order) => <tr key={order.id}><td>{order.id}</td><td><ServiceBadge service={inferService(order)} /></td><td><OrderCustomerDetails order={order} /></td><td>{new Date(order.createdAt).toLocaleString()}</td><td>{formatCurrency(getOrderTotal(order))}</td><td>{order.assignedRider?.name || '—'}</td><td><span className={`admin-history-status ${order.status}`}>{order.status}</span></td></tr>)}</tbody></table>{!rows.length && <div className="admin-table-empty">{dateFilter === 'today' ? 'No completed transactions today yet.' : 'No completed transactions yet.'}</div>}</div>
+    <div className="admin-table-wrap"><table><thead><tr><th>Order ID</th><th>Service</th><th>Customer</th><th>Date</th><th>Total</th><th>Rider</th><th>Status</th></tr></thead><tbody>{rows.map((order) => <tr key={order.id}><td>{order.id}</td><td><ServiceBadge service={inferService(order)} /></td><td><OrderCustomerDetails order={order} /></td><td>{new Date(order.createdAt).toLocaleString()}</td><td>{formatCurrency(getOrderTotal(order))}</td><td>{order.assignedRider?.name || '—'}</td><td><span className={`admin-history-status ${order.status}`}>{order.status}</span></td></tr>)}</tbody></table>{!rows.length && <div className="admin-table-empty">{dateFilter === 'today' ? 'No completed transactions today yet on this page - try Previous or another page.' : 'No completed transactions on this page.'}</div>}</div>
+    {result.last_page > 1 && (
+      <div className="admin-pagination">
+        <button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>← Previous</button>
+        <span>Page {result.current_page} of {result.last_page} ({result.total} total)</span>
+        <button type="button" disabled={page >= result.last_page} onClick={() => setPage((current) => current + 1)}>Next →</button>
+      </div>
+    )}
   </section>;
 };
 
@@ -481,7 +521,7 @@ const DeliveryAdminDashboard = () => {
       <header className="admin-page-header"><div><span>Otu-Zan Management</span><h1>{activeNav.title}</h1><p>{new Date().toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p></div>{activeTab === 'live' && <div className="admin-header-services">{Object.keys(SERVICE_META).map((service) => <ServiceBadge service={service} key={service} />)}</div>}</header>
       {riderError && <p role="alert">{riderError}</p>}
       {activeTab === 'live' && <LiveOrdersTab orders={orders} onAssign={assignOrderToRider} onStatus={updateOrderStatus} riders={riders} />}
-      {activeTab === 'history' && <HistoryTab orders={orders} />}
+      {activeTab === 'history' && <HistoryTab />}
       {activeTab === 'revenue' && <RevenueTab />}
       {activeTab === 'payments' && <PaymentsTab orders={orders} onPaymentStatus={updatePaymentStatus} />}
       {activeTab === 'catalog' && <CatalogTab />}

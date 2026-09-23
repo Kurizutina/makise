@@ -52,7 +52,12 @@ export const useBackendOrders = (endpoint) => {
 // staff would see nothing a customer placed from their own device, despite
 // the backend having the real data all along.
 //
-const toLocalOrderShape = (backend) => {
+// Exported so any purely backend-driven view (e.g. the admin History tab's
+// own paginated fetch) can reuse the exact same shape-conversion instead of
+// duplicating it - it only ever needs fields indexAll()/index() already
+// eager-load (items.product.brand.service, user, rider, payments) plus
+// queuePosition, which both those endpoints attach.
+export const toLocalOrderShape = (backend) => {
   const payment = backend.payments?.[0];
   const isBill = Boolean(payment);
   const brand = backend.items?.[0]?.product?.brand;
