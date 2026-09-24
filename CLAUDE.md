@@ -83,10 +83,24 @@ specific reason requires it — name that reason before reading further (e.g.
   tinker` or a real API call), reproduce the bug first if one's being fixed,
   confirm the fix in the actual running app (not just code review or unit
   tests), then delete the test data. Both `php artisan test` and `npx
-  react-scripts test` before calling anything finished — compare against the
-  known-stale baseline (currently ~3 pre-existing backend failures,
-  Login.test.jsx + ManuelasMenu.test.jsx on the frontend) so a regression
-  doesn't hide inside "well, some tests always fail."
+  react-scripts test --watchAll=false` before calling anything finished —
+  compare against the known-stale baseline so a regression doesn't hide
+  inside "well, some tests always fail." Frontend baseline: 23/27 passing;
+  the 4 failures are in `Login.test.jsx` and `ManuelasMenu.test.jsx`, both a
+  JSDOM limitation (`scrollIntoView` isn't implemented there), not real bugs.
+- **How to verify live as a specific role, without the login UI**: create a
+  throwaway user via `php artisan tinker` (set `Role`/`UserType`, e.g.
+  `'customer'`), mint a token with `$user->createToken('verify')->plainTextToken`,
+  then in the browser set `sessionStorage.setItem('otuzanAuthenticated',
+  '<token>')` and `sessionStorage.setItem('otuzanUser',
+  JSON.stringify({id, role, UserName}))` (shape defined in
+  `src/utils/session.js`) before navigating. Delete the test user/token
+  (and any orders it created) once verification is done — don't leave test
+  accounts in the database.
+- **Two git remotes exist**: `origin` (`EdgarLouisA/Otu-Zan`, the shared team
+  repo — Sean's) and `personal` (`Kurizutina/makise`, a personal fork). A
+  bare `git push` is ambiguous and fails here. Push to the shared repo with
+  `git push origin kurizu`.
 - **One TODO at a time, then stop and report** — don't chain into the next
   item without being asked. Match the report to the risk: a real bug fix gets
   the full reproduce → root-cause → fix → verify treatment; a small UI tweak
