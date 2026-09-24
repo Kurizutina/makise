@@ -171,6 +171,39 @@ flipping the box, to keep this split meaningful over time.
 
 ## Low Priority
 
+- [ ] *(Optional - needs team discussion)* **Auto-scrolling/looping Best
+      Sellers carousel** (user request, 9/25; built and shown live same
+      day, then reverted at the user's request to discuss with the team
+      first - not a rejection of the approach, just not landing solo).
+      Replaces the current paged carousel (hard array-slice swap every 2s,
+      an abrupt jump cut) with a real horizontally-scrolling track that
+      auto-advances as a smooth slide, loops seamlessly (duplicates the
+      product list once, snaps back invisibly when it passes one full
+      set's width), still allows manual swipe/scroll to override it, and
+      pauses auto-advance on hover/touch/manual-scroll so it doesn't fight
+      the user. No new dependency - confirmed no carousel library in
+      `package.json` first, built on plain CSS/JS (a real horizontal
+      `overflow-x` flex track, not a grid-paged one).
+
+      **Real thing worth knowing if this gets picked back up**: the first
+      version used CSS `scroll-behavior: smooth` plus the native
+      `behavior: 'smooth'` scroll option, and it silently didn't animate
+      anything - confirmed live with an isolated, React-free test element
+      that `scroll-behavior: smooth` no-ops on programmatic scroll
+      assignment in at least one real environment. Fixed by driving the
+      slide with a small hand-rolled `requestAnimationFrame` tween instead
+      of depending on native smooth-scroll support at all - more portable,
+      and worth keeping regardless of which direction the team lands on
+      for the rest of it.
+
+      Verified live before reverting: seeded extra test orders to get
+      enough best-sellers to see the loop clearly, confirmed continuous
+      auto-advance was a real slide (not a jump), the arrow buttons nudged
+      correctly, and the DOM had the expected doubled card count for the
+      loop. Full frontend suite was clean at the 23/27 baseline. Code is
+      not on this branch currently - would need to be rebuilt from this
+      description (straightforward, same approach, same gotcha to avoid)
+      rather than recovered from a commit, since it was never committed.
 - [ ] **Show estimated time on the brand-selection screen** (Grab/foodpanda
       reference, 9/21) — live-checked foodpanda.ph and GrabFood's web apps for
       comparison. foodpanda's "Top brands" section shows a delivery-time estimate
