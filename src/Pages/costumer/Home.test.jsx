@@ -24,6 +24,11 @@ test('home shows API brands and opens the current database product catalog', asy
     { ServiceID: 2, ServiceName: 'Item Delivery', ServiceType: 'item', brands: [] },
   ] }) });
   render(<Home />);
+  // Home now opens on a distinct "Home" view (hero + Best Sellers) - the
+  // brand grid only renders once a service tab is picked, via Home.jsx's
+  // isHome toggle (Sean's "created home page", 9/24). Pick a service first
+  // to reach the same grid this test previously saw by default.
+  fireEvent.click(await screen.findByRole('button', { name: 'Food Delivery' }));
   fireEvent.click(await screen.findByRole('button', { name: "Manuela's" }));
   expect(mockNavigate).toHaveBeenCalledWith('/catalog/brands/4');
   expect(screen.getByRole('button', { name: 'Jollibee' })).toBeInTheDocument();

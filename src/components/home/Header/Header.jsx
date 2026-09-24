@@ -6,6 +6,7 @@ import SearchBar from './SearchBar/SearchBar';
 import ServiceNavigation from './ServiceNavigation/ServiceNavigation';
 import CustomerMenu from './CustomerMenu/CustomerMenu';
 import CustomerActivity from './CustomerActivity/CustomerActivity';
+import LocationPicker from './LocationPicker/LocationPicker';
 import { getSessionUser } from '../../../utils/session';
 
 const Header = ({ selectedService, onServiceChange, onHomeClick, isHome, services, onSearch }) => {
@@ -16,7 +17,14 @@ const Header = ({ selectedService, onServiceChange, onHomeClick, isHome, service
   const chooseService = (serviceId) => { onServiceChange?.(serviceId); setMenuOpen(false); };
   return <header className="home-header">
     <div className="header-top-row">
-      <button type="button" className="header-brand-lockup" onClick={() => navigate('/home')}><div className="header-logo"><Logo /></div><div className="header-brand-copy"><strong>Otu-Zan Delivery</strong><span>Allow us to help with your daily errands.</span></div></button>
+      <div className="header-brand-cluster">
+        <button type="button" className="header-brand-lockup" onClick={() => navigate('/home')}><div className="header-logo"><Logo /></div><div className="header-brand-copy"><strong>Otu-Zan Delivery</strong><span>Allow us to help with your daily errands.</span></div></button>
+        {/* Shows the customer's saved delivery location, foodpanda/GrabFood-
+            style - was dropped from this header rewrite; restoring it since
+            it's an already-shipped, already-verified feature (a native
+            <select> here was previously reported live as slow to open). */}
+        <LocationPicker variant="header" />
+      </div>
       {isGuest ? <div className="header-guest-buttons"><button type="button" onClick={() => navigate('/login')}>Login</button><button type="button" onClick={() => navigate('/register')}>Register</button></div> : <div className="header-member-tools"><CustomerActivity /><CustomerMenu icon={<i className="fa-solid fa-bars" aria-hidden="true" />} /></div>}
     </div>
     <div className="header-bottom-row"><div className="header-bottom-content">
