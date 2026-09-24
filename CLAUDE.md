@@ -161,6 +161,14 @@ what's listed below came back relevant.
 - **Commits: one per logical unit of work, not one per file or per micro-step.**
   Related changes (a fix plus the test that proves it) land together; don't
   flood history with saturated small commits.
+- **Don't push every edit to this file.** Draft/edit `CLAUDE.md` locally, but
+  only commit and push a change here when it documents something genuinely
+  necessary — a real decision, a real gotcha hit live, a real recurring
+  friction point (the "Keep this file itself lean" rule above is the same
+  principle applied to content; this is the same principle applied to when
+  to push). If a change turns out to be minor, obvious, or not worth
+  remembering next session, leave it unpushed or drop it rather than
+  pushing it by default because an edit was made.
 - **TODO.md gets updated in its own commit**, batched per priority tier, moving
   finished items into "Completed Work" with what was actually verified, not
   just flipping the checkbox.
