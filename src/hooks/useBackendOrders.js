@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toUtcIso } from '../utils/backendTime';
+import { catalogImageUrl } from '../utils/catalog';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -78,7 +79,8 @@ export const toLocalOrderShape = (backend) => {
       productId: item.ProductID,
       name: item.product?.ProductName || 'Item',
       price: Number(item.OrderItemPrice) || 0,
-      quantity: item.ProductQuantity || 1
+      quantity: item.ProductQuantity || 1,
+      image: catalogImageUrl(item.product?.ImagePath)
     })),
     details: isBill ? {
       establishment: source,

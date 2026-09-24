@@ -153,7 +153,7 @@ const RiderDashboard = () => {
 
             <OrderCustomerDetails order={selectedOrder} />
             {!!selectedOrder.items?.length ? (
-              <div className="rider-detail-items"><h3>Items placed</h3><ul>{selectedOrder.items.map((item, index) => <li key={item.cartId || item.id || index}><div><strong>{item.name || `Item ${index + 1}`}</strong>{item.selectedOption && <span>{item.selectedOption}</span>}</div><b>×{item.quantity || 1}</b></li>)}</ul></div>
+              <div className="rider-detail-items"><h3>Items placed</h3><ul>{selectedOrder.items.map((item, index) => <li key={item.cartId || item.id || index}><span className="order-item-thumb">{item.image ? <img src={item.image} alt="" loading="lazy" /> : <i className="fa-solid fa-utensils" aria-hidden="true" />}</span><div><strong>{item.name || `Item ${index + 1}`}</strong>{item.selectedOption && <span>{item.selectedOption}</span>}</div><b>×{item.quantity || 1}</b></li>)}</ul></div>
             ) : (
               <div className="rider-detail-items"><h3>Payment request</h3><p>Payment status: <strong>{selectedOrder.details?.paymentStatus || 'pending'}</strong>. Review the uploaded documents before proceeding.</p><PaymentDocument url={selectedOrder.details?.billReceiptUrl} name={selectedOrder.details?.billReceiptName} type={selectedOrder.details?.billReceiptType} label="Receipt" onZoom={setZoomedImage} /><PaymentDocument url={selectedOrder.details?.transferProofUrl} name={selectedOrder.details?.transferProofName} type={selectedOrder.details?.transferProofType} label="Proof of payment" onZoom={setZoomedImage} /></div>
             )}

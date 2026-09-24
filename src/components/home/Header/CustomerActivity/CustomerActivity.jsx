@@ -191,7 +191,7 @@ const CustomerActivity = () => {
                         {!!order.items?.length && (
                           <details className="tracking-order-items">
                             <summary>View ordered items ({order.items.reduce((total, item) => total + (item.quantity || 1), 0)})</summary>
-                            <ul>{order.items.map((item, index) => <li key={item.cartId || item.id || index}><span>{item.name || `Item ${index + 1}`}</span><strong>×{item.quantity || 1}</strong></li>)}</ul>
+                            <ul>{order.items.map((item, index) => <li key={item.cartId || item.id || index}><span className="order-item-row"><span className="order-item-thumb">{item.image ? <img src={item.image} alt="" loading="lazy" /> : <i className="fa-solid fa-utensils" aria-hidden="true" />}</span><span>{item.name || `Item ${index + 1}`}</span></span><strong>×{item.quantity || 1}</strong></li>)}</ul>
                           </details>
                         )}
 
