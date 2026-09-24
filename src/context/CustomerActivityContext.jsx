@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { getSessionUser, isAssignedTo } from '../utils/session';
 import { CUSTOMER_ACTIVITY_CHANGED } from '../utils/customerProfileSync';
+import { ORDERS_CHANGED_EVENT } from '../hooks/useBackendOrders';
 import { calculateDeliveryFee, findDeliveryLocation } from '../utils/deliveryRates';
 
 const CustomerActivityContext = createContext(null);
@@ -80,12 +81,19 @@ const syncOrderToBackend = (localOrderId, items, deliveryAddress, serviceFee = 0
 // Same best-effort philosophy: only fires when the order already has a
 // backendOrderId (i.e. syncOrderToBackend succeeded for it earlier). Orders
 // without one - static-menu brands, custom items, bills - are unaffected.
+// applyBackendTruth() overlays the cached poll snapshot onto local orders
+// unconditionally (see useBackendOrders.js), so without this, the status
+// change we just made locally would render correctly for a moment, then get
+// clobbered back to the pre-change backend status until the next 30s poll -
+// found live as "cancel doesn't work until I refresh."
 const syncStatusToBackend = (backendOrderId, status) => {
   const headers = authHeaders();
   if (!backendOrderId || !headers) return;
   fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/status`, {
     method: 'PATCH', headers, body: JSON.stringify({ status })
-  }).catch(() => {});
+  })
+    .then((response) => { if (response.ok) window.dispatchEvent(new Event(ORDERS_CHANGED_EVENT)); })
+    .catch(() => {});
 };
 
 const syncAssignmentToBackend = (backendOrderId, riderId) => {
@@ -93,7 +101,9 @@ const syncAssignmentToBackend = (backendOrderId, riderId) => {
   if (!backendOrderId || !headers) return;
   fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/assign`, {
     method: 'PATCH', headers, body: JSON.stringify({ riderId: riderId || null })
-  }).catch(() => {});
+  })
+    .then((response) => { if (response.ok) window.dispatchEvent(new Event(ORDERS_CHANGED_EVENT)); })
+    .catch(() => {});
 };
 
 // Same best-effort philosophy as syncOrderToBackend, but for Pay Bills -
@@ -133,7 +143,9 @@ const syncPaymentStatusToBackend = (backendPaymentId, status) => {
   if (!backendPaymentId || !headers) return;
   fetch(`${API_BASE_URL}/api/payments/${backendPaymentId}/status`, {
     method: 'PATCH', headers, body: JSON.stringify({ status })
-  }).catch(() => {});
+  })
+    .then((response) => { if (response.ok) window.dispatchEvent(new Event(ORDERS_CHANGED_EVENT)); })
+    .catch(() => {});
 };
 
 const syncNotificationsReadToBackend = () => {

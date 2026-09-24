@@ -4,6 +4,17 @@ import { catalogImageUrl } from '../utils/catalog';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
+// Fired by CustomerActivityContext right after a status/assignment/payment
+// change it made is confirmed by the backend, so every useBackendOrders
+// poller on the page can catch up immediately instead of waiting out its
+// interval. See ORDERS_CHANGED_EVENT usage below for why this exists -
+// applyBackendTruth() overlays this cached snapshot onto local orders
+// unconditionally, so without this a customer's own optimistic local
+// change (e.g. cancelling their own order) gets visibly clobbered back to
+// the stale backend status for up to 30s, until the interval happens to
+// fire, which read like "cancel doesn't work until I refresh."
+export const ORDERS_CHANGED_EVENT = 'otuzan:orders-changed';
+
 // Polls the real backend order API and returns a lookup of backend orders by
 // their OrderID. Returns {} (safe no-op) if there's no session or the
 // request fails - callers should treat a missing entry as "no backend order
@@ -36,9 +47,15 @@ export const useBackendOrders = (endpoint) => {
     // independent pollers now instead of 2, halving the request rate here
     // measurably reduces how often a real click gets stuck behind polling
     // traffic. 30s of staleness on order status is an acceptable tradeoff;
-    // a stuck button on every click is not.
+    // a stuck button on every click is not - that's what ORDERS_CHANGED_EVENT
+    // is for instead.
     const poll = window.setInterval(load, 30000);
-    return () => { controller.abort(); window.clearInterval(poll); };
+    window.addEventListener(ORDERS_CHANGED_EVENT, load);
+    return () => {
+      controller.abort();
+      window.clearInterval(poll);
+      window.removeEventListener(ORDERS_CHANGED_EVENT, load);
+    };
   }, [endpoint]);
 
   return backendOrdersById;
