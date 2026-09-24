@@ -72,23 +72,16 @@ flipping the box, to keep this split meaningful over time.
       enforced through the existing `:root` tokens repo-wide, and decide on
       purpose whether gold/orange is a real secondary accent (used
       consistently for one role, e.g. promos) or should go away.
-- [ ] **Header, service-nav, and footer are three stacked full-bleed blocks
-      of solid saturated color with almost no white space between them**
-      (design critique, 9/23) - real reference apps (Grab, Uber Eats) use
-      white/neutral backgrounds and treat the brand color as an accent
-      (buttons, badges, active states), not as environmental wallpaper.
-      Bigger structural change than a color-value swap - touches layout, not
-      just tokens - so scope it separately from the palette-consolidation
-      item above.
-- [ ] **Delivery location isn't surfaced until deep in checkout** (design
-      critique, 9/23) - every reference app (foodpanda leads with "Select
-      your address" in the header; Grab's hero has a location field built
-      in) treats "where are you" as a primary, always-visible homepage
-      element. Otu-Zan only asks via a delivery-location dropdown once a
-      customer is already mid-checkout. Lighter-weight than the OpenLeaflet
-      map item below (that one's about *how* location gets picked; this is
-      about *when* it's surfaced) - could be as simple as showing the
-      selected zone persistently in the header once chosen.
+- [ ] **Footer is still a solid full-bleed saturated-pink block** (design
+      critique, 9/23; narrowed 9/25 - see Completed Work for the
+      header/service-nav half of this, which is done). Lower urgency now
+      than when this was written: the footer no longer sits directly
+      against another saturated block (header/nav are white now, and the
+      FAQ section above the footer is a light cream, not pink), so it no
+      longer creates the "one big color blob" the original critique
+      described - it just reads as an ordinary colored footer, a common
+      enough pattern on its own. Worth revisiting only as part of the
+      broader palette-consolidation item above, not urgent by itself.
 - [ ] **Products without photos hurt conversion** (web research, 9/21;
       re-confirmed and sharpened during the design critique, 9/23) — this is a
       recognized, documented UX problem, not just an aesthetic nitpick: a 2018
@@ -115,9 +108,6 @@ flipping the box, to keep this split meaningful over time.
       pattern across delivery and e-commerce apps generally. Lower priority than the
       items above — more of a "keep browsing" nudge than something blocking an
       order, and needs a "same service/category" grouping rule decided first.
-- [ ] **Rider name visible in customer notifications** (teammate request, 9/20) —
-      confirmed gap: no customer-facing component currently reads `assignedRider`
-      at all, so a customer never sees who's delivering their order.
 - [ ] **"Inconsistent empty/loading states (UX)"** — Admin's Payments tab has a
       proper icon+heading+subtext empty state; Riders/Customers/Brands tables just
       show flat "No X found." text, and none of them distinguish "still loading"
@@ -607,6 +597,31 @@ AI for key business decisions
 
 ## High
 
+- [x] **Browser back button from a brand's menu landed on Home's FAQ
+      section instead of returning to brand selection** (user-reported live,
+      9/25; fixed same day). Investigated both hypotheses the report itself
+      raised before changing anything. Confirmed cause: the footer's FAQ
+      link had a leftover literal `href="/home#faq"` underneath its
+      `onClick`-based SPA navigation (every other footer link just used a
+      plain `/home` href) - verified live that this href is actually
+      reachable and deep-links straight to the FAQ section, so if it's ever
+      followed for real (not intercepted in time) it leaves a genuine
+      `/home#faq` browser-history entry a later "back" can land on. Fixed
+      by dropping the hash, matching the sibling links.
+
+      Also found and fixed a second, related bug while confirming: `Home`
+      fully unmounts/remounts on any route change, and its
+      hero-vs-browsing view state was plain component state with no
+      persistence, so back from a brand's menu reset to the hero
+      regardless of what the customer had been browsing - independent of
+      the FAQ href issue. Now restored from `sessionStorage` on mount.
+
+      Verified live end-to-end: Home -> Food Delivery tab -> a brand's menu
+      -> browser back now returns straight to the Food Delivery grid, not
+      the hero or FAQ; confirmed the footer FAQ link still scrolls to FAQ
+      correctly with the corrected href. Full frontend suite re-run clean
+      (23/27) - same pre-existing failures only. (`2da9352`)
+
 - [x] **Exact-date filter for History and Revenue, plus a Revenue line
       graph** (user request, 9/24; built same day). History and Revenue
       previously only split "today vs previous" client-side and could only
@@ -851,6 +866,62 @@ AI for key business decisions
       solid-styled action per card. (`1ecc172`)
 
 ## Medium
+
+- [x] **Header and service-nav were solid saturated pink, fusing directly
+      into the hero below into one oversized color blob** (design critique
+      9/23 originally flagged this as part of the broader "header/service-
+      nav/footer are three stacked full-bleed color blocks" item; user
+      reported it live again 9/25 specifically about the header/hero
+      fusion, sharper than the original critique). Live-referenced three
+      real sites before touching anything: foodpanda.ph (thin pink promo
+      strip, then a plain white nav bar), GrabFood (no colored header at
+      all - transparent over a photo), and the user-provided Pizzaro
+      reference site (cream nav, not the accent color) - all three keep
+      brand color confined to individual accents (a button, the active
+      tab, icons), never as the header's own background fill.
+
+      Changed the header and service-nav pill row from solid pink
+      (`#fb1762` / `#ff3a7c`) to white/near-white, flipping every element
+      that assumed light-text-on-pink to dark-text-on-white: brand name,
+      location picker, guest Login/Register buttons, service tabs
+      (inactive now muted gray, active tab inverted to a solid pink pill),
+      and the mobile nav toggle/dropdown. `HomeHero`'s own gradient is
+      unchanged - keeping the header white is what creates the seam, since
+      the gradient now reads as a distinct section instead of a
+      continuation of the same fill.
+
+      Verified live at desktop and mobile (375px): header/nav read as
+      clearly separate from the hero below, active-tab/hover states still
+      legible, mobile dropdown card readable. Full frontend suite re-run
+      clean (23/27) - same pre-existing failures only; no visual change to
+      admin/rider headers (separate components). The footer half of the
+      original "three stacked blocks" critique is now a much smaller,
+      lower-urgency residual - see Outstanding Work above. (`91f0e67`)
+
+- [x] **Rider name visible in customer notifications** (teammate request,
+      9/20; built 9/25). Confirmed the gap first: no customer-facing
+      component read `assignedRider` at all, so a customer never saw who
+      was actually delivering their order, even though the data has
+      existed since the backend order migration.
+
+      Rather than build a separate "your rider" UI, the name now rides
+      along in the same notification a customer already checks:
+      `notifyStatusChange()` (`OrderController`) appends "<first name> is
+      your rider." once a rider is actually assigned (`assign()` only ever
+      calls this with `'confirmed'`, so that's the first point a rider
+      exists to name) - the message stays honest with no name for
+      cancellations or any state before assignment.
+
+      Verified live: assigned a real rider to a real seeded order through
+      the actual API, confirmed the generated `Notification` row's
+      message, then confirmed it renders correctly in the customer's real
+      notification panel in the browser ("Order #84 was accepted. Tracking
+      is now available. Koyomi is your rider."). No frontend change needed
+      - `toLocalNotificationShape` already just displays whatever message
+      the backend sends. Backend tests added for both the assigned and
+      not-yet-assigned cases. Full backend (39/43, 1 pre-existing skip) and
+      frontend (23/27) suites re-run clean - same pre-existing failures
+      only. Test order/notification/tokens cleaned up after. (`b7478d3`)
 
 - [x] **Homepage hero / mood-setting moment above the brand grid** (design
       critique, 9/23; requested again as a customer-landing-page feature by
