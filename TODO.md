@@ -66,7 +66,7 @@ flipping the box, to keep this split meaningful over time.
 | Fix cross-device receipt images | Recommended | High - completed | Duplicate / completed | Fixed: persist backend-relative upload paths and resolve legacy localhost URLs against the configured API host. Verify with the deployed/LAN API URL before release. |
 | Customer-rider in-app communication | Recommended with Changes | High | Duplicate | Build order-scoped, authenticated messaging only after a rider is assigned; retain messages, rate-limit them, and close messaging after delivery/cancellation. Do not expose personal phone numbers. |
 | Separate today's history from older orders | Recommended with Changes | Medium - completed | New / completed | Fixed 9/23: added an All dates/Today/Previous filter to the admin History tab, using the Asia/Manila business-timezone convention already established for Revenue. Defaults to "All dates" to preserve existing behavior. See Completed Work below. |
-| Show product images in Order Details | Recommended with Changes | Medium | New | Show small lazy-loaded product thumbnails where an image exists, with a clean fallback. Keep receipt/proof images separate from order-item media and avoid loading full-size images in long lists. |
+| Show product images in Order Details | Recommended with Changes | Medium - completed | New / completed | Fixed 9/24: `toLocalOrderShape` (`useBackendOrders.js`) now resolves each item's image via `catalogImageUrl`; the customer Track Orders tab and the rider order-detail modal both render a small thumbnail per item with a fallback utensils icon when no image exists. Receipt/proof images were untouched. See Completed Work below. |
 | Improve scrolling smoothness system-wide | Recommended with Changes | Medium | Related | Treat this as a measured performance pass: profile long lists, preserve pagination/lazy image loading, and address actual jank. Do not add decorative smooth-scroll behavior that can reduce accessibility or mask rendering problems. |
 | Make the brand logo square | Recommended with Changes | Low | Related | Use a square logo container with `object-fit: contain`; do not crop or distort brand artwork. This complements the existing compact brand-tile work. |
 | Research competitor color schemes and refine the palette | Recommended with Changes | Medium | Duplicate | Continue the existing token/palette-consolidation item. Use competitor research for conventions, not imitation; define accessible primary, hover, surface, text, and semantic status colors around the Otu-Zan logo. |
@@ -797,6 +797,20 @@ AI for key business decisions
       no separate history store, per the review's explicit scope. Verified
       live against real historical + same-day orders; all three modes
       correct. Regression test added. (`8776a55`)
+- [x] **Show product images in Order Details** (client-reviewed intake,
+      9/23; fixed 9/24) - the customer's Track Orders tab and the rider's
+      order-detail modal only ever listed item name/quantity, no visual
+      confirmation of what was ordered. `toLocalOrderShape`
+      (`useBackendOrders.js`) now resolves each item's image through the
+      existing `catalogImageUrl` helper (same one already used for catalog
+      product cards); both surfaces render a small thumbnail per item with a
+      neutral utensils-icon fallback when a product has no image. Receipt/
+      transfer-proof images (a separate concept) were left untouched.
+      Verified live: placed a real order (`OrderID 77`, McDonald's Big Mac
+      Meal, a product with a real `ImagePath`) via a direct API call,
+      confirmed the correct thumbnail rendered with the right image/name/
+      quantity in both the customer drawer and the rider modal, then deleted
+      the test order and test customer. (`b95a7fc`)
 - [x] **Best-sellers section (own feature, shipped same day) had a padding
       mismatch, dead-end clicks, and wrong section order; separately, no way
       back to Home from the FAQ page at all** (both user-reported live,
