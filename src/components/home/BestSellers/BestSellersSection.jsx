@@ -1,58 +1,52 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { catalogImageUrl } from '../../../utils/catalog';
 import './BestSellersSection.css';
 
-const formatCurrency = (amount) => new Intl.NumberFormat('en-PH', {
-  style: 'currency', currency: 'PHP', maximumFractionDigits: 2
-}).format(Number(amount) || 0);
+const cardsForViewport = () => window.innerWidth < 560 ? 1 : window.innerWidth < 860 ? 2 : 3;
+const formatPrice = (amount) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(amount) || 0);
 
-// Guest-visible section on the home page, below the brand grid - the same
-// "what's popular right now" pattern foodpanda/GrabFood use, just placed
-// after broad category browsing rather than before it (see Home.jsx's own
-// comment on that ordering). Backed by GET /api/catalog/best-sellers
-// (CatalogController::bestSellers), which ranks products by real units sold
-// in the last 30 days, not an editorial pick. Renders nothing if there's no
-// order history yet (a fresh install) rather than showing an empty section.
-//
-// The "X sold this month" chip below uses the endpoint's real `unitsSold`
-// count - deliberately not a star rating or a discount badge (the pizzarosix
-// reference's "35% Off"/4.9-star treatment) since this system has no rating
-// or promotion data to back either one; a real sold-count is the honest
-// equivalent of that social-proof signal.
 const BestSellersSection = ({ products, onProductSelect }) => {
-  if (!products?.length) return null;
+  const [cards, setCards] = useState(cardsForViewport);
+  const [page, setPage] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const pages = Math.max(1, Math.ceil((products?.length || 0) / cards));
 
-  return (
-    <section className="best-sellers-section">
-      <div className="food-items-header">
-        <h2>Best sellers this month</h2>
+  useEffect(() => {
+    const resize = () => setCards(cardsForViewport());
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, []);
+  useEffect(() => setPage((current) => Math.min(current, pages - 1)), [pages]);
+
+  useEffect(() => {
+    if (pages < 2 || isPaused) return undefined;
+    const timer = window.setInterval(() => setPage((current) => (current + 1) % pages), 2000);
+    return () => window.clearInterval(timer);
+  }, [isPaused, pages]);
+
+  if (!products?.length) return null;
+  const shown = products.slice(page * cards, page * cards + cards);
+  const changePage = (amount) => setPage((current) => (current + amount + pages) % pages);
+
+  return <section className="best-sellers-section" aria-labelledby="best-sellers-title">
+    <header className="best-sellers-heading">
+      <h2 id="best-sellers-title">Our Best Sellers</h2>
+      <p>Customer favorites, made easy to order.</p>
+    </header>
+    <div className="best-sellers-carousel" onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)} onFocus={() => setIsPaused(true)} onBlur={() => setIsPaused(false)}>
+      <button className="best-sellers-arrow" type="button" onClick={() => changePage(-1)} aria-label="Show previous best sellers"><i className="fa-solid fa-arrow-left" aria-hidden="true" /></button>
+      <div className="best-sellers-track" aria-live="polite">
+        {shown.map((product) => <button type="button" className="best-seller-card" key={product.ProductID} onClick={() => onProductSelect(product)}>
+          <div className="best-seller-image">{catalogImageUrl(product.ImagePath) ? <img src={catalogImageUrl(product.ImagePath)} alt={product.ProductName} /> : <span>{product.BrandName?.[0] || '?'}</span>}</div>
+          <div className="best-seller-body"><h3>{product.ProductName}</h3><p>{product.BrandName}</p><strong className="best-seller-price">{formatPrice(product.ProductPrice)}</strong><span className="best-seller-action"><i className="fa-solid fa-utensils" aria-hidden="true" /> View menu</span></div>
+        </button>)}
       </div>
-      <div className="best-sellers-grid">
-        {products.map((product) => (
-          <button
-            type="button"
-            className="best-seller-card"
-            key={product.ProductID}
-            onClick={() => onProductSelect(product)}
-          >
-            <div className="best-seller-image">
-              {product.unitsSold > 0 && (
-                <span className="best-seller-sold-badge">{product.unitsSold} sold</span>
-              )}
-              {catalogImageUrl(product.ImagePath)
-                ? <img src={catalogImageUrl(product.ImagePath)} alt={product.ProductName} loading="lazy" />
-                : <span className="best-seller-image-placeholder">{product.BrandName?.[0] || '?'}</span>}
-            </div>
-            <div className="best-seller-body">
-              <span className="best-seller-brand">{product.BrandName}</span>
-              <strong className="best-seller-name">{product.ProductName}</strong>
-              <span className="best-seller-price">{formatCurrency(product.ProductPrice)}</span>
-            </div>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
+      <button className="best-sellers-arrow" type="button" onClick={() => changePage(1)} aria-label="Show next best sellers"><i className="fa-solid fa-arrow-right" aria-hidden="true" /></button>
+    </div>
+    {pages > 1 && <div className="best-sellers-pagination" aria-label="Best seller pages">
+      {Array.from({ length: pages }, (_, index) => <button key={index} className={index === page ? 'active' : ''} type="button" onClick={() => setPage(index)} aria-label={`Show best seller page ${index + 1}`} aria-current={index === page ? 'true' : undefined} />)}
+    </div>}
+  </section>;
 };
 
 export default BestSellersSection;

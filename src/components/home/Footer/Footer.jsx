@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { FaFacebook } from 'react-icons/fa';
 import './Footer.css';
 
@@ -34,7 +34,7 @@ const Footer = () => {
             <li><a href="/home" onClick={goToService('food')}>Food Delivery</a></li>
             <li><a href="/home" onClick={goToService('item')}>Item Delivery</a></li>
             <li><a href="/home" onClick={goToService('bills')}>Pay Bills</a></li>
-            <li><Link to="/faq">FAQ</Link></li>
+            <li><a href="/home#faq" onClick={(event) => { event.preventDefault(); navigate('/home', { state: { scrollToFaq: true } }); }}>FAQ</a></li>
           </ul>
         </nav>
 

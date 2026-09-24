@@ -7,6 +7,7 @@ import FoodandItemsSection from '../../components/home/FoodandItem/FoodandItemsS
 import BestSellersSection from '../../components/home/BestSellers/BestSellersSection';
 import OthersOrderForm from '../../components/home/OthersOrderForm/OthersOrderForm';
 import PayBillsForm from '../../components/home/PayBillsForm/PayBillsForm';
+import { FAQSection } from './FAQ';
 import { useCustomerActivity } from '../../context/CustomerActivityContext';
 import { catalogImageUrl, getCatalog, getBestSellers } from '../../utils/catalog';
 import { getSessionUser } from '../../utils/session';
@@ -32,11 +33,22 @@ const Home = () => {
   const [customOrderBrand, setCustomOrderBrand] = useState(null);
   const [paymentBrand, setPaymentBrand] = useState(null);
   const [bestSellers, setBestSellers] = useState([]);
+  const [isHome, setIsHome] = useState(true);
 
   useEffect(() => {
-    const controller = new AbortController();
-    getBestSellers(controller.signal).then(setBestSellers).catch(() => {});
-    return () => controller.abort();
+    let active = true;
+    const refreshBestSellers = () => getBestSellers().then((products) => {
+      if (active) setBestSellers(products);
+    }).catch(() => {});
+    refreshBestSellers();
+    const refreshTimer = window.setInterval(refreshBestSellers, 30000);
+    const refreshWhenVisible = () => { if (document.visibilityState === 'visible') refreshBestSellers(); };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      active = false;
+      window.clearInterval(refreshTimer);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
   }, []);
 
   useEffect(() => {
@@ -76,6 +88,13 @@ const Home = () => {
     return () => { active = false; document.removeEventListener('visibilitychange', refreshWhenVisible); };
   }, [reloadCatalog]);
 
+  useEffect(() => {
+    if (!location.state?.scrollToFaq) return;
+    setIsHome(true);
+    const timer = window.setTimeout(() => document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' }), 100);
+    return () => window.clearTimeout(timer);
+  }, [location.state]);
+
   const currentService = services.find((service) => service.ServiceID === selectedService);
   const getCurrentBrands = () => (currentService?.brands || [])
     .filter((brand) => brand.BrandName.toLowerCase().includes(search.trim().toLowerCase()))
@@ -106,18 +125,34 @@ const Home = () => {
       {/* Header */}
       <Header
         selectedService={selectedService}
-        onServiceChange={setSelectedService}
+        onServiceChange={(serviceId) => { setSelectedService(serviceId); setIsHome(false); }}
+        onHomeClick={() => { setIsHome(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+        isHome={isHome}
         services={services}
         onSearch={setSearch}
       />
 
-      <HomeHero brandCount={services.reduce((total, service) => total + (service.brands?.length || 0), 0)} />
+      {isHome && (
+        <HomeHero
+          brandCount={services.reduce((total, service) => total + (service.brands?.length || 0), 0)}
+          onBrowseBrands={() => {
+            setIsHome(false);
+            window.setTimeout(() => document.getElementById('home-brands')?.scrollIntoView({ behavior: 'smooth' }), 0);
+          }}
+        />
+      )}
 
       {catalogLoading && <p role="status" className="home-catalog-error">Loading catalog...</p>}
       {catalogError && <p role="alert" className="home-catalog-error">{catalogError} <button type="button" onClick={() => setReloadCatalog((count) => count + 1)}>Retry</button></p>}
 
-      {/* Brand Cards - id is the HomeHero CTA's scroll target */}
-      <FoodandItemsSection
+      {isHome && <BestSellersSection
+        products={bestSellers}
+        onProductSelect={(product) => navigate(`/catalog/brands/${product.BrandID}`, {
+          state: { highlightProductId: product.ProductID }
+        })}
+      />}
+
+      {!isHome && <FoodandItemsSection
         id="home-brands"
         title={getSectionTitle()}
         brands={getCurrentBrands()}
@@ -141,19 +176,9 @@ const Home = () => {
             setCustomOrderBrand(brand);
           }
         }}
-      />
+      />}
 
-      {/* Below the brand grid, not above it - foodpanda and GrabFood both
-          lead with broad category/cuisine navigation first and put curated
-          picks (foodpanda's "daily deals") after it, not before (checked
-          live, 9/23). Leading with specific products before the customer's
-          picked a kind of food read as backwards next to those. */}
-      <BestSellersSection
-        products={bestSellers}
-        onProductSelect={(product) => navigate(`/catalog/brands/${product.BrandID}`, {
-          state: { highlightProductId: product.ProductID }
-        })}
-      />
+      {isHome && <FAQSection home />}
 
       {customOrderBrand && (
         <OthersOrderForm

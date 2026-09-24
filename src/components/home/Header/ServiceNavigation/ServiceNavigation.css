@@ -83,6 +83,8 @@
   box-shadow: 0 3px 10px rgba(111, 10, 45, 0.18);
 }
 
+.service-home-tab { min-width: 92px; }
+
 .service-tab:active {
   transform: scale(0.98);
 }
