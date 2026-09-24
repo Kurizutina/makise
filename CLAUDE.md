@@ -28,6 +28,26 @@ tell it happened.
   gotchas that would otherwise have to be re-derived from scratch (or
   re-discovered by re-triggering the same bug) every fresh session live here
   instead, so a handoff loses less.
+- **Keep this file itself lean** — essential and current, not an
+  ever-growing log. It documents real decisions and real gotchas, not a
+  session-by-session diary; an entry that's no longer true or no longer
+  load-bearing should be edited or removed, not left to accumulate next to
+  the current ones.
+
+## Accuracy over confidence
+
+- **Say "I'm not sure" instead of guessing.** A wrong-but-confident answer
+  about this codebase (a decision, a file's contents, whether something was
+  actually fixed) is worse than admitting uncertainty and checking.
+- **Re-read a file when precision matters, rather than trusting memory of
+  what it contained earlier in a long conversation.** A file may have
+  changed since it was last read, and recalling it from several messages
+  back risks reconstructing it wrong instead of reading what's actually
+  there now.
+- **Don't keep one-off reference material attached to an ongoing working
+  chat once its purpose is served** (e.g. a pasted training doc or an
+  external example file used to draft something once) — it just adds
+  tokens to every later exchange without adding value.
 
 ## Decisions that look arbitrary but aren't
 
