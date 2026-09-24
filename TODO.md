@@ -620,7 +620,7 @@ AI for key business decisions
       convention already established for Revenue's `daily` breakdown -
       converts the requested day's Manila midnight-to-midnight boundary back
       to UTC before filtering, since `OrderDate` is stored UTC. Revenue's
-      `daily` series (what the new line graph plots) always covers every day
+      `daily` series (what the new bar graph plots) always covers every day
       on record regardless of the filter - narrowing it would defeat the
       point of a trend chart while drilling into one day's number.
 
@@ -630,9 +630,10 @@ AI for key business decisions
       at all - per the explicit "more specific and consistent across the
       system" ask. Both send the pick straight to the backend as a real
       query param rather than filtering client-side. Revenue also gets
-      `RevenueLineGraph`, a small inline SVG (no charting library) plotting
-      the existing `daily` data - genuinely no new backend work, the
-      endpoint already returned everything it needed.
+      `RevenueBarGraph`, a small inline SVG (no charting library) plotting
+      the existing `daily` data as bars - genuinely no new backend work, the
+      endpoint already returned everything it needed. (Shipped as a line
+      graph first, then changed to bars at the user's request, 9/24.)
 
       Verified live: seeded two real orders straddling a Manila-midnight/
       UTC-boundary edge case (one at `2026-09-22 00:30` Manila, stored as

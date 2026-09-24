@@ -304,43 +304,47 @@ const RevenueTab = () => {
       </div>
       {Object.entries(SERVICE_META).map(([key, meta]) => <div className="admin-stat-card" key={key}><span>{meta.label}</span><strong style={{ color: meta.color }}>{formatCurrency(totals[key] || 0)}</strong></div>)}
     </div>
-    <div className="admin-analytics-card"><h2>Revenue over time</h2><p>Daily total across every day on record - unaffected by the date filter above, so the trend stays visible while you drill into a single day's numbers.</p><RevenueLineGraph daily={data.daily || []} /></div>
+    <div className="admin-analytics-card"><h2>Revenue over time</h2><p>Daily total across every day on record - unaffected by the date filter above, so the trend stays visible while you drill into a single day's numbers.</p><RevenueBarGraph daily={data.daily || []} /></div>
     <div className="admin-analytics-card"><h2>Revenue by service</h2><p>Calculated from the delivery or service fee on every non-cancelled order{dateFilter ? ' on the selected date' : ' on record, not just what\'s currently loaded'}.</p><div className="admin-revenue-bars">{Object.entries(SERVICE_META).map(([key, meta]) => <div key={key}><span>{meta.label}</span><div><i style={{ width: `${((totals[key] || 0) / maximum) * 100}%`, background: meta.color }} /></div><strong>{formatCurrency(totals[key] || 0)}</strong></div>)}</div></div>
   </section>;
 };
 
-// Plain inline SVG line chart - the `daily` breakdown OrderController::
+// Plain inline SVG bar chart - the `daily` breakdown OrderController::
 // revenue already returns is exactly the series this needs, so no new
 // backend work, no charting library. Renders nothing (rather than an empty/
-// broken chart) with fewer than 2 points, since a line needs two ends.
-const RevenueLineGraph = ({ daily }) => {
+// broken chart) with no days at all; a single day still draws one bar fine,
+// unlike the line chart this replaced which needed at least two points.
+const RevenueBarGraph = ({ daily }) => {
   const width = 640;
   const height = 180;
   const padding = 28;
-  if (daily.length < 2) {
+  if (!daily.length) {
     return <div className="admin-table-empty">Not enough daily history yet to plot a trend.</div>;
   }
   const maxRevenue = Math.max(...daily.map((day) => day.revenue), 1);
-  const stepX = (width - padding * 2) / (daily.length - 1);
-  const points = daily.map((day, index) => {
-    const x = padding + index * stepX;
-    const y = height - padding - (day.revenue / maxRevenue) * (height - padding * 2);
-    return { x, y, day };
+  const plotWidth = width - padding * 2;
+  const plotHeight = height - padding * 2;
+  const gap = 6;
+  const barWidth = Math.max((plotWidth - gap * (daily.length - 1)) / daily.length, 1);
+  const bars = daily.map((day, index) => {
+    const barHeight = (day.revenue / maxRevenue) * plotHeight;
+    const x = padding + index * (barWidth + gap);
+    const y = height - padding - barHeight;
+    return { x, y, barHeight, day };
   });
-  const linePath = points.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x},${point.y}`).join(' ');
-  const areaPath = `${linePath} L${points[points.length - 1].x},${height - padding} L${points[0].x},${height - padding} Z`;
   const labelEvery = Math.ceil(daily.length / 6);
 
   return <svg className="admin-revenue-graph" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Daily revenue trend">
     <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} className="admin-revenue-graph-axis" />
-    <path d={areaPath} className="admin-revenue-graph-area" />
-    <path d={linePath} className="admin-revenue-graph-line" />
-    {points.map((point, index) => <circle cx={point.x} cy={point.y} r="3" className="admin-revenue-graph-dot" key={point.day.date}>
-      <title>{`${point.day.date}: ${formatCurrency(point.day.revenue)}`}</title>
-    </circle>)}
-    {points.filter((_, index) => index % labelEvery === 0 || index === points.length - 1).map((point) => (
-      <text x={point.x} y={height - padding + 16} className="admin-revenue-graph-label" textAnchor="middle" key={point.day.date}>
-        {point.day.date.slice(5)}
+    {bars.map((bar) => <rect
+      x={bar.x} y={bar.y} width={barWidth} height={bar.barHeight}
+      rx="3" className="admin-revenue-graph-bar" key={bar.day.date}
+    >
+      <title>{`${bar.day.date}: ${formatCurrency(bar.day.revenue)}`}</title>
+    </rect>)}
+    {bars.filter((_, index) => index % labelEvery === 0 || index === bars.length - 1).map((bar) => (
+      <text x={bar.x + barWidth / 2} y={height - padding + 16} className="admin-revenue-graph-label" textAnchor="middle" key={bar.day.date}>
+        {bar.day.date.slice(5)}
       </text>
     ))}
   </svg>;
