@@ -77,6 +77,39 @@ file(s) directly involved. Don't explore the wider codebase unless a
 specific reason requires it — name that reason before reading further (e.g.
 "checking X because Y calls it and Y's behavior depends on it").
 
+## Skills: what's enabled and why
+
+Checked against this repo's actual stack (React 19 + `react-scripts`, Laravel
+12, MySQL/MariaDB, no CI/CD — no `.github/workflows` exists) and this
+session's real recurring work, not speculatively. Also searched the broader
+skill marketplace for anything React/Laravel/PHP-specific; nothing beyond
+what's listed below came back relevant.
+
+| Skill | Why it's enabled here |
+|---|---|
+| `run` | This session's actual verification loop, over and over: start `php artisan serve` + `npm start`, drive the browser, confirm the change. Formalizes what "Verify live before claiming done" below already requires by hand. |
+| `code-review` | Catches correctness bugs in a diff (unused vars, logic slips) - complements, doesn't replace, live verification. Real fit: this repo's own Gotchas table below (StrictMode/setState, hooks-after-return) is exactly the bug class a diff review catches before it ever reaches a live test. |
+| `security-review` | Real fit: Sanctum auth, RBAC (`abort_unless`), payment/bill flows, and an adversarial QA pass already on record (see TODO.md's Completed Work - rapid-click duplicate orders, RBAC probing, mass-assignment, SQLi checks). Formalizes that same pass for future auth/payment-touching changes. |
+| `fewer-permission-prompts` | Quality-of-life only. This session repeated near-identical read-only calls (`php artisan tinker`, `git status`, `curl .../api/health`) many times, each prompting separately - allowlisting them cuts friction with no behavior change. |
+
+**Deliberately not enabled:**
+
+- `dataviz` - no charts exist yet. The admin revenue graph is a real but
+  still-blocked TODO item (pending the revenue-definition decision) -
+  revisit when that work actually starts, not before.
+- `init` - would duplicate/conflict with this very file, which was hand-written
+  and iterated on this session from real incidents, not generated. Manual
+  wins; `init` risks overwriting deliberate content with generic boilerplate.
+- `xlsx`/`docx`/`pptx`/`pdf`/`docs` (document-format skills) - nothing in this
+  project's actual deliverable is a spreadsheet, Word doc, slide deck, or PDF.
+- `claude-api` - no Anthropic/Claude API integration anywhere in this stack.
+- `schedule`/`loop` - no recurring/cron automation need; this is a
+  locally-run capstone app, not a service with scheduled jobs.
+- Everything else in the general catalog (`artifact-*`, `morning`,
+  `graphic-design-consultant`, `setup-claude`, `skill-creator`,
+  `keybindings-help`, `update-config`, `consolidate-memory`,
+  `import-memory`, `explain-usage`) - unrelated to this codebase's actual work.
+
 ## Working style established this session
 
 - **Verify live before claiming done.** Seed real test data (via `php artisan
