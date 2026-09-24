@@ -82,6 +82,5 @@
 .global-cart-place { width: 100%; padding: 13px; border: 0; border-radius: 11px; background: #da1c5c; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
 .global-cart-place:disabled { background: #e5dce0; color: #9a8e94; cursor: not-allowed; }
 .global-cart-location { display:grid; gap:6px; margin:0 0 14px; color:#64575d; font-size:12px; font-weight:700; }
-.global-cart-location select { width:100%; min-height:40px; padding:8px 10px; border:1px solid #ded4d8; border-radius:9px; background:#fff; color:#44383e; font:inherit; }
 .global-cart-location small { color:#8b6d77; font-weight:600; }
 @media (max-width: 480px) { .activity-drawer-header { padding: 18px 16px; } .activity-drawer-body { padding-inline: 14px; } .activity-tabs { margin-inline: 14px; } }

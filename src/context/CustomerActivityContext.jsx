@@ -7,6 +7,11 @@ import { calculateDeliveryFee, findDeliveryLocation } from '../utils/deliveryRat
 const CustomerActivityContext = createContext(null);
 const STORAGE_KEY = 'otuzanCustomerActivity';
 const PROFILE_KEY = 'otuzanCustomerProfile';
+// Separate key, not folded into STORAGE_KEY: a saved delivery location is a
+// per-browser default the customer sets once (like foodpanda/GrabFood's
+// header location), not part of the cart/orders/notifications activity log
+// those already-established merge/sync mechanisms exist for.
+const LOCATION_KEY = 'otuzanDeliveryLocation';
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const authHeaders = () => {
@@ -216,6 +221,14 @@ export const CustomerActivityProvider = ({ children }) => {
     return riderName !== 'jayson deguzman';
   }));
   const [notifications, setNotifications] = useState(saved.notifications || []);
+  const [deliveryLocation, setDeliveryLocationState] = useState(
+    () => localStorage.getItem(LOCATION_KEY) || ''
+  );
+  const setDeliveryLocation = (locationId) => {
+    setDeliveryLocationState(locationId);
+    if (locationId) localStorage.setItem(LOCATION_KEY, locationId);
+    else localStorage.removeItem(LOCATION_KEY);
+  };
   // Guards placeOrder/placeCartOrder against rapid repeat clicks. A ref, not
   // state: state updates aren't visible until the next render, so several
   // click handlers firing back-to-back in the same tick (a fast double-tap,
@@ -557,6 +570,8 @@ export const CustomerActivityProvider = ({ children }) => {
     cart,
     orders,
     notifications,
+    deliveryLocation,
+    setDeliveryLocation,
     addToCart,
     updateCartQuantity,
     placeOrder,
@@ -567,7 +582,7 @@ export const CustomerActivityProvider = ({ children }) => {
     updatePaymentStatus
   // State is intentionally included so consumers always receive current actions.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [cart, orders, notifications]);
+  }), [cart, orders, notifications, deliveryLocation]);
 
   return <CustomerActivityContext.Provider value={value}>{children}</CustomerActivityContext.Provider>;
 };

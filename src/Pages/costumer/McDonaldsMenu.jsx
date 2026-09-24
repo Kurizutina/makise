@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FaUtensils } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerActivity } from '../../context/CustomerActivityContext';
-import { calculateDeliveryFee, DELIVERY_LOCATIONS, findDeliveryLocation } from '../../utils/deliveryRates';
+import { calculateDeliveryFee, findDeliveryLocation } from '../../utils/deliveryRates';
 import { getSessionUser } from '../../utils/session';
+import LocationPicker from '../../components/home/Header/LocationPicker/LocationPicker';
 import './JollibeeMenu.css';
 
 const formatPrice = (price) => new Intl.NumberFormat('en-PH', {
@@ -102,7 +103,8 @@ export const RestaurantMenu = ({
     cart: sharedCart,
     addToCart: addSharedCartItem,
     updateCartQuantity,
-    placeCartOrder
+    placeCartOrder,
+    deliveryLocation
   } = useCustomerActivity();
   const [products, setProducts] = useState(menuItems || []);
   const cart = sharedCart.filter((item) => item.source === sourceKey);
@@ -111,7 +113,6 @@ export const RestaurantMenu = ({
   const [showCustomItem, setShowCustomItem] = useState(false);
   const [notice, setNotice] = useState('');
   const [isLoading, setIsLoading] = useState(!menuItems);
-  const [deliveryLocation, setDeliveryLocation] = useState('');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const customerType = getSessionUser()?.userType || 'non_student';
@@ -495,13 +496,10 @@ export const RestaurantMenu = ({
             </div>
           )}
           {selectedLocation && <div className="restaurant-cart-service-fee"><span>Service fee{deliveryFee.surchargeApplied ? ' (includes night surcharge)' : ''}</span><strong>{formatPrice(deliveryFee.serviceFee)}</strong></div>}
-          <label className="restaurant-delivery-location">
+          <div className="restaurant-delivery-location">
             <span>Delivery location</span>
-            <select value={deliveryLocation} onChange={(event) => setDeliveryLocation(event.target.value)}>
-              <option value="">Select your location</option>
-              {DELIVERY_LOCATIONS.map((location) => <option value={location.id} key={location.id}>{location.name}</option>)}
-            </select>
-          </label>
+            <LocationPicker variant="inline" />
+          </div>
           <button type="button" className="jollibee-checkout" disabled={!cart.length} onClick={checkoutCart}>Place Order {itemCount > 0 && `(${itemCount})`}</button>
         </aside>
       </div>

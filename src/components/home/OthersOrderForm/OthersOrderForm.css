@@ -199,6 +199,12 @@
   font-size: 12px;
 }
 
+.order-field-error {
+  display: block;
+  margin-top: 4px;
+  color: #c43b4b;
+}
+
 .pickup-recipient-details {
   display: grid;
   gap: 12px;

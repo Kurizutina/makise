@@ -6,6 +6,7 @@ import SearchBar from './SearchBar/SearchBar';
 import ServiceNavigation from './ServiceNavigation/ServiceNavigation';
 import CustomerMenu from './CustomerMenu/CustomerMenu';
 import CustomerActivity from './CustomerActivity/CustomerActivity';
+import LocationPicker from './LocationPicker/LocationPicker';
 
 const MenuIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -26,19 +27,26 @@ const Header = ({
   return (
     <header className="home-header">
       <div className="header-container">
-        {/* The one persistent "take me back" control on every customer page
-            (menus, FAQ) - previously nothing in the header linked anywhere,
-            so a page like FAQ that also has no back button left guests with
-            no way back to browsing at all (reported live, 9/23). */}
-        <button type="button" className="header-brand-lockup" onClick={() => navigate('/home')}>
-          <div className="header-logo">
-            <Logo />
-          </div>
-          <div className="header-brand-copy">
-            <strong>Otu Zan Delivery</strong>
-            <span>Let us help with your daily errands.</span>
-          </div>
-        </button>
+        <div className="header-brand-cluster">
+          {/* The one persistent "take me back" control on every customer page
+              (menus, FAQ) - previously nothing in the header linked anywhere,
+              so a page like FAQ that also has no back button left guests with
+              no way back to browsing at all (reported live, 9/23). */}
+          <button type="button" className="header-brand-lockup" onClick={() => navigate('/home')}>
+            <div className="header-logo">
+              <Logo />
+            </div>
+            <div className="header-brand-copy">
+              <strong>Otu Zan Delivery</strong>
+            </div>
+          </button>
+
+          {/* Shows the customer's saved delivery location, foodpanda/
+              GrabFood-style, in place of the old decorative tagline - was a
+              native <select> at checkout only, reported live as slow to
+              open. See LocationPicker for why. */}
+          <LocationPicker variant="header" />
+        </div>
 
         <div className="header-tools">
           <div className="header-search">

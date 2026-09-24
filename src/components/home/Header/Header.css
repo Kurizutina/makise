@@ -16,12 +16,15 @@
   gap: 20px;
 }
 
+.header-brand-cluster,
 .header-brand-lockup,
 .header-tools,
 .header-actions {
   display: flex;
   align-items: center;
 }
+
+.header-brand-cluster { flex-shrink: 0; gap: 16px; min-width: 0; }
 
 .header-brand-lockup {
   gap: 12px;
@@ -109,14 +112,15 @@
 
 @media (max-width: 700px) {
   .header-container { min-height: 62px; padding-inline: 12px; gap: 9px; }
+  .header-brand-cluster { gap: 8px; }
   .header-brand-lockup { gap: 7px; }
+  .location-picker-header .location-picker-trigger span { max-width: 74px; }
   .header-logo,
   .header-logo .logo-container { width: 46px; height: 46px; }
   .header-logo { flex-basis: 46px; }
   .header-logo .logo-placeholder,
   .header-logo .logo-image { width: 42px; height: 42px; }
   .header-brand-copy strong { font-size: 15px; }
-  .header-brand-copy span { font-size: 8px; }
   .header-tools { flex: 1; gap: 7px; }
   .header-search { flex: 1; width: auto; min-width: 0; }
   .header-actions { gap: 5px; }
@@ -126,7 +130,6 @@
 }
 
 @media (max-width: 440px) {
-  .header-brand-copy span { display: none; }
   .header-brand-copy strong { font-size: 13px; }
   .header-logo,
   .header-logo .logo-container { width: 40px; height: 40px; }
@@ -134,6 +137,10 @@
   .header-logo .logo-placeholder,
   .header-logo .logo-image { width: 36px; height: 36px; }
   .header-container { gap: 6px; }
+  .header-brand-cluster { gap: 5px; }
+  /* Icon-only at this width - matches where the old tagline used to fully
+     hide; the trigger's accessible name still carries the full location. */
+  .location-picker-header .location-picker-trigger span { display: none; }
   .header-action-button,
   .header-menu-button { width: 32px; height: 32px; }
 }

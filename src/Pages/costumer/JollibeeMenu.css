@@ -677,17 +677,6 @@
   font-weight: 700;
 }
 
-.restaurant-delivery-location select {
-  width: 100%;
-  min-height: 40px;
-  padding: 8px 10px;
-  border: 1px solid #e1d6db;
-  border-radius: 9px;
-  background: #fff;
-  color: #44383e;
-  font: inherit;
-}
-
 .restaurant-delivery-location small {
   color: #8b6d77;
   font-weight: 600;

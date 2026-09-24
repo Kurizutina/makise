@@ -6,7 +6,8 @@ import {
   useCustomerActivity
 } from '../../../../context/CustomerActivityContext';
 import './CustomerActivity.css';
-import { calculateDeliveryFee, DELIVERY_LOCATIONS, findDeliveryLocation } from '../../../../utils/deliveryRates';
+import { calculateDeliveryFee, findDeliveryLocation } from '../../../../utils/deliveryRates';
+import LocationPicker from '../LocationPicker/LocationPicker';
 import { getSessionUser } from '../../../../utils/session';
 import { applyBackendTruth, useBackendOrders } from '../../../../hooks/useBackendOrders';
 import { toLocalNotificationShape, useBackendNotifications } from '../../../../hooks/useBackendNotifications';
@@ -85,6 +86,7 @@ const CustomerActivity = () => {
     cart,
     orders: localOrders,
     notifications: localNotifications,
+    deliveryLocation,
     updateCartQuantity,
     placeCartOrder,
     markNotificationsRead,
@@ -106,7 +108,6 @@ const CustomerActivity = () => {
   const [openPanel, setOpenPanel] = useState(null);
   const [activityTab, setActivityTab] = useState('notifications');
   const [now, setNow] = useState(Date.now());
-  const [deliveryLocation, setDeliveryLocation] = useState('');
   const customerType = getSessionUser()?.userType || 'non_student';
   const unreadCount = notifications.filter((item) => !item.read).length;
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
@@ -250,7 +251,7 @@ const CustomerActivity = () => {
                     </div>
                     <div className="global-cart-summary"><span>Priced subtotal</span><strong>{formatPrice(cartTotal)}</strong></div>
                     {selectedLocation && <div className="global-cart-service-fee"><span>Service fee{deliveryFee.surchargeApplied ? ' (includes night surcharge)' : ''}</span><strong>{formatPrice(deliveryFee.serviceFee)}</strong></div>}
-                    <label className="global-cart-location"><span>Delivery location</span><select value={deliveryLocation} onChange={(event) => setDeliveryLocation(event.target.value)}><option value="">Select your location</option>{DELIVERY_LOCATIONS.map((location) => <option value={location.id} key={location.id}>{location.name}</option>)}</select></label>
+                    <div className="global-cart-location"><span>Delivery location</span><LocationPicker variant="inline" /></div>
                     <button className="global-cart-place" type="button" disabled={!deliveryLocation} onClick={confirmCart}>Place Order</button>
                   </>
                 )}

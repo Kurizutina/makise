@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import './OthersOrderForm.css';
-import { DELIVERY_LOCATIONS } from '../../../utils/deliveryRates';
 import { getSessionUser } from '../../../utils/session';
+import { useCustomerActivity } from '../../../context/CustomerActivityContext';
+import LocationPicker from '../Header/LocationPicker/LocationPicker';
 
 const serviceNames = {
   food: 'Food Delivery',
@@ -26,7 +27,8 @@ const OthersOrderForm = ({
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [recipientContact, setRecipientContact] = useState('');
-  const [deliveryLocation, setDeliveryLocation] = useState('');
+  const { deliveryLocation } = useCustomerActivity();
+  const [locationTouched, setLocationTouched] = useState(false);
   const customerType = getSessionUser()?.userType || 'non_student';
 
   useEffect(() => {
@@ -63,6 +65,13 @@ const OthersOrderForm = ({
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    // LocationPicker is a custom control, not a real form field, so the
+    // native `required` a <select> gave this for free has to be replicated
+    // by hand - same rule as before: every service except bills needs one.
+    if (serviceType !== 'bills' && !deliveryLocation) {
+      setLocationTouched(true);
+      return;
+    }
     const order = {
       serviceType,
       establishment: establishment.trim(),
@@ -115,13 +124,13 @@ const OthersOrderForm = ({
             />
           </label>
 
-          {serviceType !== 'bills' && <label className="order-field">
+          {serviceType !== 'bills' && <div className="order-field">
             <span>Delivery location</span>
-            <select required value={deliveryLocation} onChange={(event) => setDeliveryLocation(event.target.value)}>
-              <option value="">Select your location</option>
-              {DELIVERY_LOCATIONS.map((location) => <option value={location.id} key={location.id}>{location.name}</option>)}
-            </select>
-          </label>}
+            <LocationPicker variant="inline" />
+            {locationTouched && !deliveryLocation && (
+              <small className="order-field-error">Please select a delivery location.</small>
+            )}
+          </div>}
 
           {serviceType === 'item' && allowPickup && (
             <>
