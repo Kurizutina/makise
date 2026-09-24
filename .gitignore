@@ -20,6 +20,12 @@
 .env.test.local
 .env.production.local
 
+# local agent docs — stay at repo root so tools discover them, but never commit
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+skills.md
+
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
