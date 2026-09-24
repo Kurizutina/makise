@@ -176,3 +176,9 @@ what's listed below came back relevant.
   simple trend indicator, not the full date-picker system a pasted brief
   implied) — confirm the small version rather than building the large one on
   spec.
+- **Commit code changes locally, but don't push until the user has tested it
+  themselves and confirmed it's good.** Live verification in the browser
+  pane confirms the change works from what the tool can drive and observe;
+  it doesn't replace the user actually trying it in their own environment.
+  Say the commit is ready and what to check, then wait for their go-ahead
+  before `git push`.
