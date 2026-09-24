@@ -108,17 +108,6 @@ flipping the box, to keep this split meaningful over time.
       pattern across delivery and e-commerce apps generally. Lower priority than the
       items above — more of a "keep browsing" nudge than something blocking an
       order, and needs a "same service/category" grouping rule decided first.
-- [ ] **"Inconsistent empty/loading states (UX)"** — Admin's Payments tab has a
-      proper icon+heading+subtext empty state; Riders/Customers/Brands tables just
-      show flat "No X found." text, and none of them distinguish "still loading"
-      from "genuinely empty." **Confirmed this is worse than cosmetic during a
-      full QA pass (9/22)**: the Brands tab genuinely flashed "No brands found."
-      on a real page load with 16 real brands in the database - `CatalogTab` has
-      no loading state at all, so the empty-table render and the "still fetching"
-      state are visually identical. An admin landing on a slower connection has
-      no way to tell "empty" from "not done loading yet." (Previously tracked as
-      two separate items - "Inconsistent empty states" and "Admin table loading
-      state" - merged here since they're the same underlying gap.)
 
 ### Functionality
 
@@ -866,6 +855,31 @@ AI for key business decisions
       solid-styled action per card. (`1ecc172`)
 
 ## Medium
+
+- [x] **"Inconsistent empty/loading states (UX)"** (confirmed worse than
+      cosmetic during the 9/22 QA pass; fixed 9/25). Admin's Payments tab
+      had a proper icon+heading+subtext empty state; the Brands/Services/
+      Products table (`CatalogTab`) and the Riders/Customers table
+      (`AccountManagementTab`) just showed flat "No X found." text with no
+      loading state at all, so an empty-table render and "still fetching"
+      looked identical - confirmed live during the QA pass that the Brands
+      tab genuinely flashed "No brands found." on a real page load with 16
+      real brands in the database.
+
+      Added a `loading` state to both components (consistent with
+      `CatalogTab`'s existing module-switch request-staleness guards).
+      Shows the same plain "Loading X..." text already used elsewhere in
+      this file while fetching; once resolved and genuinely empty, upgraded
+      to the same `admin-page-empty` icon+heading+subtext treatment
+      Payments already used, with a search/filter-aware subtext so "no
+      results for this search" doesn't read the same as "nothing exists
+      yet."
+
+      Verified live: Brands tab (16 real brands) now loads straight to the
+      real table, no empty-state flash; searching for a non-matching term
+      on both Brands and Riders correctly shows the new empty state with
+      the right subtext. Full frontend suite re-run clean (23/27) - same
+      pre-existing failures only. (`39d2f15`)
 
 - [x] **Header and service-nav were solid saturated pink, fusing directly
       into the hero below into one oversized color blob** (design critique
