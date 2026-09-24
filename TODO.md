@@ -72,7 +72,7 @@ flipping the box, to keep this split meaningful over time.
 | Research competitor color schemes and refine the palette | Recommended with Changes | Medium | Duplicate | Continue the existing token/palette-consolidation item. Use competitor research for conventions, not imitation; define accessible primary, hover, surface, text, and semantic status colors around the Otu-Zan logo. |
 | Stop notifications after logout | Recommended | High - completed | New / completed | Fixed 9/23: `useCustomerActivity()` had no branch for "no session," so a guest fell through to the same unfiltered path as admin and could see whichever customer's orders/notifications were last cached on that browser. See Completed Work below for the reproduction and fix. |
 | Put the mobile sign-in card at the top | Not Recommended as a standalone task | Not Recommended | Related | Fold this into the modal-authentication work below. A separate top-of-page login layout conflicts with the current guest-browsing entry point and would create two competing auth experiences. |
-| Show current/general location in the header, while allowing a delivery location selection | Recommended with Changes | Medium | Duplicate | Surface the saved delivery zone in the header with a clear change action. Ask for device location only with consent and provide a manual fallback; the selected billable delivery zone remains the source of truth for fees. |
+| Show current/general location in the header, while allowing a delivery location selection | Recommended with Changes | Medium - completed | Duplicate / completed | Fixed 9/24: header now shows the saved delivery location foodpanda/GrabFood-style, with a custom in-DOM picker replacing the native `<select>` everywhere it was used. See Completed Work below. Device-geolocation ask was out of scope - the location set is one of the fixed billable delivery zones, not a free-form address. |
 | Open Login/Sign Up as a modal over a blurred homepage | Recommended with Changes | Medium | Related | Keep guest browsing, then open an accessible modal from the header. Use focus trapping, Escape/backdrop close, and a mobile full-screen sheet rather than a blurred, cramped card; preserve the current direct auth route as a fallback. |
 
 ## Medium Priority
@@ -705,6 +705,32 @@ AI for key business decisions
       filtering; frontend History tests rewritten to mock the new fetch.
       Full frontend/backend suites re-run clean - same pre-existing
       failures only. Test data cleaned up after. (`bc0589e`)
+- [x] **Show current/general location in the header** (user-reported live,
+      9/24 - "select your location takes a couple of seconds to load";
+      fixed same day). Investigated before assuming a code bug: attached a
+      `PerformanceObserver` for long tasks around the click and found none,
+      and the location list is a small static array with no fetch involved
+      - the actual delay was the native `<select>` popup itself rendering,
+      which app code has no control over. Asked the user how they wanted it
+      to work; they asked how foodpanda/GrabFood/Jollibee do it, so that's
+      what this matches: a custom in-DOM picker (button + list, not a
+      native select), with the saved location shown in the header in place
+      of the old decorative tagline.
+
+      `deliveryLocation` moved from three separate per-component
+      `useState('')`s (cart drawer, Others order form, the shared
+      `RestaurantMenu` checkout used by every catalog-backed brand) into
+      `CustomerActivityContext`, persisted per-browser under
+      `otuzanDeliveryLocation` - one saved location shared everywhere
+      instead of re-picking it at each checkout.
+
+      Verified live: picker opens instantly at desktop and mobile widths
+      (icon-only below 440px, matching where the old tagline used to fully
+      hide); a location picked in the header showed already-selected in the
+      cart drawer, the Others order form, and the McDonald's menu-page
+      checkout without re-selecting; selection survived a page reload.
+      Full frontend suite re-run clean - same pre-existing failures only.
+      Test accounts cleaned up after. (`084024a`)
 - [x] **Cross-user notification leak after logout** (client-reviewed intake,
       9/23; fixed same day) - a real privacy/session-isolation bug, not just
       stale UI, reproduced live before fixing it: logged in as a customer,
