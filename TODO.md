@@ -641,6 +641,38 @@ AI for key business decisions
 
 ## High
 
+- [x] **Cancelling an order needed a manual page refresh to actually show as
+      cancelled** (user-reported live, 9/24; fixed same day) - a real bug,
+      reproduced before fixing: placed a real order via the API, cancelled it
+      from the customer drawer, and the card kept showing "Waiting for
+      rider" until the page was refreshed, even though the backend had
+      already recorded `cancelled`.
+
+      Root cause: `applyBackendTruth()` (`useBackendOrders.js`) overlays the
+      poller's cached backend snapshot onto local orders unconditionally -
+      that snapshot only refreshes every 30s. A customer's own optimistic
+      local status change (cancel; also affects rider/admin status and
+      assignment updates, and payment verify/reject) rendered correctly for
+      an instant, then got clobbered back to the stale pre-change status by
+      the next render's overlay, until the interval happened to fire. A
+      refresh "worked" only because it restarts the poller with an
+      immediate fetch - not a real fix, just a coincidence of how the bug
+      manifested.
+
+      Fixed at the source rather than shortening the poll interval (which
+      would've just narrowed the window, not closed it): added an
+      `ORDERS_CHANGED_EVENT` that every `useBackendOrders` poller on the
+      page listens for, dispatched from `syncStatusToBackend`/
+      `syncAssignmentToBackend`/`syncPaymentStatusToBackend` once the
+      backend confirms the change. The 30s interval and the spoof-protection
+      overlay itself are unchanged - this only makes the *acting user's own*
+      change catch up immediately instead of waiting out the interval.
+
+      Verified live: real order placed and cancelled through the browser,
+      confirmed the UI flipped to "Cancelled" with no refresh, then
+      confirmed the backend's own `DeliveryStatus` matched. Test data
+      cleaned up after. Full frontend suite re-run clean - same
+      pre-existing failures only. (`ca09994`)
 - [x] **History's 50-order pagination cap** (found 9/24 while scoping the
       exact-date-filter request; fixed same day) - History, Live Orders, and
       Payments all read from one `useBackendOrders('/api/admin/orders?per_page=50')`
