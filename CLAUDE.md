@@ -70,6 +70,13 @@ tell it happened.
 | Hooks after an early `return` | React's Rules of Hooks apply per-render regardless of how obviously the early return depends on the same condition the hook needs. Move the hook above the return and make it null-safe internally instead. |
 | `useCustomerActivity()` role branches | Explicit branches per role (`customer`, `driver`, `admin`); the fallthrough is for **no session**, not "whatever's left over." Don't collapse admin and guest into the same branch again. |
 
+## Investigation scope: stay narrow unless there's a named reason to widen
+
+When fixing a specific bug or adding a new file/feature, only read the
+file(s) directly involved. Don't explore the wider codebase unless a
+specific reason requires it — name that reason before reading further (e.g.
+"checking X because Y calls it and Y's behavior depends on it").
+
 ## Working style established this session
 
 - **Verify live before claiming done.** Seed real test data (via `php artisan
