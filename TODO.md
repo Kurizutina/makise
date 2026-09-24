@@ -56,17 +56,6 @@ flipping the box, to keep this split meaningful over time.
 
 ### Design
 
-- [ ] **Homepage has no hero / mood-setting moment** (design critique, 9/23,
-      compared live against foodpanda.ph, GrabFood, Uber Eats, Deliveroo -
-      every one of them opens with a photo, gradient card, or bold headline
-      before the browsing grid; Otu-Zan goes flat header -> grid -> a large
-      dead whitespace gap -> footer). Already built once this session
-      (gradient card, time-of-day greeting, real catalog stats, no
-      photography needed) and reverted at the user's request mid-session to
-      slow down and reconsider rather than accept it live - the code isn't
-      lost, just not landed. Named the single most visible gap against the
-      reference apps in the follow-up design critique; revisit when ready
-      rather than re-building from scratch.
 - [ ] **Color palette has no enforced system - 7+ ad hoc pink/magenta hex
       values in header/footer/tokens alone** (design critique, 9/23, verified
       by grepping the actual CSS rather than going on memory: `#e31b62`,
@@ -861,6 +850,48 @@ AI for key business decisions
       solid-styled action per card. (`1ecc172`)
 
 ## Medium
+
+- [x] **Homepage hero / mood-setting moment above the brand grid** (design
+      critique, 9/23; requested again as a customer-landing-page feature by
+      Sean, 9/24; built same day). Otu-Zan went straight from a flat header
+      into the brand grid with no hero, the single most visible gap against
+      foodpanda/GrabFood/Uber Eats/Deliveroo named in the 9/23 design
+      critique - already built once (gradient card, time-of-day greeting,
+      real catalog stats) and reverted at the user's own request mid-session
+      to slow down and reconsider, rather than a rejection of the approach.
+
+      Investigated Sean's framing first, since he described it as "customers
+      landing directly on Brands" - there's actually no separate Brands
+      route; `/` already redirects to `/home`, and `Home.jsx` already *is*
+      the landing page. The real gap was purely that it opened straight into
+      the brand grid with nothing above it.
+
+      Restored the reverted `HomeHero` component (not rebuilt from scratch)
+      into `Home.jsx`, above the existing brand grid: gradient card,
+      time-of-day greeting, and three highlight chips built from real
+      catalog data (live brand count), no fabricated stats. Added one new
+      piece on top of the original: a "Browse brands" anchor CTA that
+      scrolls to the brand grid, referenced against
+      `pizzarosix.infinityfree.me`'s hero pattern but honestly labeled
+      (nothing to buy from the hero itself).
+
+      Also compared `BestSellersSection` against that same reference's
+      circular-photo-carousel-with-star-ratings-and-discount-badges
+      treatment, and deliberately did **not** copy it: this system has no
+      rating or promotion data, and fabricating either would have broken the
+      "use real data or flag the gap" instruction the work was scoped
+      under. Kept the existing square-image grid (already aligned with the
+      brand grid's container styling) and added one honest equivalent
+      instead - an "X sold" badge sourced from the best-sellers endpoint's
+      real `unitsSold` field, which already existed in the API response but
+      was unused in the frontend.
+
+      Verified live at desktop and mobile (375×812): hero renders with the
+      real brand count, the CTA correctly scrolls past the sticky header
+      (`scroll-margin-top` on the brand-grid section), and Best Sellers
+      shows the real sold-count badge from actual order history. Full
+      frontend suite re-run clean (23/27) - same pre-existing failures only
+      (`Login.test.jsx`, `ManuelasMenu.test.jsx`). (`ed10861`)
 
 - [x] **Today/Previous date filter on the admin order History tab**
       (client-reviewed intake, 9/23; fixed same day) - history was one flat,
