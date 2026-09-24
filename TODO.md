@@ -20,33 +20,10 @@ flipping the box, to keep this split meaningful over time.
       its own design pass (in-app chat vs. just exposing contact numbers, etc.)
       before implementation.
 
-- [ ] **Exact-date filter for History and Revenue, plus a Revenue line
-      graph** (user request, 9/24 - scope narrowed from date-picker+graph
-      down to just a trend arrow for now, see Completed Work; the rest of
-      the original request is still open). Concrete, buildable pieces:
-      - History: pick a specific date (e.g. September 23, 2026), see only
-        that day's orders. **The prerequisite for this is now done (9/24)**
-        - History's shared 50-order pagination cap is fixed (see Completed
-          Work), so real data is reachable. One interim limitation carries
-          over though: the service/date filters still apply client-side to
-          only the current page's 20 rows, so picking a specific date needs
-          the filter to become a real server-side query param (`GET
-          /api/admin/orders?date=2026-09-23`), not just search the page
-          you're currently on.
-      - Revenue: pick a specific date, see that day's total - needs a date
-        param added to `GET /api/admin/revenue` (currently aggregates
-        all-time unconditionally); the `daily` breakdown it already returns
-        makes this a small addition, not new infrastructure.
-      - Revenue: a real line graph of revenue over time, using the `daily`
-        data the endpoint already returns (built 9/23 specifically for
-        this) - genuinely low-risk, no backend change needed, just a chart
-        component.
-      - Both dates should share one consistent date-filter UI pattern
-        rather than two different pickers, per the user's explicit "more
-        specific and consistent across the system" ask.
-      **Two open decisions block the *correct final number*, not the
-      infrastructure above** - flagging these again since they were asked
-      and not yet answered:
+- [ ] **Two open decisions still block the *correct final number* for
+      Revenue** (user request, 9/24 - the date-filter/graph infrastructure
+      that used to block on this is now done, see Completed Work) -
+      flagging these again since they were asked and not yet answered:
       - Does "Revenue" mean the delivery/service fee only (current,
         deliberate definition since 9/23), or the customer's full order
         total?
@@ -640,6 +617,53 @@ AI for key business decisions
       real mobile viewport. (`96d0015`)
 
 ## High
+
+- [x] **Exact-date filter for History and Revenue, plus a Revenue line
+      graph** (user request, 9/24; built same day). History and Revenue
+      previously only split "today vs previous" client-side and could only
+      show an all-time total - real gaps, since History's date filter only
+      searched whatever page was already loaded (a real bug on its own, the
+      same class already fixed for the 50-order cap), and Revenue had no way
+      to see a single day's number at all.
+
+      Backend: `OrderController::indexAll` and `::revenue` both now accept
+      `?date=Y-m-d`, bucketed by the same Asia/Manila business-day
+      convention already established for Revenue's `daily` breakdown -
+      converts the requested day's Manila midnight-to-midnight boundary back
+      to UTC before filtering, since `OrderDate` is stored UTC. Revenue's
+      `daily` series (what the new line graph plots) always covers every day
+      on record regardless of the filter - narrowing it would defeat the
+      point of a trend chart while drilling into one day's number.
+
+      Frontend: History and Revenue now share one `DateFilter` component
+      (All dates / Today / an exact-date `<input type="date">`) instead of
+      History's old Today/Previous toggle and Revenue having no date control
+      at all - per the explicit "more specific and consistent across the
+      system" ask. Both send the pick straight to the backend as a real
+      query param rather than filtering client-side. Revenue also gets
+      `RevenueLineGraph`, a small inline SVG (no charting library) plotting
+      the existing `daily` data - genuinely no new backend work, the
+      endpoint already returned everything it needed.
+
+      Verified live: seeded two real orders straddling a Manila-midnight/
+      UTC-boundary edge case (one at `2026-09-22 00:30` Manila, stored as
+      `2026-09-21 16:30` UTC) via `php artisan tinker`, confirmed both
+      `/api/admin/orders?date=...` and `/api/admin/revenue?date=...`
+      correctly bucketed it into the requested Manila day, then confirmed
+      the same in a real browser session on both the History table and the
+      Revenue stat cards/graph. Test orders and throwaway accounts deleted
+      after. Backend tests added for both endpoints' date filters (including
+      the boundary case); the frontend History test rewritten for the new
+      UI and server-side filtering (was asserting on client-side Today/
+      Previous buttons that no longer exist). Full frontend (23/27) and
+      backend (37/41, 1 pre-existing skip) suites re-run clean - same
+      pre-existing failures only.
+      (`6b62d5d`)
+
+      **Still open, not attempted here** - the two Revenue *definition*
+      questions this was explicitly scoped to not need (does "Revenue" mean
+      fee-only or full order total; does it count non-cancelled or only
+      delivered orders) - tracked in Outstanding Work above.
 
 - [x] **Cancelling an order needed a manual page refresh to actually show as
       cancelled** (user-reported live, 9/24; fixed same day) - a real bug,
