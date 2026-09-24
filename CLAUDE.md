@@ -89,6 +89,36 @@ tell it happened.
 | Array/object props into effect deps | An inline `.map()`/`.filter()` in a render body (e.g. `CatalogBrandMenu`'s old `products = catalog.products.map(...)`) creates a new reference every render. Any child effect keyed on that prop tears down and rebuilds every time, even when the data is identical — which can leave a ref `null` mid-rebuild. `useMemo` it. |
 | Hooks after an early `return` | React's Rules of Hooks apply per-render regardless of how obviously the early return depends on the same condition the hook needs. Move the hook above the return and make it null-safe internally instead. |
 | `useCustomerActivity()` role branches | Explicit branches per role (`customer`, `driver`, `admin`); the fallthrough is for **no session**, not "whatever's left over." Don't collapse admin and guest into the same branch again. |
+| Customer pages live in `src/Pages/costumer/` | Misspelled on purpose or not, it's the real folder — not `customer`. Searching for a "customer" folder can miss it or tempt creating a duplicate. |
+
+## Roles & auth (backend is the real boundary, not the frontend)
+
+Three roles: `customer`, `driver` (rider), `admin`. Two separate mechanisms
+gate access, and they don't overlap the way you'd guess:
+
+- **`permission:<name>` middleware** (`routes/api.php`, backed by
+  `config/permissions.php` + `EnsurePermission` middleware) gates
+  `catalog.manage`, `accounts.manage`, `riders.view`, `orders.manage` — all
+  four are granted to `admin` only. `driver` and `customer` both have empty
+  permission arrays in that config; they never go through this path.
+- **`abort_unless($request->user()->Role === '...', 403)`** scattered
+  per-controller is what actually gates `driver`/`customer` access (e.g.
+  `OrderController`, `PaymentController`, `AccountManagementController`) —
+  not a single central place, so a new customer/driver-only endpoint needs
+  its own explicit check, not an assumption that the permission system
+  covers it.
+- **`src/routes/ProtectedRoute.jsx` is UX only, not a security boundary.**
+  It redirects a stale/mismatched-role session to that role's own
+  dashboard client-side — trivially bypassable, and not meant to be the
+  real guard. The backend checks above are what actually enforce anything;
+  don't reason about access control from the frontend route alone.
+
+## Versions aren't pinned deliberately
+
+`package.json` (`^19.2.8`) and `composer.json` (`^12.0`) both use ordinary
+caret ranges — nobody pinned these on purpose, it's just what `npm
+install`/`composer install` resolved to. Don't read a version number here
+as a considered decision; bumping one isn't "helping" unless asked.
 
 ## Investigation scope: stay narrow unless there's a named reason to widen
 
