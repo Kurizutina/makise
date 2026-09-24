@@ -34,7 +34,16 @@ const Footer = () => {
             <li><a href="/home" onClick={goToService('food')}>Food Delivery</a></li>
             <li><a href="/home" onClick={goToService('item')}>Item Delivery</a></li>
             <li><a href="/home" onClick={goToService('bills')}>Pay Bills</a></li>
-            <li><a href="/home#faq" onClick={(event) => { event.preventDefault(); navigate('/home', { state: { scrollToFaq: true } }); }}>FAQ</a></li>
+            {/* Plain "/home" href, not "/home#faq" - the real navigation
+                always goes through the onClick below (React Router state,
+                not a hash), and a literal #faq href left a genuine
+                deep-linkable /home#faq URL in history if it were ever
+                actually followed (e.g. a slow click before the handler
+                attached) - confirmed live (9/25) that visiting that URL
+                directly does jump straight to the FAQ section, which is
+                exactly what a customer reported landing on unexpectedly
+                after pressing back from a brand's menu. */}
+            <li><a href="/home" onClick={(event) => { event.preventDefault(); navigate('/home', { state: { scrollToFaq: true } }); }}>FAQ</a></li>
           </ul>
         </nav>
 

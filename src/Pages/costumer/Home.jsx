@@ -23,8 +23,15 @@ const Home = () => {
   // refetches (e.g. the visibilitychange reload below).
   const requestedServiceType = useRef(location.state?.selectedServiceType ?? null);
 
-  // Currently selected service
-  const [selectedService, setSelectedService] = useState(null);
+  // Currently selected service - also restored from sessionStorage (see
+  // isHome below) so back-navigation lands on the same service grid the
+  // customer was actually browsing, not just whichever service loads first.
+  const [selectedService, setSelectedService] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('otuzanHomeSelectedService');
+      return saved ? Number(saved) : null;
+    } catch { return null; }
+  });
   const [services, setServices] = useState([]);
   const [catalogError, setCatalogError] = useState('');
   const [catalogLoading, setCatalogLoading] = useState(true);
@@ -33,7 +40,26 @@ const Home = () => {
   const [customOrderBrand, setCustomOrderBrand] = useState(null);
   const [paymentBrand, setPaymentBrand] = useState(null);
   const [bestSellers, setBestSellers] = useState([]);
-  const [isHome, setIsHome] = useState(true);
+  // Persisted per-browser, not just component state - Home fully unmounts
+  // and remounts on any route change (e.g. going to a brand's menu), which
+  // used to reset this straight back to the hero/Best-Sellers view no
+  // matter what the customer was browsing. Reported live (9/25): pressing
+  // the browser back button from a brand's menu didn't return to that
+  // brand's service grid the way "back" should - it dropped back to the
+  // hero every time, which on a shorter remounted page could put the
+  // restored scroll position past the grid entirely and into FAQ futher
+  // down. Restoring the last view here (rather than hardcoding `true`)
+  // fixes back-navigation without needing a browser-history workaround.
+  const [isHome, setIsHome] = useState(() => {
+    try { return sessionStorage.getItem('otuzanHomeIsHome') !== 'false'; } catch { return true; }
+  });
+  useEffect(() => {
+    try { sessionStorage.setItem('otuzanHomeIsHome', String(isHome)); } catch { /* ignore */ }
+  }, [isHome]);
+  useEffect(() => {
+    if (selectedService == null) return;
+    try { sessionStorage.setItem('otuzanHomeSelectedService', String(selectedService)); } catch { /* ignore */ }
+  }, [selectedService]);
 
   useEffect(() => {
     let active = true;
