@@ -93,6 +93,17 @@ class OrderController extends Controller
         $status = $request->query('status');
         if ($status) $query->whereIn('DeliveryStatus', explode(',', $status));
 
+        // Exact-date filter (Y-m-d, Asia/Manila business calendar day - same
+        // convention as revenue()). OrderDate is stored UTC, so the day's
+        // boundaries are converted back to UTC before filtering rather than
+        // comparing the stored value against a naive date string.
+        $date = $request->query('date');
+        if ($date) {
+            $dayStart = Carbon::createFromFormat('Y-m-d', $date, 'Asia/Manila')->startOfDay()->setTimezone('UTC');
+            $dayEnd = (clone $dayStart)->addDay();
+            $query->where('OrderDate', '>=', $dayStart)->where('OrderDate', '<', $dayEnd);
+        }
+
         $perPage = min(max((int) $request->query('per_page', 10), 1), 50);
         $paginated = $query->paginate($perPage);
         $this->attachQueuePositions($paginated);
@@ -110,9 +121,16 @@ class OrderController extends Controller
     // Calendar-day bucketing uses Asia/Manila (UTC+8) since OrderDate is
     // stored in UTC (config('app.timezone')) - a raw UTC-midnight boundary
     // would flip an order into "yesterday" mid-afternoon local time.
-    public function revenue(): JsonResponse
+    // Optional ?date=Y-m-d (Asia/Manila) narrows total/byService/orderCount to
+    // that single calendar day - `daily` always covers every day on record
+    // regardless of the filter, since that's the series the Revenue tab's
+    // line graph plots and narrowing it would defeat the point of a trend
+    // chart.
+    public function revenue(Request $request): JsonResponse
     {
         $timezone = 'Asia/Manila';
+        $requestedDate = $request->query('date');
+
         $orders = Order::with(['items.product.brand.service', 'payments'])
             ->where('DeliveryStatus', '!=', 'cancelled')
             ->get();
@@ -120,14 +138,17 @@ class OrderController extends Controller
         $daily = [];
         $byService = ['food' => 0.0, 'item' => 0.0, 'bills' => 0.0];
         $total = 0.0;
+        $orderCount = 0;
 
         foreach ($orders as $order) {
             $fee = (float) $order->ServiceFee;
-            $total += $fee;
-
             $date = Carbon::parse($order->OrderDate, 'UTC')->setTimezone($timezone)->toDateString();
             $daily[$date] = ($daily[$date] ?? 0) + $fee;
 
+            if ($requestedDate && $date !== $requestedDate) continue;
+
+            $total += $fee;
+            $orderCount++;
             $service = $order->payments->isNotEmpty()
                 ? 'bills'
                 : ($order->items->first()?->product?->brand?->service?->ServiceType === 'item' ? 'item' : 'food');
@@ -140,7 +161,7 @@ class OrderController extends Controller
             'total' => round($total, 2),
             'byService' => array_map(fn ($value) => round($value, 2), $byService),
             'daily' => collect($daily)->map(fn ($value, $date) => ['date' => $date, 'revenue' => round($value, 2)])->values(),
-            'orderCount' => $orders->count(),
+            'orderCount' => $orderCount,
         ]);
     }
 

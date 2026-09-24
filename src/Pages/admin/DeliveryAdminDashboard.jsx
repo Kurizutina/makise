@@ -153,6 +153,26 @@ const LiveOrdersTab = ({ orders, onAssign, onStatus, riders }) => {
 // plain string.
 const manilaDateString = (value) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date(value));
 
+// One shared date-filter control for History and Revenue, per the request
+// that both use "one consistent date-filter UI pattern" rather than two
+// different pickers. `value` is '' (all dates), 'today', or an exact
+// Y-m-d string typed/picked in the date input - all three are sent to the
+// backend as a real query param (`date=...`) rather than filtered
+// client-side, so results aren't limited to whatever page is already loaded.
+const DateFilter = ({ value, onChange, today }) => (
+  <div className="admin-filter-row admin-date-filter">
+    <button type="button" className={value === '' ? 'active' : ''} onClick={() => onChange('')}>All dates</button>
+    <button type="button" className={value === today ? 'active' : ''} onClick={() => onChange(today)}>Today</button>
+    <input
+      type="date"
+      aria-label="Pick an exact date"
+      value={value && value !== today ? value : ''}
+      max={today}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  </div>
+);
+
 const HISTORY_PAGE_SIZE = 20;
 
 // History used to read from the same 50-order-capped fetch Live Orders and
@@ -166,21 +186,27 @@ const HISTORY_PAGE_SIZE = 20;
 // every order is actually reachable, just a page away rather than gone.
 const HistoryTab = () => {
   const [serviceFilter, setServiceFilter] = useState('all');
-  // Defaults to 'all' rather than 'today' - defaulting to today would
-  // silently hide every past order the moment nothing has happened yet
-  // today, which is a real behavior change on top of just adding the
+  // '' (all dates) is the default rather than 'today' - defaulting to today
+  // would silently hide every past order the moment nothing has happened
+  // yet today, which is a real behavior change on top of just adding the
   // option (an admin's first instinct on an empty-looking History tab
-  // shouldn't be "is something broken"). Today/Previous are explicit picks.
-  const [dateFilter, setDateFilter] = useState('all');
+  // shouldn't be "is something broken"). An exact date is an explicit pick.
+  // Sent to the backend as a real `date` query param (OrderController::
+  // indexAll) rather than filtered client-side, so picking a date reaches
+  // every matching order, not just whatever's on the current page.
+  const [dateFilter, setDateFilter] = useState('');
   const [page, setPage] = useState(1);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const today = useMemo(() => manilaDateString(Date.now()), []);
 
+  useEffect(() => { setPage(1); }, [dateFilter]);
+
   useEffect(() => {
     const controller = new AbortController();
     const api = process.env.REACT_APP_API_URL || 'http://localhost:5000';
     const params = new URLSearchParams({ status: 'delivered,cancelled', per_page: String(HISTORY_PAGE_SIZE), page: String(page) });
+    if (dateFilter) params.set('date', dateFilter);
     fetch(`${api}/api/admin/orders?${params}`, {
       headers: { Authorization: `Bearer ${sessionStorage.getItem('otuzanAuthenticated')}` },
       signal: controller.signal
@@ -189,23 +215,17 @@ const HistoryTab = () => {
       .then(setResult)
       .catch(() => { if (!controller.signal.aborted) setError('Unable to load history right now. Try again shortly.'); });
     return () => controller.abort();
-  }, [page]);
+  }, [page, dateFilter]);
 
   if (error) return <section><div className="admin-table-empty">{error}</div></section>;
   if (!result) return <section><div className="admin-table-empty">Loading history…</div></section>;
 
   const orders = result.data.map(toLocalOrderShape);
-  const rows = orders
-    .filter((order) => serviceFilter === 'all' || inferService(order) === serviceFilter)
-    .filter((order) => {
-      if (dateFilter === 'all') return true;
-      const isToday = manilaDateString(order.createdAt) === today;
-      return dateFilter === 'today' ? isToday : !isToday;
-    });
+  const rows = orders.filter((order) => serviceFilter === 'all' || inferService(order) === serviceFilter);
   return <section>
-    <div className="admin-filter-row">{['all', 'today', 'previous'].map((key) => <button className={dateFilter === key ? 'active' : ''} type="button" onClick={() => setDateFilter(key)} key={key}>{key === 'all' ? 'All dates' : key === 'today' ? 'Today' : 'Previous'}</button>)}</div>
+    <DateFilter value={dateFilter} onChange={setDateFilter} today={today} />
     <div className="admin-filter-row">{['all', 'food', 'item', 'bills'].map((key) => <button className={serviceFilter === key ? 'active' : ''} type="button" onClick={() => setServiceFilter(key)} key={key}>{key === 'all' ? 'All services' : SERVICE_META[key].label}</button>)}</div>
-    <div className="admin-table-wrap"><table><thead><tr><th>Order ID</th><th>Service</th><th>Customer</th><th>Date</th><th>Total</th><th>Rider</th><th>Status</th></tr></thead><tbody>{rows.map((order) => <tr key={order.id}><td>{order.id}</td><td><ServiceBadge service={inferService(order)} /></td><td><OrderCustomerDetails order={order} /></td><td>{new Date(order.createdAt).toLocaleString()}</td><td>{formatCurrency(getOrderTotal(order))}</td><td>{order.assignedRider?.name || '—'}</td><td><span className={`admin-history-status ${order.status}`}>{order.status}</span></td></tr>)}</tbody></table>{!rows.length && <div className="admin-table-empty">{dateFilter === 'today' ? 'No completed transactions today yet on this page - try Previous or another page.' : 'No completed transactions on this page.'}</div>}</div>
+    <div className="admin-table-wrap"><table><thead><tr><th>Order ID</th><th>Service</th><th>Customer</th><th>Date</th><th>Total</th><th>Rider</th><th>Status</th></tr></thead><tbody>{rows.map((order) => <tr key={order.id}><td>{order.id}</td><td><ServiceBadge service={inferService(order)} /></td><td><OrderCustomerDetails order={order} /></td><td>{new Date(order.createdAt).toLocaleString()}</td><td>{formatCurrency(getOrderTotal(order))}</td><td>{order.assignedRider?.name || '—'}</td><td><span className={`admin-history-status ${order.status}`}>{order.status}</span></td></tr>)}</tbody></table>{!rows.length && <div className="admin-table-empty">{dateFilter ? 'No completed transactions on that date.' : 'No completed transactions on this page.'}</div>}</div>
     {result.last_page > 1 && (
       <div className="admin-pagination">
         <button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>← Previous</button>
@@ -223,12 +243,20 @@ const HistoryTab = () => {
 // (OrderController::revenue) that aggregates over every non-cancelled order
 // in the table, not just the ones currently in view.
 const RevenueTab = () => {
+  // '' (all dates) is the default - matches the pre-existing "all-time
+  // total" behavior exactly, an exact date narrows the stat cards below to
+  // just that day via OrderController::revenue's `date` param. The `daily`
+  // series behind the line graph is always all-time regardless of this
+  // filter - see the backend's own comment for why.
+  const [dateFilter, setDateFilter] = useState('');
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
+  const today = useMemo(() => manilaDateString(Date.now()), []);
   useEffect(() => {
     const controller = new AbortController();
     const api = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-    fetch(`${api}/api/admin/revenue`, {
+    const params = new URLSearchParams(dateFilter ? { date: dateFilter } : {});
+    fetch(`${api}/api/admin/revenue?${params}`, {
       headers: { Authorization: `Bearer ${sessionStorage.getItem('otuzanAuthenticated')}` },
       signal: controller.signal
     })
@@ -236,7 +264,7 @@ const RevenueTab = () => {
       .then(setData)
       .catch(() => { if (!controller.signal.aborted) setError('Unable to load revenue right now. Try again shortly.'); });
     return () => controller.abort();
-  }, []);
+  }, [dateFilter]);
 
   if (error) return <section><div className="admin-table-empty">{error}</div></section>;
   if (!data) return <section><div className="admin-table-empty">Loading revenue…</div></section>;
@@ -265,18 +293,57 @@ const RevenueTab = () => {
   }[trend];
 
   return <section>
+    <DateFilter value={dateFilter} onChange={setDateFilter} today={today} />
     <div className="admin-stat-grid">
       <div className="admin-stat-card featured">
-        <span>Total recorded revenue</span>
+        <span>{dateFilter ? `Revenue on ${dateFilter}` : 'Total recorded revenue'}</span>
         <strong>{formatCurrency(grandTotal)}</strong>
-        <span className={`admin-revenue-trend admin-revenue-trend-${trend}`} title={trendLabel}>
+        {!dateFilter && <span className={`admin-revenue-trend admin-revenue-trend-${trend}`} title={trendLabel}>
           <i className={`fa-solid ${trendIcon}`} aria-hidden="true" /> {trendLabel}
-        </span>
+        </span>}
       </div>
       {Object.entries(SERVICE_META).map(([key, meta]) => <div className="admin-stat-card" key={key}><span>{meta.label}</span><strong style={{ color: meta.color }}>{formatCurrency(totals[key] || 0)}</strong></div>)}
     </div>
-    <div className="admin-analytics-card"><h2>Revenue by service</h2><p>Calculated from the delivery or service fee on every non-cancelled order on record, not just what's currently loaded.</p><div className="admin-revenue-bars">{Object.entries(SERVICE_META).map(([key, meta]) => <div key={key}><span>{meta.label}</span><div><i style={{ width: `${((totals[key] || 0) / maximum) * 100}%`, background: meta.color }} /></div><strong>{formatCurrency(totals[key] || 0)}</strong></div>)}</div></div>
+    <div className="admin-analytics-card"><h2>Revenue over time</h2><p>Daily total across every day on record - unaffected by the date filter above, so the trend stays visible while you drill into a single day's numbers.</p><RevenueLineGraph daily={data.daily || []} /></div>
+    <div className="admin-analytics-card"><h2>Revenue by service</h2><p>Calculated from the delivery or service fee on every non-cancelled order{dateFilter ? ' on the selected date' : ' on record, not just what\'s currently loaded'}.</p><div className="admin-revenue-bars">{Object.entries(SERVICE_META).map(([key, meta]) => <div key={key}><span>{meta.label}</span><div><i style={{ width: `${((totals[key] || 0) / maximum) * 100}%`, background: meta.color }} /></div><strong>{formatCurrency(totals[key] || 0)}</strong></div>)}</div></div>
   </section>;
+};
+
+// Plain inline SVG line chart - the `daily` breakdown OrderController::
+// revenue already returns is exactly the series this needs, so no new
+// backend work, no charting library. Renders nothing (rather than an empty/
+// broken chart) with fewer than 2 points, since a line needs two ends.
+const RevenueLineGraph = ({ daily }) => {
+  const width = 640;
+  const height = 180;
+  const padding = 28;
+  if (daily.length < 2) {
+    return <div className="admin-table-empty">Not enough daily history yet to plot a trend.</div>;
+  }
+  const maxRevenue = Math.max(...daily.map((day) => day.revenue), 1);
+  const stepX = (width - padding * 2) / (daily.length - 1);
+  const points = daily.map((day, index) => {
+    const x = padding + index * stepX;
+    const y = height - padding - (day.revenue / maxRevenue) * (height - padding * 2);
+    return { x, y, day };
+  });
+  const linePath = points.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x},${point.y}`).join(' ');
+  const areaPath = `${linePath} L${points[points.length - 1].x},${height - padding} L${points[0].x},${height - padding} Z`;
+  const labelEvery = Math.ceil(daily.length / 6);
+
+  return <svg className="admin-revenue-graph" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Daily revenue trend">
+    <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} className="admin-revenue-graph-axis" />
+    <path d={areaPath} className="admin-revenue-graph-area" />
+    <path d={linePath} className="admin-revenue-graph-line" />
+    {points.map((point, index) => <circle cx={point.x} cy={point.y} r="3" className="admin-revenue-graph-dot" key={point.day.date}>
+      <title>{`${point.day.date}: ${formatCurrency(point.day.revenue)}`}</title>
+    </circle>)}
+    {points.filter((_, index) => index % labelEvery === 0 || index === points.length - 1).map((point) => (
+      <text x={point.x} y={height - padding + 16} className="admin-revenue-graph-label" textAnchor="middle" key={point.day.date}>
+        {point.day.date.slice(5)}
+      </text>
+    ))}
+  </svg>;
 };
 
 const PaymentsTab = ({ orders, onPaymentStatus }) => {

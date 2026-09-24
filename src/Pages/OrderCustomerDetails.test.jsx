@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import RiderDashboard from './rider/RiderDashboard';
 import DeliveryAdminDashboard from './admin/DeliveryAdminDashboard';
 
@@ -42,11 +42,17 @@ const todayOrder = buildBackendOrder({
   DeliveryAddress: '5 Luna Street', user: { UserID: 3, UserName: 'Cara Reyes', Contact: '09171111111' }
 });
 
+// History's date filter now goes over the wire as a real `date` query param
+// (OrderController::indexAll) rather than being filtered client-side, so
+// this mock filters by it too - otherwise every date pick would return the
+// same three fixtures regardless of what was actually asked for.
 const mockFetchForHistory = () => {
   global.fetch = jest.fn((url) => {
     const href = String(url);
     if (href.includes('/api/admin/orders')) {
-      const data = [historyOrder, legacyOrder, todayOrder];
+      const requestedDate = new URL(href).searchParams.get('date');
+      const orderManilaDate = (order) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date(`${order.OrderDate}Z`));
+      const data = [historyOrder, legacyOrder, todayOrder].filter((order) => !requestedDate || orderManilaDate(order) === requestedDate);
       return Promise.resolve({ ok: true, json: async () => ({ data, current_page: 1, last_page: 1, total: data.length }) });
     }
     return Promise.resolve({ ok: true, json: async () => ({ riders: [] }) });
@@ -81,7 +87,7 @@ test('admin live orders and history display names, addresses, and missing-data f
   expect(screen.getByText('Address not provided')).toBeInTheDocument();
 });
 
-test('admin History tab separates today from previous without hiding anything by default', async () => {
+test('admin History tab filters by an exact date, server-side, without hiding anything by default', async () => {
   mockFetchForHistory();
   render(<DeliveryAdminDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'History' }));
@@ -93,12 +99,17 @@ test('admin History tab separates today from previous without hiding anything by
   expect(screen.getByText('BACKEND-503')).toBeInTheDocument();
 
   fireEvent.click(screen.getByRole('button', { name: 'Today' }));
+  await waitFor(() => expect(screen.queryByText('BACKEND-501')).not.toBeInTheDocument());
   expect(screen.getByText('BACKEND-503')).toBeInTheDocument();
-  expect(screen.queryByText('BACKEND-501')).not.toBeInTheDocument();
   expect(screen.queryByText('BACKEND-502')).not.toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+  fireEvent.change(screen.getByLabelText('Pick an exact date'), { target: { value: '2026-09-12' } });
+  await waitFor(() => expect(screen.queryByText('BACKEND-503')).not.toBeInTheDocument());
   expect(screen.getByText('BACKEND-501')).toBeInTheDocument();
-  expect(screen.getByText('BACKEND-502')).toBeInTheDocument();
-  expect(screen.queryByText('BACKEND-503')).not.toBeInTheDocument();
+  expect(screen.queryByText('BACKEND-502')).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'All dates' }));
+  await waitFor(() => expect(screen.getByText('BACKEND-502')).toBeInTheDocument());
+  expect(screen.getByText('BACKEND-501')).toBeInTheDocument();
+  expect(screen.getByText('BACKEND-503')).toBeInTheDocument();
 });

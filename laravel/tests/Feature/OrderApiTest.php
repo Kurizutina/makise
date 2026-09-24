@@ -185,6 +185,25 @@ class OrderApiTest extends TestCase
         $this->assertEquals(['cancelled', 'delivered'], $statuses);
     }
 
+    // History's exact-date filter - orders are stored with a naive UTC
+    // OrderDate, so a Manila-midnight order (still "yesterday" in UTC) has to
+    // land on the requested date and an order just outside the window must
+    // not.
+    public function test_admin_order_list_filters_by_exact_manila_date(): void
+    {
+        $customer = $this->user('customer');
+        $admin = $this->user('admin');
+        $inDay = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'DeliveryStatus' => 'delivered']);
+        $inDay->OrderDate = '2026-09-22 16:30:00'; // 2026-09-23 00:30 Manila
+        $inDay->save();
+        $dayBefore = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'DeliveryStatus' => 'delivered']);
+        $dayBefore->OrderDate = '2026-09-22 15:59:00'; // 2026-09-22 23:59 Manila
+        $dayBefore->save();
+
+        $response = $this->withToken($this->token($admin))->getJson('/api/admin/orders?date=2026-09-23')->assertOk();
+        $this->assertEquals([$inDay->OrderID], collect($response->json('data'))->pluck('OrderID')->all());
+    }
+
     public function test_admin_can_assign_and_unassign_a_rider(): void
     {
         $customer = $this->user('customer');
@@ -336,6 +355,29 @@ class OrderApiTest extends TestCase
 
         $this->assertEquals($expectedTotal, (float) $response->json('total'));
         $this->assertEquals(55, $response->json('orderCount'));
+    }
+
+    // ?date narrows total/byService/orderCount to that one Manila calendar
+    // day, but `daily` must still return every day on record - that series
+    // feeds the trend graph, which would be pointless if picking a date also
+    // collapsed the chart down to a single point.
+    public function test_admin_revenue_date_filter_narrows_totals_but_not_the_daily_series(): void
+    {
+        $customer = $this->user('customer');
+        $admin = $this->user('admin');
+
+        $today = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 175, 'ServiceFee' => 75, 'DeliveryStatus' => 'delivered']);
+        $today->OrderDate = '2026-09-22 16:30:00'; // 2026-09-23 00:30 Manila
+        $today->save();
+        $yesterday = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 150, 'ServiceFee' => 50, 'DeliveryStatus' => 'delivered']);
+        $yesterday->OrderDate = '2026-09-21 16:30:00'; // 2026-09-22 00:30 Manila
+        $yesterday->save();
+
+        $response = $this->withToken($this->token($admin))->getJson('/api/admin/revenue?date=2026-09-23')->assertOk();
+
+        $this->assertEquals(75.0, (float) $response->json('total'));
+        $this->assertEquals(1, $response->json('orderCount'));
+        $this->assertCount(2, $response->json('daily'));
     }
 
     public function test_only_admin_can_view_revenue(): void
