@@ -3,12 +3,13 @@ import BrandCard from '../../BrandCard/BrandCard';
 import './FoodandItemsSection.css';
 
 const FoodandItemsSection = ({
+  id,
   title,
   brands,
   onBrandSelect
 }) => {
   return (
-    <section className="food-items-section">
+    <section className="food-items-section" id={id}>
 
       <div className="food-items-header">
         <h2>{title}</h2>

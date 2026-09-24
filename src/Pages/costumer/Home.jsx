@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Header from '../../components/home/Header/Header';
+import HomeHero from '../../components/home/HomeHero/HomeHero';
 import Footer from '../../components/home/Footer/Footer';
 import FoodandItemsSection from '../../components/home/FoodandItem/FoodandItemsSection/FoodandItemsSection';
 import BestSellersSection from '../../components/home/BestSellers/BestSellersSection';
@@ -110,11 +111,14 @@ const Home = () => {
         onSearch={setSearch}
       />
 
+      <HomeHero brandCount={services.reduce((total, service) => total + (service.brands?.length || 0), 0)} />
+
       {catalogLoading && <p role="status" className="home-catalog-error">Loading catalog...</p>}
       {catalogError && <p role="alert" className="home-catalog-error">{catalogError} <button type="button" onClick={() => setReloadCatalog((count) => count + 1)}>Retry</button></p>}
 
-      {/* Brand Cards */}
+      {/* Brand Cards - id is the HomeHero CTA's scroll target */}
       <FoodandItemsSection
+        id="home-brands"
         title={getSectionTitle()}
         brands={getCurrentBrands()}
         onBrandSelect={(brand) => {

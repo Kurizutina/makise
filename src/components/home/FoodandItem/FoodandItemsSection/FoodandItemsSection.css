@@ -12,6 +12,10 @@
   padding: 32px clamp(20px, 4vw, 56px) 25px;
 
   box-sizing: border-box;
+
+  /* Lets HomeHero's "Browse brands" anchor land below the sticky header
+     instead of tucked underneath it. */
+  scroll-margin-top: 90px;
 }
 
 
