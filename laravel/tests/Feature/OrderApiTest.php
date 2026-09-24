@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Brand;
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
@@ -220,6 +221,43 @@ class OrderApiTest extends TestCase
         $this->withToken($this->token($admin))->patchJson("/api/orders/{$order->OrderID}/assign", [
             'riderId' => null,
         ])->assertOk()->assertJsonPath('order.AssignedRiderID', null);
+    }
+
+    // No customer-facing component read AssignedRiderID at all - a
+    // customer never saw who was actually delivering their order. Rather
+    // than build a separate "your rider" UI, the name rides along in the
+    // notification a customer already checks, once one is actually
+    // assigned.
+    public function test_assigning_a_rider_names_them_in_the_customer_notification(): void
+    {
+        $customer = $this->user('customer');
+        $rider = $this->user('driver');
+        $rider->UserName = 'Juan Dela Cruz';
+        $rider->save();
+        $order = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'DeliveryStatus' => 'pending_rider']);
+        $admin = $this->user('admin');
+
+        $this->withToken($this->token($admin))->patchJson("/api/orders/{$order->OrderID}/assign", [
+            'riderId' => $rider->UserID,
+        ])->assertOk();
+
+        $message = json_decode(Notification::where('UserID', $customer->UserID)->latest('NotificationID')->first()->NotificationMessage, true);
+        $this->assertStringContainsString('Juan is your rider.', $message['message']);
+    }
+
+    // Before a rider is assigned there's nothing honest to say about who's
+    // delivering - the cancellation notification must not claim otherwise.
+    public function test_notification_omits_rider_name_when_none_is_assigned(): void
+    {
+        $customer = $this->user('customer');
+        $order = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'DeliveryStatus' => 'pending_rider']);
+
+        $this->withToken($this->token($customer))->patchJson("/api/orders/{$order->OrderID}/status", [
+            'status' => 'cancelled',
+        ])->assertOk();
+
+        $message = json_decode(Notification::where('UserID', $customer->UserID)->latest('NotificationID')->first()->NotificationMessage, true);
+        $this->assertStringNotContainsString('is your rider', $message['message']);
     }
 
     public function test_only_admin_can_assign_a_rider(): void

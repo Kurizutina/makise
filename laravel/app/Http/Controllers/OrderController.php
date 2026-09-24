@@ -234,17 +234,35 @@ class OrderController extends Controller
         ][$status] ?? null;
         if (!$content) return;
 
+        // A customer never saw who was actually delivering their order -
+        // no customer-facing component read AssignedRiderID at all. Rather
+        // than build a separate "your rider" UI, the rider's name rides
+        // along in the same notification a customer already checks: once
+        // one is assigned (a rider is only ever attached via assign(),
+        // which calls this with 'confirmed'), every status update from
+        // then on names them by first name - the message stays honest
+        // (no name) for the states before a rider is assigned.
+        $riderName = $order->rider?->UserName;
+        $riderSuffix = $riderName && in_array($status, ['confirmed', 'out_for_delivery', 'delivered'], true)
+            ? " {$this->firstName($riderName)} is your rider."
+            : '';
+
         Notification::create([
             'UserID' => $order->UserID,
             'NotificationMessage' => json_encode([
                 'title' => $content[0],
-                'message' => "Order #{$order->OrderID} {$content[1]}",
+                'message' => "Order #{$order->OrderID} {$content[1]}{$riderSuffix}",
                 'type' => $status === 'cancelled' ? 'cancelled' : 'status',
                 'orderId' => $order->OrderID,
             ]),
             'NotificationSeen' => false,
             'NotificationDate' => now(),
         ]);
+    }
+
+    private function firstName(string $fullName): string
+    {
+        return trim(explode(' ', trim($fullName))[0]) ?: $fullName;
     }
 
     public function assign(Request $request, Order $order): JsonResponse
