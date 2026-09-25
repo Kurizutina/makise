@@ -126,24 +126,10 @@ flipping the box, to keep this split meaningful over time.
 ### Functionality
 
 - [ ] **"Newly added" indicator when browsing a brand's menu** (user request,
-      9/22) — needs confirming `Product` actually has a reliable creation
-      timestamp to key off (Eloquent's default `created_at` likely already
-      exists but hasn't been checked), then a badge/section for items added
-      within some recency window.
-- [ ] **`Product.StockQuantity` exists in the schema but is completely
-      unenforced** (found during the full QA pass, 9/22) - every product in
-      the live catalog reads `StockQuantity: 0`, and grepping the entire
-      backend turns up zero references to that column outside the migration
-      itself. Nothing validates it, decrements it, or blocks ordering an
-      item that's actually out of stock - a customer can order any quantity
-      of anything regardless of real availability. **Found the team's own
-      answer already sitting in the repo, unrun**: there's an existing
-      migration, `2026_09_17_000006_remove_product_stock.php`, that drops
-      this exact column - the team already decided "remove it," just never
-      ran that migration against the dev database (it's still there, hence
-      this finding). Left un-run rather than running it unilaterally: that's
-      a real schema change to a live shared database, worth confirming the
-      team still wants before applying.
+      9/22) — `Product` currently has no creation timestamp (the model disables
+      Eloquent timestamps and its migrations add none), so this first needs a
+      timestamp migration/backfill policy before a reliable recency badge or
+      section can be built.
 - [ ] Delete dead Express backend (`backend/`) + hardcoded access codes in
       `src/config/roles.js` — not currently exploitable (Laravel ignores role/accessCode
       on register), but it's a loaded gun sitting in the repo. **Needs a decision,
@@ -329,17 +315,6 @@ flipping the box, to keep this split meaningful over time.
       warning, not a failure — but worth cleaning up (e.g. mock `fetch` more
       precisely per test, or expose a way to flush pending syncs in tests) so
       real leaks don't get lost in the noise later.
-- [ ] *(Research note)* Couldn't get live reference for foodpanda's actual menu/
-      cart/checkout screens — hit a bot-detection wall navigating into a restaurant
-      page both on 9/21 and again on 9/23, did not attempt to bypass it either time.
-      GrabFood gates restaurant browsing behind login too. Followed up with web
-      search and homepage-level comparison instead since direct browsing hit walls.
-- [ ] *(Research note)* The same GrabFood UX analysis flags carousel-style browsing
-      (swipeable cards) as having low discoverability per NNGroup research — most
-      users stop swiping after 3-4 cards. Otu-Zan's category-grouped list layout
-      (not carousels) is actually the safer choice here, not a gap — noting this so
-      nobody "fixes" it into a carousel later assuming that's more modern.
-
 ---
 
 ## Data Analytics (Emerging Technology)
@@ -376,16 +351,12 @@ AI for key business decisions
 ([source](https://www.gartner.com/en/newsroom/press-releases/2025-06-17-gartner-announces-top-data-and-analytics-predictions)).
 
 - [ ] **Layer 1 — Revenue Trends & Best-Sellers (Descriptive Analytics)**.
-      **Most of the backend work is already done (9/23)**, as a side effect of
-      the Revenue tab fix and the best-sellers home-page feature above:
+      Revenue and best-sellers are already live:
       `GET /api/admin/revenue` aggregates real, persisted `ServiceFee` by
       calendar day and by service; `GET /api/catalog/best-sellers` ranks
-      products by real units sold in the last 30 days. What's left for this to
-      count as the analytics *layer* rather than just two dashboard features:
-      a peak-ordering-time query (hour-of-day / day-of-week), and surfacing
-      the existing `daily` trend data from the revenue endpoint as an actual
-      chart on the admin side instead of just the three stat cards it renders
-      today.
+      products by real units sold in the last 30 days; the admin dashboard also
+      renders the daily revenue trend as a bar chart. The remaining work for
+      this analytics layer is a peak-ordering-time query (hour-of-day / day-of-week).
       Dashboard design research recommends keeping each view to a handful of
       KPIs with one clear primary metric, not a wall of numbers
       ([Improvado: Dashboard Design Best
