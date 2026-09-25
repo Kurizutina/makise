@@ -4,18 +4,14 @@
 .best-sellers-heading p { margin:4px 0 0; color:#8a7079; font-size:12px; }
 .best-sellers-carousel { display:grid; grid-template-columns:auto minmax(0,660px) auto; align-items:center; gap:clamp(8px,3vw,38px); max-width:900px; margin:auto; }
 .best-sellers-viewport { overflow:hidden; }
-.best-sellers-track { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:clamp(14px,2.2vw,34px); }
-.best-sellers-track.slide-next { animation:bestSellersSlideNext .45s ease; }
-.best-sellers-track.slide-prev { animation:bestSellersSlidePrev .45s ease; }
-@keyframes bestSellersSlideNext { from { opacity:0; transform:translateX(28px); } to { opacity:1; transform:translateX(0); } }
-@keyframes bestSellersSlidePrev { from { opacity:0; transform:translateX(-28px); } to { opacity:1; transform:translateX(0); } }
-@media (prefers-reduced-motion:reduce) { .best-sellers-track.slide-next,.best-sellers-track.slide-prev { animation:none; } }
-.best-seller-card { min-width:0; overflow:hidden; padding:0; border:1px solid #f0e8eb; border-radius:17px; background:#fff; color:#392f34; font:inherit; text-align:left; cursor:pointer; box-shadow:0 5px 18px rgba(67,33,45,.08); transition:transform .2s ease,box-shadow .2s ease; }
+.best-sellers-track { display:flex; gap:clamp(14px,2.2vw,34px); will-change:transform; }
+@media (prefers-reduced-motion:reduce) { .best-sellers-track { transition:none !important; } }
+.best-seller-card { flex:0 0 auto; box-sizing:border-box; overflow:hidden; padding:0; border:1px solid #f0e8eb; border-radius:17px; background:#fff; color:#392f34; font:inherit; text-align:left; cursor:pointer; box-shadow:0 5px 18px rgba(67,33,45,.08); transition:transform .2s ease,box-shadow .2s ease; }
 .best-seller-card:hover,.best-seller-card:focus-visible { transform:translateY(-3px); box-shadow:0 10px 26px rgba(67,33,45,.13); outline:3px solid #e52a5a; outline-offset:3px; }
 .best-seller-image { display:grid; place-items:center; aspect-ratio:4/3; overflow:hidden; background:#f8f5f6; color:#ff2871; font-size:2rem; font-weight:800; }.best-seller-image img { display:block; width:100%; height:100%; object-fit:cover; }.best-seller-image.brand-logo { padding:16px; }.best-seller-image.brand-logo img { object-fit:contain; }
 .best-seller-body { display:flex; flex-direction:column; min-height:145px; padding:14px; }.best-seller-body h3 { margin:0 0 7px; overflow:hidden; font-size:14px; line-height:1.35; text-overflow:ellipsis; white-space:nowrap; }.best-seller-body p { min-height:18px; margin:0 0 10px; overflow:hidden; color:#786b71; font-size:12px; text-overflow:ellipsis; white-space:nowrap; }.best-seller-price { margin-bottom:11px; color:#d51d57; font-size:14px; }.best-seller-action { display:flex; justify-content:center; align-items:center; gap:7px; width:100%; margin-top:auto; padding:9px; border-radius:9px; background:#da1c5c; color:#fff; font-size:12px; font-weight:700; }
 .best-sellers-arrow { display:grid; place-items:center; width:38px; height:38px; border:0; border-radius:50%; background:#ee4d58; color:#fff; cursor:pointer; font-size:17px; }
 .best-sellers-arrow:hover,.best-sellers-arrow:focus-visible { background:#d61d58; outline:3px solid #fff; outline-offset:2px; }
+.best-sellers-arrow:disabled { background:#f3c9d1; cursor:default; }
 .best-sellers-pagination { display:flex; justify-content:center; gap:5px; margin-top:26px; }.best-sellers-pagination button { width:9px; height:9px; padding:0; border:0; border-radius:50%; background:#f7a1a9; cursor:pointer; }.best-sellers-pagination button.active { background:#e72e5b; }
-@media (min-width:560px) and (max-width:859px) { .best-sellers-track { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-@media (max-width:559px) { .best-sellers-carousel { grid-template-columns:38px minmax(0,220px) 38px; gap:8px; justify-content:center; }.best-sellers-track { grid-template-columns:minmax(0,1fr); }.best-seller-body { min-height:145px; } }
+@media (max-width:559px) { .best-sellers-carousel { grid-template-columns:38px minmax(0,220px) 38px; gap:8px; justify-content:center; }.best-seller-body { min-height:145px; } }
