@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import './PayBillsForm.css';
 import { API_BASE_URL } from '../../../utils/catalog';
+import { getSessionUser } from '../../../utils/session';
+import { useCustomerActivity } from '../../../context/CustomerActivityContext';
+import LocationPicker from '../Header/LocationPicker/LocationPicker';
+import { calculateDeliveryFee, findDeliveryLocation } from '../../../utils/deliveryRates';
 
 const MAX_IMAGE_DIMENSION = 1280;
 const compressImage = (file) => new Promise((resolve) => {
@@ -84,6 +88,11 @@ const PayBillsForm = ({
   const [transferProof, setTransferProof] = useState(null);
   const [isQrExpanded, setIsQrExpanded] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [locationTouched, setLocationTouched] = useState(false);
+  const { deliveryLocation } = useCustomerActivity();
+  const customerType = getSessionUser()?.userType || 'non_student';
+  const selectedLocation = findDeliveryLocation(deliveryLocation);
+  const deliveryFee = calculateDeliveryFee(selectedLocation, customerType);
 
   useEffect(() => {
     const handleEscape = (event) => {
@@ -107,6 +116,13 @@ const PayBillsForm = ({
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    // Same rule as OthersOrderForm: LocationPicker is a custom control, not
+    // a real form field, so the native `required` a <select> gave this for
+    // free has to be replicated by hand.
+    if (!deliveryLocation) {
+      setLocationTouched(true);
+      return;
+    }
     setUploadError('');
     try {
       const [compressedBill, compressedProof] = await Promise.all([
@@ -122,7 +138,9 @@ const PayBillsForm = ({
         billReceipt: { name: uploadedBill.name || billReceipt.name, type: billReceipt.type },
         transferProof: { name: uploadedProof.name || transferProof.name, type: transferProof.type },
         billReceiptUrl: uploadedBill.url,
-        transferProofUrl: uploadedProof.url
+        transferProofUrl: uploadedProof.url,
+        deliveryLocation,
+        customerType
       });
     } catch {
       setUploadError('The documents could not be read. Choose the images again and retry.');
@@ -172,6 +190,19 @@ const PayBillsForm = ({
                   placeholder={canEditEstablishment ? 'Enter the biller or establishment' : ''}
                 />
               </label>
+
+              <div className="payment-field">
+                <span>Delivery location</span>
+                <LocationPicker variant="inline" />
+                {locationTouched && !deliveryLocation && (
+                  <small className="order-field-error">Please select a delivery location.</small>
+                )}
+                {selectedLocation && (
+                  <small className="order-field-service-fee">
+                    Service fee{deliveryFee.surchargeApplied ? ' (includes night surcharge)' : ''}: ₱{deliveryFee.serviceFee}
+                  </small>
+                )}
+              </div>
 
               <div className="payment-upload-section">
                 <div className="payment-upload-heading">

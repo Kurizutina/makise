@@ -3,6 +3,7 @@ import './OthersOrderForm.css';
 import { getSessionUser } from '../../../utils/session';
 import { useCustomerActivity } from '../../../context/CustomerActivityContext';
 import LocationPicker from '../Header/LocationPicker/LocationPicker';
+import { calculateDeliveryFee, findDeliveryLocation } from '../../../utils/deliveryRates';
 
 const serviceNames = {
   food: 'Food Delivery',
@@ -30,6 +31,8 @@ const OthersOrderForm = ({
   const { deliveryLocation } = useCustomerActivity();
   const [locationTouched, setLocationTouched] = useState(false);
   const customerType = getSessionUser()?.userType || 'non_student';
+  const selectedLocation = findDeliveryLocation(deliveryLocation);
+  const deliveryFee = calculateDeliveryFee(selectedLocation, customerType);
 
   useEffect(() => {
     const handleEscape = (event) => {
@@ -129,6 +132,11 @@ const OthersOrderForm = ({
             <LocationPicker variant="inline" />
             {locationTouched && !deliveryLocation && (
               <small className="order-field-error">Please select a delivery location.</small>
+            )}
+            {selectedLocation && (
+              <small className="order-field-service-fee">
+                Service fee{deliveryFee.surchargeApplied ? ' (includes night surcharge)' : ''}: ₱{deliveryFee.serviceFee}
+              </small>
             )}
           </div>}
 

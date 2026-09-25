@@ -10,7 +10,7 @@ export const DELIVERY_LOCATIONS = [
 
 export const CUSTOMER_TYPES = [
   { id: 'student', label: 'Student', cutoffMinutes: 20 * 60 },
-  { id: 'non_student', label: 'Non-student', cutoffMinutes: (18 * 60) + 30 }
+  { id: 'non_student', label: 'Non-student', cutoffMinutes: 18 * 60 }
 ];
 
 const normalise = (value = '') => value.trim().toLowerCase();

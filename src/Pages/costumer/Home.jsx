@@ -272,6 +272,8 @@ const Home = () => {
               source: paymentBrand.name,
               label: `${paymentBrand.name} bill payment`,
               section: 'bills',
+              deliveryLocation: payment.deliveryLocation,
+              customerType: payment.customerType,
               details: {
                 establishment: payment.establishment,
                 billReceiptName: payment.billReceipt?.name,

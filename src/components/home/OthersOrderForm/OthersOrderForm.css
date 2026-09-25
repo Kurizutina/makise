@@ -208,6 +208,13 @@
   color: #c43b4b;
 }
 
+.order-field-service-fee {
+  display: block;
+  margin-top: 4px;
+  color: #6a5a61;
+  font-weight: 600;
+}
+
 .pickup-recipient-details {
   display: grid;
   gap: 12px;

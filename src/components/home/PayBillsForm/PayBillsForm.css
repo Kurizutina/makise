@@ -221,6 +221,19 @@
   cursor: default;
 }
 
+.order-field-error {
+  display: block;
+  margin-top: -2px;
+  color: #c43b4b;
+}
+
+.order-field-service-fee {
+  display: block;
+  margin-top: -2px;
+  color: #6a5a61;
+  font-weight: 600;
+}
+
 .payment-upload-section {
   display: grid;
   gap: 10px;
