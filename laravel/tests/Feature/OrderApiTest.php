@@ -44,12 +44,14 @@ class OrderApiTest extends TestCase
 
         $response = $this->withToken($this->token($customer))->postJson('/api/orders', [
             'items' => [['ProductID' => $product->ProductID, 'quantity' => 3]],
+            'clientOrderId' => 'ORD-browser-123',
             'deliveryAddress' => '123 Test Street',
             // A malicious client could try to smuggle its own price/total; the
             // endpoint doesn't even accept those fields, so there's nothing to trust.
         ])->assertCreated();
 
         $this->assertEquals(450, (float) $response->json('order.TotalPrice'));
+        $this->assertSame('ORD-browser-123', $response->json('order.OrderSnapshot.clientOrderId'));
         $this->assertDatabaseHas('Orders', [
             'UserID' => $customer->UserID, 'TotalPrice' => 450, 'DeliveryStatus' => 'pending_rider',
         ]);

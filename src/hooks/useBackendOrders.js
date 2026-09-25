@@ -31,8 +31,17 @@ export const useBackendOrders = (endpoint) => {
     if (!token) return undefined;
     const controller = new AbortController();
     let inFlight = false;
+    // A rider can confirm an order while the customer's previous poll is
+    // still in flight. Do not discard the explicit refresh in that case:
+    // otherwise that old pending_rider response wins and the tracker can
+    // remain on "Waiting for rider" until a later interval happens.
+    let refreshQueued = false;
     const load = () => {
-      if (inFlight || document.visibilityState === 'hidden') return;
+      if (document.visibilityState === 'hidden') return;
+      if (inFlight) {
+        refreshQueued = true;
+        return;
+      }
       inFlight = true;
       fetch(`${API_BASE_URL}${endpoint}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -46,7 +55,13 @@ export const useBackendOrders = (endpoint) => {
         setBackendOrdersById(byId);
       })
       .catch(() => {})
-      .finally(() => { inFlight = false; });
+      .finally(() => {
+        inFlight = false;
+        if (refreshQueued) {
+          refreshQueued = false;
+          load();
+        }
+      });
     };
     load();
     // Status changes are made by riders/admins on separate devices. A short
@@ -94,6 +109,7 @@ export const toLocalOrderShape = (backend) => {
   }
   return {
     id: `BACKEND-${backend.OrderID}`,
+    clientOrderId: snapshot.clientOrderId || null,
     backendOrderId: backend.OrderID,
     backendPaymentId: payment?.PaymentID ?? null,
     source,
@@ -144,8 +160,28 @@ export const toLocalOrderShape = (backend) => {
 // same as before this existed) pass through untouched.
 export const applyBackendTruth = (orders, backendOrdersById) => {
   const matchedBackendIds = new Set();
+  const backendOrders = Object.values(backendOrdersById);
   const overlaid = orders.map((order) => {
-    const backend = order.backendOrderId ? backendOrdersById[order.backendOrderId] : null;
+    // backendOrderId is the normal, immediate link. clientOrderId is the
+    // durable fallback for the small window where POST /orders succeeds but
+    // the browser is interrupted before it can save that server ID.
+    let backend = order.backendOrderId
+      ? backendOrdersById[order.backendOrderId]
+      : backendOrders.find((candidate) => String(candidate.OrderSnapshot?.clientOrderId || '') === String(order.id));
+    // Repair cards created before clientOrderId existed as well. This only
+    // considers the same customer, store, and a two-minute creation window;
+    // it lets an already-confirmed item delivery replace its stranded local
+    // pending card without conflating ordinary orders.
+    if (!backend && !order.backendOrderId && order.status === 'pending_rider') {
+      const localCreatedAt = Date.parse(order.createdAt);
+      backend = backendOrders.find((candidate) => {
+        const source = candidate.OrderSnapshot?.source || candidate.items?.[0]?.product?.brand?.BrandName || 'Otu-Zan';
+        return String(candidate.UserID) === String(order.customerId)
+          && source === order.source
+          && Number.isFinite(localCreatedAt)
+          && Math.abs(Date.parse(candidate.OrderDate) - localCreatedAt) <= 120000;
+      });
+    }
     if (!backend) return order;
     matchedBackendIds.add(String(backend.OrderID));
     const payment = backend.payments?.[0];
@@ -154,7 +190,11 @@ export const applyBackendTruth = (orders, backendOrdersById) => {
       status: backend.DeliveryStatus,
       assignedRider: backend.rider ? { id: backend.rider.UserID, name: backend.rider.UserName } : null,
       details: payment ? { ...order.details, paymentStatus: payment.PaymentStatus } : order.details,
-      queuePosition: backend.queuePosition ?? null
+      queuePosition: backend.queuePosition ?? null,
+      // StatusUpdatedAt is the backend's clock for rider/admin actions.
+      // Keeping it on the displayed order makes the progress estimate start
+      // from confirmation instead of from a stale local-storage timestamp.
+      updatedAt: toUtcIso(backend.StatusUpdatedAt || backend.OrderDate)
     };
   });
   const unmatched = Object.values(backendOrdersById)

@@ -69,11 +69,13 @@ const syncOrderToBackend = (localOrderId, order, deliveryAddress, serviceFee = 0
       body: JSON.stringify(items.every((item) => Number.isInteger(item.productId))
         ? {
           items: items.map((item) => ({ ProductID: item.productId, quantity: item.quantity || 1 })),
+          clientOrderId: localOrderId,
           deliveryAddress: deliveryAddress || 'Not provided', serviceFee: Number(serviceFee) || 0
         }
         : {
           customItems: items.map((item) => ({ name: item.name || 'Custom item', quantity: item.quantity || 1, price: Number(item.price) || 0 })),
           source: order.source || 'Otu-Zan', label: order.label || 'Customer order', section: order.section === 'item' ? 'item' : 'food',
+          clientOrderId: localOrderId,
           deliveryAddress: deliveryAddress || 'Not provided', serviceFee: Number(serviceFee) || 0
         })
     })

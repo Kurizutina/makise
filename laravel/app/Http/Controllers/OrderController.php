@@ -29,6 +29,11 @@ class OrderController extends Controller
             'source' => ['nullable', 'string', 'max:150'],
             'label' => ['nullable', 'string', 'max:255'],
             'section' => ['nullable', Rule::in(['food', 'item'])],
+            // Stored in the JSON snapshot, not trusted for any business
+            // decision. It lets the customer browser reconcile its local
+            // card with this authoritative record even if the asynchronous
+            // OrderID patch is interrupted.
+            'clientOrderId' => ['nullable', 'string', 'max:100'],
             'deliveryAddress' => ['required', 'string', 'max:2000'],
             'serviceFee' => ['nullable', 'numeric', 'min:0', 'max:500'],
         ]);
@@ -47,6 +52,7 @@ class OrderController extends Controller
                         'source' => $data['source'] ?? 'Otu-Zan',
                         'label' => $data['label'] ?? 'Customer order',
                         'section' => $data['section'] ?? 'food',
+                        'clientOrderId' => $data['clientOrderId'] ?? null,
                         'items' => $data['customItems'],
                     ],
                     'DeliveryStatus' => 'pending_rider',
@@ -74,6 +80,7 @@ class OrderController extends Controller
                 'ServiceFee' => $serviceFee,
                 'OrderDate' => now(),
                 'DeliveryAddress' => $data['deliveryAddress'],
+                'OrderSnapshot' => ['clientOrderId' => $data['clientOrderId'] ?? null],
                 'DeliveryStatus' => 'pending_rider',
             ]);
             foreach ($lineItems as $lineItem) {
