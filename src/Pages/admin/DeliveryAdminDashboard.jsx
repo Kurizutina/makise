@@ -31,11 +31,19 @@ const NAV_ITEMS = [
 
 const ACTIVE_STATUSES = ['confirmed', 'preparing', 'out_for_delivery'];
 const FINAL_STATUSES = ['delivered', 'cancelled'];
-const PENDING_ASSIGNMENT_STATUSES = ['pending_rider', 'pending', 'to_be_assigned', 'to_be_assign', 'unassigned'];
 const hasAssignedRider = (order) => Boolean(order.assignedRider?.id);
-const needsRiderAssignment = (order) => (
-  !FINAL_STATUSES.includes(order.status)
-  && (PENDING_ASSIGNMENT_STATUSES.includes(order.status) || !hasAssignedRider(order))
+// An order needs an admin to pick a rider only until one is actually
+// assigned - assigning no longer flips the order's own status (see
+// OrderController::assign: "reserves the order for a rider, but is not
+// acceptance"), so `order.status` alone can't tell "still needs a rider"
+// apart from "assigned, waiting on the rider to accept." Checking
+// hasAssignedRider directly is what actually distinguishes them. Before
+// this, a successfully-assigned order stayed stuck showing as "Pending"
+// with no visible change - which is exactly what read as "I can't assign
+// a rider" (reported live, 9/25) even though the assignment itself worked.
+const needsRiderAssignment = (order) => !FINAL_STATUSES.includes(order.status) && !hasAssignedRider(order);
+const isAwaitingRiderResponse = (order) => (
+  !FINAL_STATUSES.includes(order.status) && hasAssignedRider(order) && !ACTIVE_STATUSES.includes(order.status)
 );
 
 const inferService = (order) => {
@@ -99,7 +107,7 @@ const OrderCard = ({ order, onAssign, onStatus, riders }) => {
         </label>
       )}
 
-      <p className="admin-order-status">{STATUS_LABELS[order.status] || 'Pending assignment'}</p>
+      <p className="admin-order-status">{isAwaitingRiderResponse(order) ? 'Awaiting rider response' : (STATUS_LABELS[order.status] || 'Pending assignment')}</p>
       {canAssign && order.assignedRider && riders.some((rider) => String(rider.id) === assignedRiderId) && <p role="status">Assigned to {order.assignedRider.name}</p>}
       <div className="admin-order-actions">
         {order.status === 'pending_rider' && <button type="button" onClick={() => onStatus(order, 'cancelled')}>Decline</button>}
@@ -115,6 +123,7 @@ const LiveOrdersTab = ({ orders, onAssign, onStatus, riders }) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const columns = [
     { key: 'pending', label: 'Pending', color: '#f9c12f', matches: needsRiderAssignment },
+    { key: 'awaiting', label: 'Awaiting Rider Response', color: '#3d9be9', matches: isAwaitingRiderResponse },
     { key: 'ongoing', label: 'Ongoing', color: '#34b875', matches: (order) => ACTIVE_STATUSES.includes(order.status) && hasAssignedRider(order) },
     { key: 'cancelled', label: 'Cancelled', color: '#f15a29', matches: (order) => order.status === 'cancelled' }
   ];
@@ -126,8 +135,9 @@ const LiveOrdersTab = ({ orders, onAssign, onStatus, riders }) => {
         <span>Filter orders</span>
         <select aria-label="Filter live orders by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
           <option value="all">All Orders</option>
-          <option value="ongoing">Ongoing Orders</option>
           <option value="pending">Pending Orders</option>
+          <option value="awaiting">Awaiting Rider Response</option>
+          <option value="ongoing">Ongoing Orders</option>
           <option value="cancelled">Cancelled Orders</option>
         </select>
       </label>
