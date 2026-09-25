@@ -97,13 +97,25 @@ const syncOrderToBackend = (localOrderId, order, deliveryAddress, serviceFee = 0
 // change we just made locally would render correctly for a moment, then get
 // clobbered back to the pre-change backend status until the next 30s poll -
 // found live as "cancel doesn't work until I refresh."
+// Dispatches ORDERS_CHANGED_EVENT on a REJECTED response too, not just
+// success - found live (9/25): two staff acting on the same order from
+// separate devices (e.g. admin cancels while a rider's still-unpolled
+// screen shows it as actionable) makes the backend correctly 422 the
+// rider's stale click ("This order is already finalized"), but silently -
+// nothing else here ever inspected the response for failure. Dispatching
+// regardless means a rejected click still forces an immediate refetch, so
+// the stale button/status corrects itself right away instead of looking
+// like the click just did nothing.
 const syncStatusToBackend = (backendOrderId, status) => {
   const headers = authHeaders();
   if (!backendOrderId || !headers) return;
   fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/status`, {
     method: 'PATCH', headers, body: JSON.stringify({ status })
   })
-    .then((response) => { if (response.ok) window.dispatchEvent(new Event(ORDERS_CHANGED_EVENT)); })
+    .then((response) => {
+      if (!response.ok) console.warn(`Status update to "${status}" was rejected (order may have already been finalized elsewhere).`);
+      window.dispatchEvent(new Event(ORDERS_CHANGED_EVENT));
+    })
     .catch(() => {});
 };
 
@@ -113,7 +125,10 @@ const syncAssignmentToBackend = (backendOrderId, riderId) => {
   fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/assign`, {
     method: 'PATCH', headers, body: JSON.stringify({ riderId: riderId || null })
   })
-    .then((response) => { if (response.ok) window.dispatchEvent(new Event(ORDERS_CHANGED_EVENT)); })
+    .then((response) => {
+      if (!response.ok) console.warn('Rider assignment change was rejected (order may have already changed elsewhere).');
+      window.dispatchEvent(new Event(ORDERS_CHANGED_EVENT));
+    })
     .catch(() => {});
 };
 
