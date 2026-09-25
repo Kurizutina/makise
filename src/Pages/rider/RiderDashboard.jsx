@@ -78,12 +78,19 @@ const RiderDashboard = () => {
   const user = getSessionUser();
   const backendOrdersById = useBackendOrders('/api/orders?per_page=50');
   const localOrders = allOrders.filter((order) => user?.role === 'driver' && isAssignedTo(order, user));
-  const orders = useMemo(() => applyBackendTruth(localOrders, backendOrdersById), [localOrders, backendOrdersById]);
+  const assignedOrders = useMemo(() => applyBackendTruth(localOrders, backendOrdersById), [localOrders, backendOrdersById]);
+  // Same clutter fix as the customer Track Orders drawer (9/25) - a rider's
+  // assigned-orders grid otherwise grows forever with every past delivery.
+  // selectedOrder is looked up against the unfiltered set, not this one, so
+  // a just-delivered order's modal (with its explicit "Close" button) stays
+  // open until the rider dismisses it themselves, instead of vanishing the
+  // instant the status flips to delivered.
+  const orders = useMemo(() => assignedOrders.filter((order) => !['delivered', 'cancelled'].includes(order.status)), [assignedOrders]);
   const [activeSection, setActiveSection] = useState('food');
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [zoomedImage, setZoomedImage] = useState(null);
   const [now, setNow] = useState(Date.now());
-  const selectedOrder = orders.find((order) => order.id === selectedOrderId);
+  const selectedOrder = assignedOrders.find((order) => order.id === selectedOrderId);
   const sectionOrders = useMemo(() => orders.filter((order) => inferSection(order) === activeSection), [activeSection, orders]);
   const pendingCount = orders.filter((order) => order.status === 'pending_rider').length;
   const getCount = (section) => orders.filter((order) => inferSection(order) === section).length;
@@ -115,7 +122,7 @@ const RiderDashboard = () => {
       <div className="rider-dashboard-content">
         <section className="rider-welcome">
           <div><span>Order management</span><h2>Customer Orders</h2><p>Review orders assigned to you by the administrator.</p></div>
-          <div className="rider-stat"><strong>{orders.length}</strong><span>Total orders</span></div>
+          <div className="rider-stat"><strong>{orders.length}</strong><span>Active orders</span></div>
         </section>
 
         <nav className="rider-service-tabs" aria-label="Order sections">
