@@ -3,6 +3,10 @@ import { toUtcIso } from '../utils/backendTime';
 import { catalogImageUrl } from '../utils/catalog';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// Status is work-critical while a delivery is active. Two seconds is quick
+// enough to feel live across separate phones without requiring a WebSocket
+// server, and the poller below never overlaps requests.
+const ACTIVE_ORDER_REFRESH_MS = 2000;
 
 // Fired by CustomerActivityContext right after a status/assignment/payment
 // change it made is confirmed by the backend, so every useBackendOrders
@@ -26,7 +30,11 @@ export const useBackendOrders = (endpoint) => {
     const token = sessionStorage.getItem('otuzanAuthenticated');
     if (!token) return undefined;
     const controller = new AbortController();
-    const load = () => fetch(`${API_BASE_URL}${endpoint}`, {
+    let inFlight = false;
+    const load = () => {
+      if (inFlight || document.visibilityState === 'hidden') return;
+      inFlight = true;
+      fetch(`${API_BASE_URL}${endpoint}`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal
     })
@@ -37,12 +45,14 @@ export const useBackendOrders = (endpoint) => {
         body.data.forEach((order) => { byId[order.OrderID] = order; });
         setBackendOrdersById(byId);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => { inFlight = false; });
+    };
     load();
     // Status changes are made by riders/admins on separate devices. A short
     // poll keeps customer tracking in sync even though those devices cannot
     // dispatch a shared browser event.
-    const poll = window.setInterval(load, 5000);
+    const poll = window.setInterval(load, ACTIVE_ORDER_REFRESH_MS);
     window.addEventListener(ORDERS_CHANGED_EVENT, load);
     const refreshWhenVisible = () => { if (document.visibilityState === 'visible') load(); };
     document.addEventListener('visibilitychange', refreshWhenVisible);
@@ -114,7 +124,7 @@ export const toLocalOrderShape = (backend) => {
     queuePosition: backend.queuePosition ?? null,
     serviceFee: Number(backend.ServiceFee) || 0,
     createdAt: toUtcIso(backend.OrderDate),
-    updatedAt: toUtcIso(backend.OrderDate)
+    updatedAt: toUtcIso(backend.StatusUpdatedAt || backend.OrderDate)
   };
 };
 

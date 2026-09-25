@@ -10,6 +10,7 @@ import OrderCustomerDetails from '../../components/common/OrderCustomerDetails/O
 import { clearSession, getSessionUser, isAssignedTo } from '../../utils/session';
 import { applyBackendTruth, useBackendOrders } from '../../hooks/useBackendOrders';
 import { apiAssetUrl } from '../../utils/catalog';
+import { remainsVisibleToday } from '../../utils/backendTime';
 import OrderChat from '../../components/common/OrderChat/OrderChat';
 
 const sections = [
@@ -79,21 +80,44 @@ const RiderDashboard = () => {
   const backendOrdersById = useBackendOrders('/api/orders?per_page=50');
   const localOrders = allOrders.filter((order) => user?.role === 'driver' && isAssignedTo(order, user));
   const assignedOrders = useMemo(() => applyBackendTruth(localOrders, backendOrdersById), [localOrders, backendOrdersById]);
-  // Same clutter fix as the customer Track Orders drawer (9/25) - a rider's
-  // assigned-orders grid otherwise grows forever with every past delivery.
-  // selectedOrder is looked up against the unfiltered set, not this one, so
-  // a just-delivered order's modal (with its explicit "Close" button) stays
-  // open until the rider dismisses it themselves, instead of vanishing the
-  // instant the status flips to delivered.
-  const orders = useMemo(() => assignedOrders.filter((order) => !['delivered', 'cancelled'].includes(order.status)), [assignedOrders]);
   const [activeSection, setActiveSection] = useState('food');
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  // A rider can be viewing an order synthesized from the backend, with no
+  // localStorage copy to update. Keep their chosen progress state in this
+  // screen immediately instead of making the tap appear to do nothing until
+  // the next network poll returns.
+  const [optimisticStatuses, setOptimisticStatuses] = useState({});
+  const [updatingOrderIds, setUpdatingOrderIds] = useState({});
   const [zoomedImage, setZoomedImage] = useState(null);
   const [now, setNow] = useState(Date.now());
+  // Keep completed work visible until the Manila business day ends, rather
+  // than making a rider's just-finished transaction disappear immediately.
+  const orders = useMemo(() => assignedOrders.filter((order) => remainsVisibleToday(order, now)), [assignedOrders, now]);
   const selectedOrder = assignedOrders.find((order) => order.id === selectedOrderId);
   const sectionOrders = useMemo(() => orders.filter((order) => inferSection(order) === activeSection), [activeSection, orders]);
   const pendingCount = orders.filter((order) => order.status === 'pending_rider').length;
   const getCount = (section) => orders.filter((order) => inferSection(order) === section).length;
+
+  const displayedOrder = (order) => {
+    const status = optimisticStatuses[order.id];
+    return status ? { ...order, status } : order;
+  };
+
+  const updateProgress = async (order, status) => {
+    if (updatingOrderIds[order.id]) return;
+    const previousStatus = order.status;
+    setOptimisticStatuses((current) => ({ ...current, [order.id]: status }));
+    setUpdatingOrderIds((current) => ({ ...current, [order.id]: true }));
+    const saved = await updateOrderStatus(order, status);
+    if (!saved) {
+      setOptimisticStatuses((current) => ({ ...current, [order.id]: previousStatus }));
+    }
+    setUpdatingOrderIds((current) => {
+      const next = { ...current };
+      delete next[order.id];
+      return next;
+    });
+  };
 
   useEffect(() => {
     const countdown = window.setInterval(() => setNow(Date.now()), 1000);
@@ -139,21 +163,28 @@ const RiderDashboard = () => {
           <div className="rider-empty-orders"><i className="fa-solid fa-receipt" /><h3>No orders in this section</h3><p>Orders assigned to you will appear here automatically.</p></div>
         ) : (
           <div className="rider-order-grid">
-            {sectionOrders.map((order) => (
+            {sectionOrders.map((rawOrder) => {
+              const order = displayedOrder(rawOrder);
+              const isUpdating = Boolean(updatingOrderIds[order.id]);
+              return (
               <article className={`rider-order-card status-${order.status}`} key={order.id}>
                 <div className="rider-order-heading"><div><small>{order.id}</small><h3>{getOrderDisplayLabel(order)}</h3></div><span>{statusLabels[order.status] || 'Confirmed'}</span></div>
                 <div className="rider-order-source"><i className="fa-solid fa-store" /><div><strong>{order.source}</strong><span>{new Date(order.createdAt).toLocaleString()}</span></div></div>
                 <div className="rider-order-estimate"><i className="fa-regular fa-clock" /><span>Estimated wait</span><strong>{formatEstimatedWait(order, now)}</strong></div>
                 <OrderCustomerDetails order={order} />
                 <div className="rider-order-preview"><span><i className="fa-solid fa-bag-shopping" /> {order.items?.reduce((total, item) => total + (item.quantity || 1), 0) || 0} item(s)</span><button type="button" onClick={() => setSelectedOrderId(order.id)}>View Order <i className="fa-solid fa-arrow-right" /></button></div>
-                {order.status === 'pending_rider' && <div className="rider-decision-buttons"><button type="button" className="rider-cancel" onClick={() => updateOrderStatus(order, 'cancelled')}>Cancel</button><button type="button" className="rider-accept" onClick={() => updateOrderStatus(order, 'confirmed')}>Confirm Order</button></div>}
+                {order.status === 'pending_rider' && <div className="rider-decision-buttons"><button type="button" className="rider-cancel" disabled={isUpdating} onClick={() => updateProgress(order, 'cancelled')}>Cancel</button><button type="button" className="rider-accept" disabled={isUpdating} onClick={() => updateProgress(order, 'confirmed')}>{isUpdating ? 'Updating…' : 'Confirm Order'}</button></div>}
               </article>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
-      {selectedOrder && (
+      {selectedOrder && (() => {
+        const order = displayedOrder(selectedOrder);
+        const isUpdating = Boolean(updatingOrderIds[order.id]);
+        return (
         <div className="rider-order-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedOrderId(null); }}>
           <section className="rider-order-modal" role="dialog" aria-modal="true" aria-labelledby="rider-order-title">
             <div className="rider-order-modal-header"><div><span>{selectedOrder.id}</span><h2 id="rider-order-title">Order Details</h2></div><button type="button" onClick={() => setSelectedOrderId(null)} aria-label="Close order details">×</button></div>
@@ -171,13 +202,14 @@ const RiderDashboard = () => {
             <OrderChat order={selectedOrder} />
 
             <div className="rider-modal-actions">
-              {selectedOrder.status === 'pending_rider' && <><button type="button" className="rider-cancel" onClick={() => updateOrderStatus(selectedOrder, 'cancelled')}>Cancel Order</button><button type="button" className="rider-accept" onClick={() => updateOrderStatus(selectedOrder, 'confirmed')}>Confirm Order</button></>}
-              {nextStatuses[selectedOrder.status] && <button type="button" className="rider-advance" onClick={() => updateOrderStatus(selectedOrder, nextStatuses[selectedOrder.status][0])}>{nextStatuses[selectedOrder.status][1]}</button>}
-              {['delivered', 'cancelled'].includes(selectedOrder.status) && <button type="button" className="rider-close-order" onClick={() => setSelectedOrderId(null)}>Close</button>}
+              {order.status === 'pending_rider' && <><button type="button" className="rider-cancel" disabled={isUpdating} onClick={() => updateProgress(order, 'cancelled')}>Cancel Order</button><button type="button" className="rider-accept" disabled={isUpdating} onClick={() => updateProgress(order, 'confirmed')}>{isUpdating ? 'Updating…' : 'Confirm Order'}</button></>}
+              {nextStatuses[order.status] && <button type="button" className="rider-advance" disabled={isUpdating} onClick={() => updateProgress(order, nextStatuses[order.status][0])}>{isUpdating ? 'Updating…' : nextStatuses[order.status][1]}</button>}
+              {['delivered', 'cancelled'].includes(order.status) && <button type="button" className="rider-close-order" onClick={() => setSelectedOrderId(null)}>Close</button>}
             </div>
           </section>
         </div>
-      )}
+        );
+      })()}
 
       {zoomedImage && (
         <div className="rider-image-zoom-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setZoomedImage(null); }}>

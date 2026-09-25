@@ -229,7 +229,7 @@ class OrderController extends Controller
         abort_unless($isAdmin || $isAssignedRider || $isOwningCustomerCancelling, 403);
         abort_if(in_array($order->DeliveryStatus, ['delivered', 'cancelled'], true), 422, 'This order is already finalized.');
 
-        $order->update(['DeliveryStatus' => $data['status']]);
+        $order->update(['DeliveryStatus' => $data['status'], 'StatusUpdatedAt' => now()]);
         // Any explicit status transition means the order left the raw
         // pre-confirmation line (confirmed, or declined via 'cancelled') -
         // it's either now being actively tracked through its own progress

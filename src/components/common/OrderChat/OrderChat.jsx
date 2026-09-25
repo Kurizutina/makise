@@ -4,6 +4,11 @@ import { getSessionUser } from '../../../utils/session';
 import { toUtcIso } from '../../../utils/backendTime';
 import './OrderChat.css';
 
+// Chat is only mounted for an open, assigned delivery, so it can refresh at
+// a more conversational cadence without polling every order in the app.
+const CHAT_REFRESH_MS = 1000;
+const CHAT_CHANNEL = 'otuzan-order-chat';
+
 const authHeaders = () => {
   const token = sessionStorage.getItem('otuzanAuthenticated');
   return token ? { Authorization: `Bearer ${token}` } : null;
@@ -21,6 +26,7 @@ const OrderChat = ({ order }) => {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const listRef = useRef(null);
+  const channelRef = useRef(null);
   const backendOrderId = order?.backendOrderId;
   const viewerId = getSessionUser()?.id;
   const viewerRole = getSessionUser()?.role;
@@ -32,21 +38,47 @@ const OrderChat = ({ order }) => {
     const headers = authHeaders();
     if (!headers) return undefined;
     let active = true;
-    const load = () => fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/messages`, { headers })
+    let inFlight = false;
+    const load = () => {
+      if (inFlight || document.visibilityState === 'hidden') return;
+      inFlight = true;
+      fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/messages`, { headers })
       .then((response) => (response.ok ? response.json() : null))
       .then((body) => { if (active && body?.messages) setMessages(body.messages); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => { inFlight = false; });
+    };
     load();
     // Best-effort, matches the fire-and-forget pattern already used for
     // backend syncs elsewhere - a failed read-receipt shouldn't block
     // anything the customer/rider actually sees.
     fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/messages/read`, { method: 'PATCH', headers }).catch(() => {});
-    // Same 5s interval as useBackendOrders/useBackendNotifications - the
-    // other participant is always on a separate device, so there's no
-    // local event to react to instead.
-    const poll = window.setInterval(load, 5000);
+    // Separate devices do not share browser events. Refresh an open chat
+    // every second; skipped overlapping/hidden-tab requests keep this cheap.
+    const poll = window.setInterval(load, CHAT_REFRESH_MS);
     return () => { active = false; window.clearInterval(poll); };
   }, [backendOrderId, hasRider]);
+
+  // Browser tabs do not share window events, but BroadcastChannel does.
+  // This makes a customer/rider pair being demonstrated on the same device
+  // reflect a successfully sent message immediately; the one-second API
+  // refresh above remains the cross-device fallback.
+  useEffect(() => {
+    if (!backendOrderId || !window.BroadcastChannel) return undefined;
+    const channel = new BroadcastChannel(CHAT_CHANNEL);
+    channelRef.current = channel;
+    channel.onmessage = (event) => {
+      const update = event.data;
+      if (update?.type !== 'message' || String(update.orderId) !== String(backendOrderId) || !update.message) return;
+      setMessages((current) => current.some((message) => String(message.MessageID) === String(update.message.MessageID))
+        ? current
+        : [...current, update.message]);
+    };
+    return () => {
+      channel.close();
+      if (channelRef.current === channel) channelRef.current = null;
+    };
+  }, [backendOrderId]);
 
   useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
@@ -56,8 +88,21 @@ const OrderChat = ({ order }) => {
     event.preventDefault();
     const body = draft.trim();
     if (!body || sending) return;
+    const temporaryId = `sending-${Date.now()}-${Math.random()}`;
+    const optimisticMessage = {
+      MessageID: temporaryId,
+      SenderUserID: viewerId,
+      MessageBody: body,
+      MessageDate: new Date().toISOString(),
+      sender: { UserName: 'You' }
+    };
     setSending(true);
     setError('');
+    // Never make the sender wait on a round-trip before seeing their own
+    // message. A failed request removes this temporary bubble and restores
+    // the draft so it is not lost.
+    setMessages((current) => [...current, optimisticMessage]);
+    setDraft('');
     try {
       const headers = authHeaders();
       const response = await fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/messages`, {
@@ -67,9 +112,17 @@ const OrderChat = ({ order }) => {
       });
       if (!response.ok) throw new Error();
       const data = await response.json();
-      setMessages((current) => [...current, data.message]);
-      setDraft('');
+      setMessages((current) => {
+        const hadOptimisticMessage = current.some((message) => message.MessageID === temporaryId);
+        const withoutOptimisticMessage = current.map((message) => message.MessageID === temporaryId ? data.message : message);
+        return hadOptimisticMessage || withoutOptimisticMessage.some((message) => String(message.MessageID) === String(data.message.MessageID))
+          ? withoutOptimisticMessage
+          : [...withoutOptimisticMessage, data.message];
+      });
+      channelRef.current?.postMessage({ type: 'message', orderId: backendOrderId, message: data.message });
     } catch {
+      setMessages((current) => current.filter((message) => message.MessageID !== temporaryId));
+      setDraft(body);
       setError('Message could not be sent. Try again.');
     } finally {
       setSending(false);
@@ -91,8 +144,8 @@ const OrderChat = ({ order }) => {
     <div className="order-chat">
       <div className="order-chat-messages" ref={listRef} aria-live="polite">
         {messages.length ? messages.map((message) => (
-          <div key={message.MessageID} className={`order-chat-bubble${message.SenderUserID === viewerId ? ' mine' : ''}`}>
-            <span className="order-chat-sender">{message.SenderUserID === viewerId ? 'You' : message.sender?.UserName || 'Them'}</span>
+          <div key={message.MessageID} className={`order-chat-bubble${String(message.SenderUserID) === String(viewerId) ? ' mine' : ''}`}>
+            <span className="order-chat-sender">{String(message.SenderUserID) === String(viewerId) ? 'You' : message.sender?.UserName || 'Them'}</span>
             <p>{message.MessageBody}</p>
             <time>{new Date(toUtcIso(message.MessageDate)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>
           </div>

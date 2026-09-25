@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { RestaurantMenu } from './McDonaldsMenu';
-import { API_BASE_URL, catalogImageUrl } from '../../utils/catalog';
+import { catalogImageUrl, getBrandProducts } from '../../utils/catalog';
 
 const CatalogBrandMenu = () => {
   const { brandId } = useParams();
@@ -14,11 +14,7 @@ const CatalogBrandMenu = () => {
     const controller = new AbortController();
     setCatalog(null);
     setError('');
-    fetch(`${API_BASE_URL}/api/catalog/brands/${brandId}/products`, { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error('This brand is no longer available.');
-        return response.json();
-      })
+    getBrandProducts(brandId, controller.signal)
       .then((data) => setCatalog(data))
       .catch((reason) => { if (!controller.signal.aborted) setError(reason.message); });
     return () => controller.abort();

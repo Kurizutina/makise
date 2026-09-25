@@ -99,12 +99,15 @@ const syncOrderToBackend = (localOrderId, order, deliveryAddress, serviceFee = 0
 // found live as "cancel doesn't work until I refresh."
 const syncStatusToBackend = (backendOrderId, status) => {
   const headers = authHeaders();
-  if (!backendOrderId || !headers) return;
-  fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/status`, {
+  if (!backendOrderId || !headers) return Promise.resolve(false);
+  return fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/status`, {
     method: 'PATCH', headers, body: JSON.stringify({ status })
   })
-    .then((response) => { if (response.ok) window.dispatchEvent(new Event(ORDERS_CHANGED_EVENT)); })
-    .catch(() => {});
+    .then((response) => {
+      if (response.ok) window.dispatchEvent(new Event(ORDERS_CHANGED_EVENT));
+      return response.ok;
+    })
+    .catch(() => false);
 };
 
 const syncAssignmentToBackend = (backendOrderId, riderId) => {
@@ -469,19 +472,18 @@ export const CustomerActivityProvider = ({ children }) => {
       // carries the real backend customerId/status even with no local copy.
       const isOwningCustomerCancelling = user?.role === 'customer' && status === 'cancelled'
         && String(orderRef?.customerId) === String(user?.id) && orderRef?.status === 'pending_rider';
-      if (!backendOrderId || !(user?.role === 'admin' || user?.role === 'driver' || isOwningCustomerCancelling)) return;
-      syncStatusToBackend(backendOrderId, status);
-      return;
+      if (!backendOrderId || !(user?.role === 'admin' || user?.role === 'driver' || isOwningCustomerCancelling)) return Promise.resolve(false);
+      return syncStatusToBackend(backendOrderId, status);
     }
-    if (currentOrder.status === status) return;
+    if (currentOrder.status === status) return Promise.resolve(true);
     const user = getSessionUser();
     // A customer may cancel their own order while it's still pending_rider -
     // same server-side rule as OrderController::updateStatus. Anything past
     // that point (confirmed onward) is out of their hands.
     const isOwningCustomerCancelling = user?.role === 'customer' && status === 'cancelled'
       && String(currentOrder.customerId) === String(user?.id) && currentOrder.status === 'pending_rider';
-    if (user?.role !== 'admin' && !(user?.role === 'driver' && isAssignedTo(currentOrder, user)) && !isOwningCustomerCancelling) return;
-    if (['delivered', 'cancelled'].includes(currentOrder.status)) return;
+    if (user?.role !== 'admin' && !(user?.role === 'driver' && isAssignedTo(currentOrder, user)) && !isOwningCustomerCancelling) return Promise.resolve(false);
+    if (['delivered', 'cancelled'].includes(currentOrder.status)) return Promise.resolve(false);
 
     const statusContent = {
       confirmed: ['Order accepted', `${currentOrder.label} was accepted. Tracking is now available.`],
@@ -491,7 +493,7 @@ export const CustomerActivityProvider = ({ children }) => {
       delivered: ['Order delivered', `${currentOrder.label} has been delivered.`]
     };
     const content = statusContent[status];
-    if (!content) return;
+    if (!content) return Promise.resolve(false);
 
     const updatedAt = new Date().toISOString();
     const estimatedWaitMinutes = currentOrder.estimatedWaitMinutes
@@ -523,7 +525,13 @@ export const CustomerActivityProvider = ({ children }) => {
         type: status === 'cancelled' ? 'cancelled' : 'status'
       }, ...(latest.notifications || notifications)];
     updateAll(latest.cart || cart, nextOrders, nextNotifications);
-    syncStatusToBackend(currentOrder.backendOrderId, status);
+    // Local-only legacy orders have no server request to wait for. Backend
+    // orders return a success flag so callers can keep an optimistic status
+    // visible while a stale poll is still in flight, then roll it back if
+    // the server rejects the transition.
+    return currentOrder.backendOrderId
+      ? syncStatusToBackend(currentOrder.backendOrderId, status)
+      : Promise.resolve(true);
   };
 
   const assignOrderToRider = (orderRef, rider) => {
