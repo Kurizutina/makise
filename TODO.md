@@ -1481,3 +1481,31 @@ AI for key business decisions
       Verified live: two assigned orders, one marked delivered up front
       (dropped immediately) and one delivered mid-review (grid emptied,
       modal + Close button stayed open). (`985bc70`)
+- [x] **Driver/admin status buttons intermittently slow (6-7s) or apparently
+      not working** (user report, 9/25) — two real, distinct causes found and
+      fixed:
+      1. `config/cors.php` had `max_age => 0`, so every authenticated request
+         in the app (nearly all of them) sent its own separate `OPTIONS`
+         preflight round trip first - doubling real request volume against
+         the Windows dev server's single-threaded queue (`php artisan serve`
+         can't use worker processes there - no `fork()`, already a documented
+         dead end). Set to 7200s, the practical ceiling since Chrome/Brave cap
+         the actual cache duration there regardless of a larger value.
+         Verified live: watched the rider dashboard's network log - every ~5s
+         poll fired its own `OPTIONS` before the fix, only the first request
+         per endpoint did after.
+      2. `syncStatusToBackend`/`syncAssignmentToBackend` only refreshed the UI
+         on a 2xx response - a legitimately rejected update (two staff acting
+         on the same order from separate devices, e.g. admin cancels while a
+         rider's still-unpolled screen shows it as actionable - real 422
+         "This order is already finalized") produced zero feedback at all, so
+         the click looked like it silently did nothing. Now refreshes
+         regardless of response status, so a rejected click corrects the
+         stale button/order immediately instead of leaving it looking broken.
+         Verified live: staged the exact race, confirmed the 422 fires as
+         expected and the order drops out of the rider's grid right away.
+      Neither fix touches how fast the server *itself* processes a request -
+      that's the separately-flagged `php artisan serve` single-threading
+      limitation (see Medium/High priority) - these reduce how often a click
+      gets stuck behind other traffic, and stop failures from being
+      invisible. (`e396192`, `9abffe7`)
