@@ -604,6 +604,52 @@ AI for key business decisions
 
 ## High
 
+- [x] **Item Delivery/Pay Bills had no service fee, or the wrong surcharge
+      cutoff time** (Sean's pricing rule, 9/25; fixed same day) - Sean's
+      rule: Item Delivery should use the same fee structure as Food (₱75
+      base, 50% surcharge after 8 PM for students / after 6 PM for
+      non-students), and Pay Bills should follow the same concept.
+
+      Checked live before changing anything: `calculateDeliveryFee()`
+      (`utils/deliveryRates.js`) was already the one shared, generic
+      pricing function - it doesn't know or care about Food vs. Item vs.
+      Bills. It just wasn't being called for two of the three surfaces.
+      `placeOrder`/`placeCartOrder` (`CustomerActivityContext.jsx`) already
+      compute the fee themselves from whatever `deliveryLocation`/
+      `customerType` they're handed - Food (`McDonaldsMenu.jsx`, the global
+      cart) already passed those through correctly. **Real, confirmed bug**:
+      `Home.jsx`'s `PayBillsForm` submit handler never passed
+      `deliveryLocation`/`customerType` to `placeOrder` at all (not even
+      via `details`), so every Pay Bills order's fee silently computed to
+      ₱0 - same root cause already diagnosed earlier this session, now
+      actually fixed. Item Delivery's custom-order flow (`OthersOrderForm`)
+      turned out to already be wired correctly (it already forwarded both
+      fields) - no separate fix needed there, just added a live fee display
+      to match Food's UX.
+
+      **Also fixed a real, separate discrepancy**: the non-student
+      surcharge cutoff was `18:30` (6:30 PM) in code; Sean's rule is
+      explicit about 6:00 PM. No reason on record for the extra 30
+      minutes - corrected to `18:00`. This is a genuine behavior change
+      (shifts which orders get surcharged), not just a wiring fix.
+
+      No separate implementations needed for the three service types - one
+      shared function, now actually called from all three surfaces instead
+      of two.
+
+      Verified live: seeded a throwaway non-student customer via tinker,
+      opened Item Delivery -> Others and Pay Bills -> Others with the
+      backend running, confirmed both modals now show "Delivery location:
+      Villa Javier" and "Service fee: ₱75" (base rate, no surcharge at
+      current time) using the real saved header location. Confirmed the
+      corrected cutoff with a standalone script: non-student surcharge now
+      applies strictly after 18:00, not 18:30; student cutoff (20:00)
+      unchanged. `deliveryRates.test.js` updated to match the corrected
+      cutoff. Full frontend suite re-run clean (23/27, same pre-existing
+      failures only); backend suite re-run clean (42/43, 1 skip, same 3
+      pre-existing `AuthApiTest` failures only - unaffected, this was a
+      frontend-only change). Test account and token cleaned up after.
+
 - [x] **Browser back button from a brand's menu landed on Home's FAQ
       section instead of returning to brand selection** (user-reported live,
       9/25; fixed same day). Investigated both hypotheses the report itself
