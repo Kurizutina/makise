@@ -6,11 +6,11 @@
      hardcoding another near-identical value. */
   --color-primary: #da1c5c;
   --color-primary-dark: #8f173d;
-  --color-accent: #f14570;
-  --color-coral: #fb7249;
+  /* Aliases keep older component gradients on the same three-step brand scale
+     while those components are progressively moved to the primary tokens. */
+  --color-accent: var(--color-primary);
+  --color-coral: var(--color-primary-dark);
   --color-primary-light: #ffe9ef;
-  --color-header-bg: #e31b62;
-  --color-header-button-bg: #c81752;
   --color-text: #30262a;
   --color-text-muted: #766a70;
   --color-border: #eee4e8;

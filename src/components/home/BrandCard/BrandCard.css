@@ -104,7 +104,7 @@
 
   background-color: #f1f1f1;
 
-  color: #DA1C5C;
+  color: var(--color-primary);
 
   font-size: 30px;
 }

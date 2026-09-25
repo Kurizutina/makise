@@ -221,7 +221,7 @@ const CustomerActivity = () => {
                           <EstimatedWait order={order} now={now} />
                         )}
 
-                        {order.status === 'pending_rider' && (
+                        {order.status === 'pending_rider' && !order.assignedRider && (
                           <div className="rider-decision-state">
                             <i className="fa-solid fa-clock" aria-hidden="true" /><div><strong>Waiting for a rider</strong><span>Tracking will begin after a rider accepts your order.</span></div>
                           </div>

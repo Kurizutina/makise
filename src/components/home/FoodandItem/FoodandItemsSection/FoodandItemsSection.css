@@ -51,7 +51,7 @@
 
   background: transparent;
 
-  color: #DA1C5C;
+  color: var(--color-primary);
 
   font-family: inherit;
 

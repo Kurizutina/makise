@@ -15,7 +15,7 @@
   gap: 20px;
   min-height: 78px;
   padding: 10px clamp(18px, 4vw, 58px);
-  background: #da1c5c;
+  background: var(--color-primary);
   color: #fff;
   box-shadow: 0 3px 16px rgba(93, 9, 39, 0.16);
 }
@@ -62,7 +62,7 @@
   padding: 0 5px;
   border-radius: 50%;
   background: #fff;
-  color: #da1c5c;
+  color: var(--color-primary);
   font-size: 11px;
 }
 
@@ -82,7 +82,7 @@
 }
 
 .mcdo-page-header {
-  background: linear-gradient(100deg, #c91546, #da1c5c);
+  background: linear-gradient(100deg, #c91546, var(--color-primary));
 }
 
 .mcdo-eyebrow {
@@ -100,7 +100,7 @@
 }
 
 .restaurant-menu-loading i {
-  color: #da1c5c;
+  color: var(--color-primary);
   font-size: 18px;
 }
 
@@ -128,7 +128,7 @@
 
 .jollibee-eyebrow {
   margin: 0 0 6px !important;
-  color: #da1c5c !important;
+  color: var(--color-primary) !important;
   font-size: 12px !important;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -198,7 +198,7 @@
 }
 
 .jollibee-custom-item input:focus {
-  border-color: #da1c5c;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(218, 28, 92, 0.1);
 }
 
@@ -206,7 +206,7 @@
   height: 42px;
   border: none;
   border-radius: 10px;
-  background: #da1c5c;
+  background: var(--color-primary);
   color: #fff;
   font-weight: 700;
   cursor: pointer;
@@ -263,8 +263,8 @@
 }
 
 .jollibee-category-nav button.active {
-  border-color: #da1c5c;
-  background: #da1c5c;
+  border-color: var(--color-primary);
+  background: var(--color-primary);
   color: #fff;
 }
 
@@ -301,7 +301,7 @@
 }
 
 .product-card-highlighted {
-  outline: 3px solid var(--color-primary, #da1c5c);
+  outline: 3px solid var(--color-primary, var(--color-primary));
   outline-offset: 3px;
   animation: product-card-highlight-pulse 1.6s ease-in-out 1;
 }
@@ -315,10 +315,10 @@
   display: block;
   margin: 18px auto 0;
   padding: 10px 22px;
-  border: 1px solid var(--color-primary, #da1c5c);
+  border: 1px solid var(--color-primary, var(--color-primary));
   border-radius: var(--radius-pill, 999px);
   background: transparent;
-  color: var(--color-primary, #da1c5c);
+  color: var(--color-primary, var(--color-primary));
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
@@ -327,7 +327,7 @@
 
 .restaurant-show-more:hover,
 .restaurant-show-more:focus-visible {
-  background: var(--color-primary, #da1c5c);
+  background: var(--color-primary, var(--color-primary));
   color: #fff;
 }
 
@@ -394,14 +394,14 @@
   place-items: center;
   aspect-ratio: 4 / 3;
   background: linear-gradient(135deg, #fff0f5, #ffe2eb);
-  color: #da1c5c;
+  color: var(--color-primary);
   font-size: 34px;
 }
 
 .restaurant-product-price {
   display: block;
   margin: -7px 0 13px;
-  color: #da1c5c;
+  color: var(--color-primary);
   font-size: 15px;
 }
 
@@ -433,7 +433,7 @@
 }
 
 .jollibee-product-option select:focus {
-  border-color: #da1c5c;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(218, 28, 92, 0.1);
 }
 
@@ -455,8 +455,8 @@
 }
 
 .product-cart-button {
-  border: 1px solid #da1c5c;
-  background: #da1c5c;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
   color: #fff;
 }
 
@@ -479,7 +479,7 @@
 }
 
 .jollibee-cart-heading span {
-  color: #da1c5c;
+  color: var(--color-primary);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -497,7 +497,7 @@
   height: 34px;
   border-radius: 50%;
   background: #fff0f5;
-  color: #da1c5c;
+  color: var(--color-primary);
 }
 
 /* Close button, backdrop, and the floating "View Cart" bar only exist for the
@@ -521,7 +521,7 @@
   height: 44px;
   border: 0;
   border-radius: 50%;
-  background: #da1c5c;
+  background: var(--color-primary);
   color: #fff;
   font-size: 16px;
   box-shadow: 0 8px 22px rgba(93, 9, 39, 0.3);
@@ -530,7 +530,7 @@
 }
 
 .jollibee-back-to-top:hover {
-  background: #a71243;
+  background: var(--color-primary-dark);
   transform: translateY(-2px);
 }
 
@@ -601,7 +601,7 @@
 
 .jollibee-cart-item span {
   margin-top: 3px;
-  color: #da1c5c;
+  color: var(--color-primary);
   font-size: 10px;
 }
 
@@ -634,7 +634,7 @@
   min-height: 46px;
   border: 0;
   border-radius: 11px;
-  background: #da1c5c;
+  background: var(--color-primary);
   color: #fff;
   font: inherit;
   font-weight: 700;
@@ -657,7 +657,7 @@
 }
 
 .restaurant-cart-total strong {
-  color: #da1c5c;
+  color: var(--color-primary);
   font-size: 17px;
 }
 
@@ -672,7 +672,7 @@
 }
 
 .restaurant-cart-service-fee strong {
-  color: #da1c5c;
+  color: var(--color-primary);
   font-size: 15px;
 }
 
@@ -789,7 +789,7 @@
     border: none;
     border-radius: 50%;
     background: #fff0f5;
-    color: #da1c5c;
+    color: var(--color-primary);
     font-size: 20px;
     line-height: 1;
     cursor: pointer;
@@ -818,7 +818,7 @@
     padding: 14px 18px;
     border: none;
     border-radius: 14px;
-    background: #da1c5c;
+    background: var(--color-primary);
     color: #fff;
     font: inherit;
     font-weight: 700;
@@ -945,7 +945,7 @@
 }
 
 .restaurant-serving-size select:focus-visible {
-  outline: 2px solid #da1c5c;
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 .restaurant-product-food-icon {
@@ -954,7 +954,7 @@
   justify-content: center;
   min-height: 110px;
   background: #fff0f5;
-  color: #da1c5c;
+  color: var(--color-primary);
   border-bottom: 1px solid #f8d5e1;
 }
 
@@ -962,3 +962,8 @@
   width: 38px;
   height: 38px;
 }
+
+.similar-brands { max-width: 1240px; margin: 8px auto 56px; padding: 30px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: linear-gradient(135deg, var(--color-primary-light), var(--color-surface) 60%); }
+.similar-brands-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 22px; }.similar-brands-heading span { color: var(--color-primary); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }.similar-brands-heading h2 { margin: 5px 0 0; color: var(--color-text); font-size: clamp(21px, 3vw, 28px); }.similar-brands-heading p { max-width: 250px; margin: 0; color: var(--color-text-muted); font-size: 13px; text-align: right; }
+.similar-brands-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }.similar-brand-card { display: grid; grid-template-columns: 48px 1fr; column-gap: 12px; align-items: center; padding: 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }.similar-brand-card img { grid-row: span 2; width: 48px; height: 48px; border-radius: 12px; object-fit: contain; background: #fff; }.similar-brand-card strong { color: var(--color-text); font-size: 14px; }.similar-brand-card span { margin-top: 2px; color: var(--color-text-muted); font-size: 12px; }
+@media (max-width: 700px) { .similar-brands { margin: 0 12px 38px; padding: 21px 16px; }.similar-brands-heading { display: block; }.similar-brands-heading p { margin-top: 7px; text-align: left; }.similar-brands-grid { grid-template-columns: 1fr; gap: 9px; } }

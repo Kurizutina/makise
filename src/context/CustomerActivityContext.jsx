@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { getSessionUser, isAssignedTo } from '../utils/session';
 import { CUSTOMER_ACTIVITY_CHANGED } from '../utils/customerProfileSync';
-import { ORDERS_CHANGED_EVENT } from '../hooks/useBackendOrders';
+import { broadcastOrderProgressChanged } from '../hooks/useBackendOrders';
 import { calculateDeliveryFee, findDeliveryLocation } from '../utils/deliveryRates';
 
 const CustomerActivityContext = createContext(null);
@@ -106,7 +106,7 @@ const syncStatusToBackend = (backendOrderId, status) => {
     method: 'PATCH', headers, body: JSON.stringify({ status })
   })
     .then((response) => {
-      if (response.ok) window.dispatchEvent(new Event(ORDERS_CHANGED_EVENT));
+      if (response.ok) broadcastOrderProgressChanged();
       return response.ok;
     })
     .catch(() => false);
@@ -118,7 +118,7 @@ const syncAssignmentToBackend = (backendOrderId, riderId) => {
   fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/assign`, {
     method: 'PATCH', headers, body: JSON.stringify({ riderId: riderId || null })
   })
-    .then((response) => { if (response.ok) window.dispatchEvent(new Event(ORDERS_CHANGED_EVENT)); })
+    .then((response) => { if (response.ok) broadcastOrderProgressChanged(); })
     .catch(() => {});
 };
 
@@ -160,7 +160,7 @@ const syncPaymentStatusToBackend = (backendPaymentId, status) => {
   fetch(`${API_BASE_URL}/api/payments/${backendPaymentId}/status`, {
     method: 'PATCH', headers, body: JSON.stringify({ status })
   })
-    .then((response) => { if (response.ok) window.dispatchEvent(new Event(ORDERS_CHANGED_EVENT)); })
+    .then((response) => { if (response.ok) broadcastOrderProgressChanged(); })
     .catch(() => {});
 };
 
@@ -224,9 +224,23 @@ const loadActivity = () => {
   }
 };
 
+// Orders are server-backed, but carts intentionally remain browser-local
+// until checkout. The activity blob is shared by every account that uses
+// this browser, so cart lines must carry an owner; otherwise a customer who
+// signs in after someone else inherits their basket. Old untagged lines are
+// treated as a guest cart rather than being assigned to the next account.
+const activeCartOwner = () => {
+  const user = getSessionUser();
+  return user?.role === 'customer' && user.id != null ? `customer:${user.id}` : 'guest';
+};
+
+const cartOwner = (item) => item.cartOwner || 'guest';
+const cartForActiveOwner = (items = []) => items.filter((item) => cartOwner(item) === activeCartOwner());
+const tagCartForActiveOwner = (items = []) => items.map((item) => ({ ...item, cartOwner: activeCartOwner() }));
+
 export const CustomerActivityProvider = ({ children }) => {
   const saved = useMemo(() => loadActivity(), []);
-  const [cart, setCart] = useState(saved.cart || []);
+  const [cart, setCart] = useState(() => cartForActiveOwner(saved.cart));
   const [orders, setOrders] = useState((saved.orders || []).filter((order) => {
     const riderName = String(order.assignedRider?.name || '').trim().toLowerCase();
     return riderName !== 'jayson deguzman';
@@ -278,7 +292,7 @@ export const CustomerActivityProvider = ({ children }) => {
       if (event.key !== STORAGE_KEY || !event.newValue) return;
       try {
         const next = JSON.parse(event.newValue);
-        setCart(next.cart || []);
+        setCart(cartForActiveOwner(next.cart));
         setOrders((next.orders || []).filter((order) => String(order.assignedRider?.name || '').trim().toLowerCase() !== 'jayson deguzman'));
         setNotifications(next.notifications || []);
       } catch {
@@ -287,7 +301,7 @@ export const CustomerActivityProvider = ({ children }) => {
     };
     window.addEventListener('storage', syncActivity);
     const syncProfileOrders = (event) => {
-      setCart(event.detail.cart || []);
+      setCart(cartForActiveOwner(event.detail.cart));
       setOrders((event.detail.orders || []).filter((order) => String(order.assignedRider?.name || '').trim().toLowerCase() !== 'jayson deguzman'));
       setNotifications(event.detail.notifications || []);
     };
@@ -312,10 +326,17 @@ export const CustomerActivityProvider = ({ children }) => {
 
   const persist = (nextCart, nextOrders, nextNotifications) => {
     const latest = loadActivity();
+    // Preserve cart lines belonging to other signed-in customers (or the
+    // guest basket) while replacing only this account's visible basket.
+    // This also makes concurrent tabs for the same customer stay in sync.
+    const storedCart = [
+      ...(latest.cart || []).filter((item) => cartOwner(item) !== activeCartOwner()),
+      ...tagCartForActiveOwner(nextCart)
+    ];
     const mergedOrders = mergeById(nextOrders, latest.orders || []);
     const mergedNotifications = mergeById(nextNotifications, latest.notifications || []);
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      cart: nextCart,
+      cart: storedCart,
       orders: mergedOrders,
       notifications: mergedNotifications
     }));
@@ -336,7 +357,7 @@ export const CustomerActivityProvider = ({ children }) => {
       ? cart.map((entry) => entry.cartId === cartId
         ? { ...entry, quantity: entry.quantity + (item.quantity || 1) }
         : entry)
-      : [...cart, { ...item, cartId, quantity: item.quantity || 1 }];
+      : [...cart, { ...item, cartId, quantity: item.quantity || 1, cartOwner: activeCartOwner() }];
     updateAll(nextCart, orders, notifications);
   };
 

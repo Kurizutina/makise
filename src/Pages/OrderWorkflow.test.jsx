@@ -72,6 +72,21 @@ test('a customer sees notifications only for orders linked to their account', ()
   expect(actions.notifications).toEqual([{ id: 'OWN-NOTIFICATION', orderId: 'OWN-ORDER' }]);
 });
 
+test('a cart belongs only to the customer who added its items', () => {
+  signIn(42, 'customer');
+  const firstCustomer = render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
+  act(() => actions.addToCart({ id: 'burger', source: 'Shop', name: 'Burger' }));
+  expect(actions.cart).toHaveLength(1);
+
+  // Another signed-in account using the same browser must not inherit the
+  // first account's browser-local cart.
+  firstCustomer.unmount();
+  sessionStorage.setItem('otuzanUser', JSON.stringify({ id: 99, role: 'customer' }));
+  const otherCustomer = render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
+  expect(actions.cart).toEqual([]);
+  otherCustomer.unmount();
+});
+
 // Regression test for a real cross-user privacy leak (found live, 9/23):
 // otuzanCustomerActivity's localStorage blob isn't scoped per account, and
 // useCustomerActivity() used to have no explicit branch for "no session" -

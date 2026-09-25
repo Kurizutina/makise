@@ -11,7 +11,7 @@
 .faq-eyebrow {
   display: inline-block;
   margin-bottom: 8px;
-  color: var(--color-primary, #da1c5c);
+  color: var(--color-primary, var(--color-primary));
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -69,7 +69,7 @@
 .faq-item:hover,
 .faq-item:focus-within {
   transform: translateY(-2px);
-  border-color: var(--color-primary, #da1c5c);
+  border-color: var(--color-primary, var(--color-primary));
   box-shadow: 0 8px 20px rgba(111, 28, 56, .14);
 }
 
@@ -90,7 +90,7 @@
   display: inline-block;
   width: 18px;
   margin-right: 8px;
-  color: var(--color-primary, #da1c5c);
+  color: var(--color-primary, var(--color-primary));
   font-weight: 800;
 }
 

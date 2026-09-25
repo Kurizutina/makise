@@ -77,9 +77,9 @@
    ========================================== */
 
 .service-tab.active {
-  background-color: var(--color-primary, #DA1C5C);
+  background-color: var(--color-primary, var(--color-primary));
   color: #fff;
-  border-color: var(--color-primary, #DA1C5C);
+  border-color: var(--color-primary, var(--color-primary));
   box-shadow: 0 3px 10px rgba(111, 10, 45, 0.18);
 }
 
@@ -90,7 +90,7 @@
 }
 
 .service-tab:focus-visible {
-  outline: 3px solid var(--color-primary, #da1c5c);
+  outline: 3px solid var(--color-primary, var(--color-primary));
   outline-offset: 2px;
 }
 

@@ -33,7 +33,7 @@
 }
 
 .payment-modal-header span {
-  color: #da1c5c;
+  color: var(--color-primary);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -94,7 +94,7 @@
   width: 25px;
   height: 25px;
   border-radius: 50%;
-  background: #da1c5c;
+  background: var(--color-primary);
   color: #fff !important;
   font-size: 12px;
   font-weight: 700;
@@ -211,7 +211,7 @@
 }
 
 .payment-field input:focus {
-  border-color: #da1c5c;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(218, 28, 92, 0.1);
 }
 
@@ -267,7 +267,7 @@
 
 .payment-upload:hover,
 .payment-upload.has-file {
-  border-color: #da1c5c;
+  border-color: var(--color-primary);
   background: #fff5f8;
 }
 
@@ -286,7 +286,7 @@
   flex-shrink: 0;
   border-radius: 10px;
   background: #f8e8ee;
-  color: #da1c5c;
+  color: var(--color-primary);
 }
 
 .payment-upload-copy {
@@ -344,8 +344,8 @@
 }
 
 .payment-place {
-  border: 1px solid #da1c5c;
-  background: #da1c5c;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
   color: #fff;
   box-shadow: 0 5px 14px rgba(218, 28, 92, 0.22);
 }

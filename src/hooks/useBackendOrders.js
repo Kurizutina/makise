@@ -18,6 +18,22 @@ const ACTIVE_ORDER_REFRESH_MS = 2000;
 // the stale backend status for up to 30s, until the interval happens to
 // fire, which read like "cancel doesn't work until I refresh."
 export const ORDERS_CHANGED_EVENT = 'otuzan:orders-changed';
+export const ORDER_PROGRESS_CHANGED_STORAGE_KEY = 'otuzan:order-progress-changed';
+
+// Custom browser events do not leave the tab that dispatched them. Mirror a
+// confirmed server update through localStorage as well, so a customer and a
+// rider signed in through different tabs immediately refresh each other's
+// server-backed order view. The regular poll remains the fallback for
+// separate devices and for browsers where storage is unavailable.
+export const broadcastOrderProgressChanged = () => {
+  window.dispatchEvent(new Event(ORDERS_CHANGED_EVENT));
+  try {
+    localStorage.setItem(ORDER_PROGRESS_CHANGED_STORAGE_KEY, String(Date.now()));
+  } catch {
+    // Private/storage-restricted browsers still receive the same-tab event
+    // and the scheduled backend refresh.
+  }
+};
 
 // Polls the real backend order API and returns a lookup of backend orders by
 // their OrderID. Returns {} (safe no-op) if there's no session or the
@@ -69,12 +85,17 @@ export const useBackendOrders = (endpoint) => {
     // dispatch a shared browser event.
     const poll = window.setInterval(load, ACTIVE_ORDER_REFRESH_MS);
     window.addEventListener(ORDERS_CHANGED_EVENT, load);
+    const refreshFromAnotherTab = (event) => {
+      if (event.key === ORDER_PROGRESS_CHANGED_STORAGE_KEY) load();
+    };
+    window.addEventListener('storage', refreshFromAnotherTab);
     const refreshWhenVisible = () => { if (document.visibilityState === 'visible') load(); };
     document.addEventListener('visibilitychange', refreshWhenVisible);
     return () => {
       controller.abort();
       window.clearInterval(poll);
       window.removeEventListener(ORDERS_CHANGED_EVENT, load);
+      window.removeEventListener('storage', refreshFromAnotherTab);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
   }, [endpoint]);

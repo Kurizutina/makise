@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toUtcIso } from '../utils/backendTime';
-import { ORDERS_CHANGED_EVENT } from './useBackendOrders';
+import { ORDERS_CHANGED_EVENT, ORDER_PROGRESS_CHANGED_STORAGE_KEY } from './useBackendOrders';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 const ACTIVE_NOTIFICATION_REFRESH_MS = 2000;
@@ -44,12 +44,17 @@ export const useBackendNotifications = () => {
     // the next polling interval. Other devices remain covered by polling
     // and the visibility refresh below.
     window.addEventListener(ORDERS_CHANGED_EVENT, load);
+    const refreshFromAnotherTab = (event) => {
+      if (event.key === ORDER_PROGRESS_CHANGED_STORAGE_KEY) load();
+    };
+    window.addEventListener('storage', refreshFromAnotherTab);
     const refreshWhenVisible = () => { if (document.visibilityState === 'visible') load(); };
     document.addEventListener('visibilitychange', refreshWhenVisible);
     return () => {
       controller.abort();
       window.clearInterval(poll);
       window.removeEventListener(ORDERS_CHANGED_EVENT, load);
+      window.removeEventListener('storage', refreshFromAnotherTab);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
   }, []);
