@@ -1470,3 +1470,14 @@ AI for key business decisions
       orders (one delivered, one active) plus two test notifications - the
       delivered order and cleared notifications both dropped from view, the
       active order stayed. (`f77c37e`)
+- [x] **Same clutter check on rider/admin dashboards** (user follow-up, 9/25) —
+      rider's order grid had the identical problem (every order ever assigned
+      to that rider, no filter); fixed the same way (active-only), while
+      keeping the order-detail modal's lookup unfiltered so a just-delivered
+      order's "Close" button still works instead of the modal vanishing the
+      instant status flips. Admin's Live Orders needed no change - its
+      columns already never match `delivered` orders, and History is already
+      a separate, uncapped view (see Decisions section in CLAUDE.md).
+      Verified live: two assigned orders, one marked delivered up front
+      (dropped immediately) and one delivered mid-review (grid emptied,
+      modal + Close button stayed open). (`985bc70`)
