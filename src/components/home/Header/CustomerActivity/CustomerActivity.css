@@ -10,6 +10,8 @@
 .activity-tabs button { padding: 9px; border: 0; border-radius: 9px; background: transparent; color: #796c72; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .activity-tabs button.active { background: #fff; color: #da1c5c; box-shadow: 0 2px 8px rgba(67,33,45,.09); }
 .activity-drawer-body { flex: 1; overflow-y: auto; padding: 18px 20px 24px; }
+.activity-clear-all { display: block; margin: 10px 20px 0 auto; padding: 4px 2px; border: 0; background: transparent; color: #da1c5c; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.activity-clear-all:hover { text-decoration: underline; }
 .notification-card { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 11px; padding: 14px; border: 1px solid #eee5e8; border-radius: 14px; background: #fff; }
 .notification-card > span { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; background: #eaf7ef; color: #2d9454; }
 .notification-card > span.cancelled { background: #fff0f1; color: #c43b4b; }

@@ -94,7 +94,13 @@ const CustomerActivity = () => {
     updateOrderStatus
   } = useCustomerActivity();
   const backendOrdersById = useBackendOrders('/api/orders?per_page=50');
-  const orders = useMemo(() => applyBackendTruth(localOrders, backendOrdersById), [localOrders, backendOrdersById]);
+  const allOrders = useMemo(() => applyBackendTruth(localOrders, backendOrdersById), [localOrders, backendOrdersById]);
+  // Track Orders is meant for active tracking, not a permanent log - once an
+  // order is finalized (delivered/cancelled) it no longer needs tracking and
+  // was reported as clutter (9/25) once enough orders piled up. The
+  // underlying records are untouched (Revenue/admin History still read the
+  // real Orders table) - this only affects what the customer sees here.
+  const orders = useMemo(() => allOrders.filter((order) => !['delivered', 'cancelled'].includes(order.status)), [allOrders]);
   const backendNotifications = useBackendNotifications();
   // Local notifications only ever cover "order request sent" (instant,
   // same-device - see placeOrder/placeCartOrder). Everything admin/rider
@@ -102,10 +108,21 @@ const CustomerActivity = () => {
   // (step 1g) since it has to reach whatever device the customer checks
   // from next, not just the browser that placed the order. Disjoint event
   // sources by design, so this union never needs deduping.
+  const sessionUserId = getSessionUser()?.id;
+  const clearedAtKey = sessionUserId ? `otuzanNotificationsClearedAt:${sessionUserId}` : null;
+  const [clearedAt, setClearedAt] = useState(() => {
+    try { return clearedAtKey ? Number(localStorage.getItem(clearedAtKey)) || 0 : 0; } catch { return 0; }
+  });
   const notifications = useMemo(() => (
     [...localNotifications, ...backendNotifications.map(toLocalNotificationShape)]
+      .filter((item) => Date.parse(item.createdAt) > clearedAt)
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-  ), [localNotifications, backendNotifications]);
+  ), [localNotifications, backendNotifications, clearedAt]);
+  const clearAllNotifications = () => {
+    const clearTimestamp = Date.now();
+    try { if (clearedAtKey) localStorage.setItem(clearedAtKey, String(clearTimestamp)); } catch { /* ignore */ }
+    setClearedAt(clearTimestamp);
+  };
   const [openPanel, setOpenPanel] = useState(null);
   const [activityTab, setActivityTab] = useState('notifications');
   const [now, setNow] = useState(Date.now());
@@ -174,6 +191,10 @@ const CustomerActivity = () => {
                   <button className={activityTab === 'orders' ? 'active' : ''} type="button" onClick={() => setActivityTab('orders')}>Track Orders</button>
                 </div>
 
+                {activityTab === 'notifications' && notifications.length > 0 && (
+                  <button type="button" className="activity-clear-all" onClick={clearAllNotifications}>Clear all</button>
+                )}
+
                 <div className="activity-drawer-body">
                   {activityTab === 'notifications' && (
                     notifications.length ? notifications.map((notification) => (
@@ -236,7 +257,7 @@ const CustomerActivity = () => {
 
                         <OrderChat order={order} />
                       </article>
-                    )) : <EmptyState icon="fa-route" title="No active orders" message="Placed orders will be tracked here." />
+                    )) : <EmptyState icon="fa-route" title="No active orders" message="Placed orders will be tracked here until they're delivered or cancelled." />
                   )}
                 </div>
               </>
