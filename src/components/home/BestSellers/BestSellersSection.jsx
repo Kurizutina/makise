@@ -8,6 +8,7 @@ const formatPrice = (amount) => new Intl.NumberFormat('en-PH', { style: 'currenc
 const BestSellersSection = ({ products, onProductSelect }) => {
   const [cards, setCards] = useState(cardsForViewport);
   const [page, setPage] = useState(0);
+  const [direction, setDirection] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
   const pages = Math.max(1, Math.ceil((products?.length || 0) / cards));
 
@@ -20,13 +21,19 @@ const BestSellersSection = ({ products, onProductSelect }) => {
 
   useEffect(() => {
     if (pages < 2 || isPaused) return undefined;
-    const timer = window.setInterval(() => setPage((current) => (current + 1) % pages), 2500);
+    const timer = window.setInterval(() => {
+      setDirection(1);
+      setPage((current) => (current + 1) % pages);
+    }, 2500);
     return () => window.clearInterval(timer);
   }, [isPaused, pages]);
 
   if (!products?.length) return null;
   const shown = products.slice(page * cards, page * cards + cards);
-  const changePage = (amount) => setPage((current) => (current + amount + pages) % pages);
+  const changePage = (amount) => {
+    setDirection(amount);
+    setPage((current) => (current + amount + pages) % pages);
+  };
 
   return <section className="best-sellers-section" aria-labelledby="best-sellers-title">
     <header className="best-sellers-heading">
@@ -35,16 +42,18 @@ const BestSellersSection = ({ products, onProductSelect }) => {
     </header>
     <div className="best-sellers-carousel" onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)} onFocus={() => setIsPaused(true)} onBlur={() => setIsPaused(false)}>
       <button className="best-sellers-arrow" type="button" onClick={() => changePage(-1)} aria-label="Show previous best sellers"><i className="fa-solid fa-arrow-left" aria-hidden="true" /></button>
-      <div className="best-sellers-track" aria-live="polite">
-        {shown.map((product) => {
-          const productImage = catalogImageUrl(product.ImagePath);
-          const brandLogo = catalogImageUrl(product.BrandImagePath);
-          const image = productImage || brandLogo;
-          return <button type="button" className="best-seller-card" key={product.ProductID} onClick={() => onProductSelect(product)}>
-          <div className={`best-seller-image${!productImage && brandLogo ? ' brand-logo' : ''}`}>{image ? <img src={image} alt={productImage ? product.ProductName : `${product.BrandName} logo`} /> : <span>{product.BrandName?.[0] || '?'}</span>}</div>
-          <div className="best-seller-body"><h3>{product.ProductName}</h3><p>{product.BrandName}</p><strong className="best-seller-price">{formatPrice(product.ProductPrice)}</strong><span className="best-seller-action"><i className="fa-solid fa-utensils" aria-hidden="true" /> View menu</span></div>
-        </button>;
-        })}
+      <div className="best-sellers-viewport">
+        <div className={`best-sellers-track ${direction > 0 ? 'slide-next' : 'slide-prev'}`} aria-live="polite" key={page}>
+          {shown.map((product) => {
+            const productImage = catalogImageUrl(product.ImagePath);
+            const brandLogo = catalogImageUrl(product.BrandImagePath);
+            const image = productImage || brandLogo;
+            return <button type="button" className="best-seller-card" key={product.ProductID} onClick={() => onProductSelect(product)}>
+            <div className={`best-seller-image${!productImage && brandLogo ? ' brand-logo' : ''}`}>{image ? <img src={image} alt={productImage ? product.ProductName : `${product.BrandName} logo`} /> : <span>{product.BrandName?.[0] || '?'}</span>}</div>
+            <div className="best-seller-body"><h3>{product.ProductName}</h3><p>{product.BrandName}</p><strong className="best-seller-price">{formatPrice(product.ProductPrice)}</strong><span className="best-seller-action"><i className="fa-solid fa-utensils" aria-hidden="true" /> View menu</span></div>
+          </button>;
+          })}
+        </div>
       </div>
       <button className="best-sellers-arrow" type="button" onClick={() => changePage(1)} aria-label="Show next best sellers"><i className="fa-solid fa-arrow-right" aria-hidden="true" /></button>
     </div>
