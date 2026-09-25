@@ -597,6 +597,49 @@ AI for key business decisions
 
 ## High
 
+- [x] **Admin "can't assign a rider" - assignment actually worked, the UI
+      just never showed it** (user-reported live, 9/25; fixed same day).
+      Simulated a full real transaction to find it: real customer account,
+      real order placed through the actual UI, real admin session
+      assigning a rider through the actual dashboard - not just a code
+      read. The backend assign endpoint worked correctly both attempts
+      (confirmed via direct API calls to isolate backend from frontend).
+      The bug was real, just not where "can't assign" suggested.
+
+      Root cause: `needsRiderAssignment()`'s `||` meant an order stayed
+      classified as "Pending" - the same bucket as an order nobody has
+      touched yet - purely because its status was still `pending_rider`,
+      *regardless* of whether a rider had actually just been assigned.
+      This became reachable when Sean's 9/25 merge changed `assign()` to
+      no longer auto-confirm the order (a real, correct fix for a
+      different problem - see Completed Work below on the rider-dashboard
+      side) - before that, assigning a rider immediately flipped the
+      order to `confirmed` and visibly jumped it to the Ongoing column,
+      so the old bucketing logic never got exercised this way. After that
+      change, a successfully-assigned order looked *identical* to an
+      unassigned one (same "Pending" label, same column) except for a
+      small, easy-to-miss "Assigned to X" line - exactly what a reasonable
+      admin would read as "my Assign click didn't do anything."
+
+      Fixed by adding the missing state: a new "Awaiting Rider Response"
+      column (`isAwaitingRiderResponse`) for orders that have a rider but
+      haven't been accepted yet, and narrowing `needsRiderAssignment` to
+      only true "nobody's touched this yet" orders (checks
+      `hasAssignedRider` directly instead of inferring from status
+      strings). Also added the same filter option, and the order card's
+      own status text now says "Awaiting rider response" instead of the
+      ambiguous "Pending" once assigned.
+
+      Verified live end-to-end, real accounts throughout: order placed via
+      the actual customer UI, assigned via the actual admin UI - watched
+      it immediately move out of "Pending" (0) into the new "Awaiting
+      Rider Response" (1) column. Progressed it through
+      confirmed/preparing/out_for_delivery/delivered via the real API as
+      the rider and confirmed it correctly landed in "Ongoing" once
+      confirmed - the whole lifecycle, not just the one broken step.
+      Frontend suite re-run clean (23/27 baseline); backend untouched
+      (frontend-only fix), still 57 passed. Test data cleaned up after.
+
 - [x] **Jollibee catalog images were up to 76x oversized - a real, measured
       lag source, not a hunch** (user-reported "the system is lagging,"
       9/25; investigated and fixed same day). User specifically flagged
