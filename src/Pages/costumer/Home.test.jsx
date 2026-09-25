@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import Home from './Home';
 
 const mockNavigate = jest.fn();
@@ -9,7 +9,7 @@ jest.mock('../../components/home/Header/Header', () => ({ services, selectedServ
 ));
 jest.mock('../../components/home/Footer/Footer', () => () => null);
 jest.mock('../../components/home/FoodandItem/FoodandItemsSection/FoodandItemsSection', () => ({ brands, onBrandSelect }) => (
-  <div>{brands.map((brand) => <button key={brand.id} onClick={() => onBrandSelect(brand)}>{brand.name}</button>)}</div>
+  <div data-testid="brand-grid">{brands.map((brand) => <button key={brand.id} onClick={() => onBrandSelect(brand)}>{brand.name}</button>)}</div>
 ));
 
 afterEach(() => { delete global.fetch; mockNavigate.mockClear(); });
@@ -32,7 +32,7 @@ test('home shows API brands and opens the current database product catalog', asy
   fireEvent.click(await screen.findByRole('button', { name: "Manuela's" }));
   expect(mockNavigate).toHaveBeenCalledWith('/catalog/brands/4');
   expect(screen.getByRole('button', { name: 'Jollibee' })).toBeInTheDocument();
-  expect(screen.getAllByRole('button').slice(2).map((button) => button.textContent)).toEqual([
+  expect(within(screen.getByTestId('brand-grid')).getAllByRole('button').map((button) => button.textContent)).toEqual([
     "Manuela's", 'Jollibee', 'Others'
   ]);
   fireEvent.click(screen.getByRole('button', { name: 'Item Delivery' }));
