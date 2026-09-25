@@ -10,7 +10,13 @@ const BestSellersSection = ({ products, onProductSelect }) => {
   const [page, setPage] = useState(0);
   const [direction, setDirection] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
-  const pages = Math.max(1, Math.ceil((products?.length || 0) / cards));
+  const count = products?.length || 0;
+  // One product at a time now (was: a full `cards`-sized page at once) -
+  // `pages` here means "how many starting positions the window can slide
+  // through," which is the product count itself once there are more
+  // products than fit on screen at once; otherwise there's nothing to
+  // slide, so it collapses to a single static page.
+  const pages = count > cards ? count : 1;
 
   useEffect(() => {
     const resize = () => setCards(cardsForViewport());
@@ -28,8 +34,10 @@ const BestSellersSection = ({ products, onProductSelect }) => {
     return () => window.clearInterval(timer);
   }, [isPaused, pages]);
 
-  if (!products?.length) return null;
-  const shown = products.slice(page * cards, page * cards + cards);
+  if (!count) return null;
+  const shown = pages === 1
+    ? products.slice(0, cards)
+    : Array.from({ length: cards }, (_, index) => products[(page + index) % count]);
   const changePage = (amount) => {
     setDirection(amount);
     setPage((current) => (current + amount + pages) % pages);
