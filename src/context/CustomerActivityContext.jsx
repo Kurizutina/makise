@@ -49,27 +49,33 @@ const patchStoredOrder = (localOrderId, patch) => {
   window.dispatchEvent(new CustomEvent(CUSTOMER_ACTIVITY_CHANGED, { detail: next }));
 };
 
-// Best-effort sync to the real backend order API. Only fires for orders made
-// up entirely of real catalog products (i.e. a productId on every line) -
-// static-menu brands, custom items, and bill payments stay localStorage-only
-// for now. Never awaited by callers and never throws: the localStorage write
+// Best-effort sync to the real backend order API. Catalog-backed orders keep
+// their server-verified product/price path; static/custom menu orders send a
+// display snapshot so they are still recorded for admin operations and fee
+// revenue. Never awaited by callers and never throws: the localStorage write
 // already happened and is what the UI actually reflects, so a failure here
 // (offline, backend down, brand not yet migrated) changes nothing the
 // customer sees. On success, patches the returned backend OrderID onto the
 // local order so later status/assignment changes can also be synced.
-const syncOrderToBackend = (localOrderId, items, deliveryAddress, serviceFee = 0) => {
+const syncOrderToBackend = (localOrderId, order, deliveryAddress, serviceFee = 0) => {
   try {
-    if (!items?.length || !items.every((item) => Number.isInteger(item.productId))) return;
+    const items = order?.items || [];
+    if (!items.length) return;
     const headers = authHeaders();
     if (!headers || getSessionUser()?.role !== 'customer') return;
     fetch(`${API_BASE_URL}/api/orders`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({
-        items: items.map((item) => ({ ProductID: item.productId, quantity: item.quantity || 1 })),
-        deliveryAddress: deliveryAddress || 'Not provided',
-        serviceFee: Number(serviceFee) || 0
-      })
+      body: JSON.stringify(items.every((item) => Number.isInteger(item.productId))
+        ? {
+          items: items.map((item) => ({ ProductID: item.productId, quantity: item.quantity || 1 })),
+          deliveryAddress: deliveryAddress || 'Not provided', serviceFee: Number(serviceFee) || 0
+        }
+        : {
+          customItems: items.map((item) => ({ name: item.name || 'Custom item', quantity: item.quantity || 1, price: Number(item.price) || 0 })),
+          source: order.source || 'Otu-Zan', label: order.label || 'Customer order', section: order.section === 'item' ? 'item' : 'food',
+          deliveryAddress: deliveryAddress || 'Not provided', serviceFee: Number(serviceFee) || 0
+        })
     })
       .then((response) => (response.ok ? response.json() : null))
       .then((body) => {
@@ -376,7 +382,7 @@ export const CustomerActivityProvider = ({ children }) => {
     if (section === 'bills') {
       syncPaymentToBackend(order.id, details, order.serviceFee);
     } else {
-      syncOrderToBackend(order.id, items, customer.customerAddress, order.serviceFee);
+      syncOrderToBackend(order.id, order, customer.customerAddress, order.serviceFee);
     }
     return order;
   });
@@ -429,7 +435,7 @@ export const CustomerActivityProvider = ({ children }) => {
     }));
     const nextCart = source ? cart.filter((item) => item.source !== source) : [];
     updateAll(nextCart, [...newOrders, ...orders], [...newNotifications, ...notifications]);
-    newOrders.forEach((order) => syncOrderToBackend(order.id, order.items, customer.customerAddress, order.serviceFee));
+    newOrders.forEach((order) => syncOrderToBackend(order.id, order, customer.customerAddress, order.serviceFee));
     return newOrders[0];
   });
 

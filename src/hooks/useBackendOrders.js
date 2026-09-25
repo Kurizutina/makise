@@ -39,22 +39,18 @@ export const useBackendOrders = (endpoint) => {
       })
       .catch(() => {});
     load();
-    // 30s, not 15s: this now also runs on every customer-facing page (added
-    // in step 1f, for real queue positions), on top of the admin and rider
-    // dashboards that already polled. The local dev backend (php artisan
-    // serve) has very limited request concurrency - confirmed directly, 8
-    // concurrent requests queue up to ~2.5s for the last one - so with 3
-    // independent pollers now instead of 2, halving the request rate here
-    // measurably reduces how often a real click gets stuck behind polling
-    // traffic. 30s of staleness on order status is an acceptable tradeoff;
-    // a stuck button on every click is not - that's what ORDERS_CHANGED_EVENT
-    // is for instead.
-    const poll = window.setInterval(load, 30000);
+    // Status changes are made by riders/admins on separate devices. A short
+    // poll keeps customer tracking in sync even though those devices cannot
+    // dispatch a shared browser event.
+    const poll = window.setInterval(load, 5000);
     window.addEventListener(ORDERS_CHANGED_EVENT, load);
+    const refreshWhenVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
     return () => {
       controller.abort();
       window.clearInterval(poll);
       window.removeEventListener(ORDERS_CHANGED_EVENT, load);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
   }, [endpoint]);
 
@@ -79,8 +75,9 @@ export const toLocalOrderShape = (backend) => {
   const payment = backend.payments?.[0];
   const isBill = Boolean(payment);
   const brand = backend.items?.[0]?.product?.brand;
-  const source = isBill ? (payment.PaymentName || 'Bill payment') : (brand?.BrandName || 'Otu-Zan');
-  const section = isBill ? 'bills' : (brand?.service?.ServiceType === 'item' ? 'item' : 'food');
+  const snapshot = backend.OrderSnapshot || {};
+  const source = isBill ? (payment.PaymentName || 'Bill payment') : (snapshot.source || brand?.BrandName || 'Otu-Zan');
+  const section = isBill ? 'bills' : (snapshot.section || (brand?.service?.ServiceType === 'item' ? 'item' : 'food'));
   let paymentNote = {};
   if (isBill) {
     try { paymentNote = JSON.parse(payment.PaymentNote || '{}'); } catch { paymentNote = {}; }
@@ -90,12 +87,12 @@ export const toLocalOrderShape = (backend) => {
     backendOrderId: backend.OrderID,
     backendPaymentId: payment?.PaymentID ?? null,
     source,
-    label: isBill ? `${source} bill payment` : `${source} order`,
+    label: isBill ? `${source} bill payment` : (snapshot.label || `${source} order`),
     section,
-    items: (backend.items || []).map((item) => ({
+    items: (backend.items?.length ? backend.items : (snapshot.items || [])).map((item) => ({
       productId: item.ProductID,
-      name: item.product?.ProductName || 'Item',
-      price: Number(item.OrderItemPrice) || 0,
+      name: item.product?.ProductName || item.name || 'Item',
+      price: Number(item.OrderItemPrice ?? item.price) || 0,
       quantity: item.ProductQuantity || 1,
       image: catalogImageUrl(item.product?.ImagePath)
     })),

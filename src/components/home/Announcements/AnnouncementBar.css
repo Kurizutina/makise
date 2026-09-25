@@ -1,11 +1,11 @@
-.announcement-bar { padding: 14px clamp(14px, 5vw, 78px) 12px; background: linear-gradient(120deg, #e51d5a 0%, #ed3856 52%, #fb6940 100%); }
-.announcement-bar-inner { max-width:780px; margin:auto; }
-.announcement-viewport { overflow:hidden; border-radius:14px; }
-.announcement-track { display:flex; transition:transform .5s ease; will-change:transform; }
-.announcement-slide { display:flex; flex:0 0 100%; align-items:center; gap:13px; min-width:0; padding:11px 16px; border:1px solid rgba(255,255,255,.42); border-radius:14px; background:rgba(255,255,255,.15); color:#fff; }
+.announcement-bar { padding:16px clamp(16px, 5vw, 78px) 14px; background:linear-gradient(120deg, var(--color-primary-dark) 0%, var(--color-accent) 52%, var(--color-coral) 100%); }
+.announcement-bar-inner { max-width:860px; margin:auto; }
+.announcement-viewport { overflow:hidden; border-radius:16px; box-shadow:0 8px 24px rgba(0,0,0,.08); }
+.announcement-track { display:flex; transition:transform .45s ease; will-change:transform; }
+.announcement-slide { display:flex; flex:0 0 100%; align-items:center; gap:13px; min-width:0; padding:13px 18px; border:1px solid rgba(255,255,255,.25); border-radius:16px; background:rgba(255,255,255,.14); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); color:#fff; }
 .announcement-slide > i { display:grid; flex:0 0 auto; place-items:center; width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,.24); font-size:15px; }
-.announcement-slide strong { display:block; margin-bottom:2px; font-size:12px; letter-spacing:.04em; text-transform:uppercase; }
-.announcement-slide p { margin:0; font-size:14px; line-height:1.35; }
+.announcement-slide strong { display:block; margin-bottom:3px; color:rgba(255,255,255,.8); font-size:10px; letter-spacing:.09em; text-transform:uppercase; }
+.announcement-slide p { margin:0; font-size:14px; font-weight:600; line-height:1.4; }
 .announcement-dots { display:flex; justify-content:center; gap:5px; margin-top:9px; }
 .announcement-dots button { width:7px; height:7px; padding:0; border:1px solid rgba(255,255,255,.65); border-radius:50%; background:transparent; cursor:pointer; }
 .announcement-dots button.active { width:19px; border-radius:8px; background:#fff; }

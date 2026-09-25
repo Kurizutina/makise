@@ -20,7 +20,7 @@ const BestSellersSection = ({ products, onProductSelect }) => {
 
   useEffect(() => {
     if (pages < 2 || isPaused) return undefined;
-    const timer = window.setInterval(() => setPage((current) => (current + 1) % pages), 2000);
+    const timer = window.setInterval(() => setPage((current) => (current + 1) % pages), 2500);
     return () => window.clearInterval(timer);
   }, [isPaused, pages]);
 

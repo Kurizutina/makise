@@ -5,7 +5,9 @@
      file. New or touched components should reference these instead of
      hardcoding another near-identical value. */
   --color-primary: #da1c5c;
-  --color-primary-dark: #a71243;
+  --color-primary-dark: #8f173d;
+  --color-accent: #f14570;
+  --color-coral: #fb7249;
   --color-primary-light: #ffe9ef;
   --color-header-bg: #e31b62;
   --color-header-button-bg: #c81752;
@@ -13,13 +15,18 @@
   --color-text-muted: #766a70;
   --color-border: #eee4e8;
   --color-surface: #ffffff;
+  --color-background: #fffafb;
+  --color-success: #218b5b;
+  --color-warning: #c97912;
+  --color-error: #c43b4b;
 
   --radius-sm: 10px;
   --radius-md: 14px;
+  --radius-lg: 18px;
   --radius-pill: 999px;
 
-  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --shadow-card-hover: 0 10px 20px rgba(0, 0, 0, 0.16);
+  --shadow-card: 0 4px 14px rgba(52, 26, 36, 0.08);
+  --shadow-card-hover: 0 8px 20px rgba(52, 26, 36, 0.12);
 
   --font-family-base: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI',
     'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans',

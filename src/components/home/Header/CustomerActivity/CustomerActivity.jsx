@@ -196,7 +196,7 @@ const CustomerActivity = () => {
                           </details>
                         )}
 
-                        {['pending_rider', 'cancelled'].includes(order.status) && (
+                        {(['pending_rider', 'cancelled'].includes(order.status) && !order.assignedRider) && (
                           <EstimatedWait order={order} now={now} />
                         )}
 

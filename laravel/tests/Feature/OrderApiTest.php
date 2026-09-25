@@ -75,6 +75,34 @@ class OrderApiTest extends TestCase
         ]);
     }
 
+    public function test_custom_menu_order_is_persisted_and_its_service_fee_is_revenue(): void
+    {
+        $customer = $this->user('customer');
+        $admin = $this->user('admin');
+
+        $response = $this->withToken($this->token($customer))->postJson('/api/orders', [
+            'customItems' => [['name' => 'Special burger', 'quantity' => 2, 'price' => 95]],
+            'source' => 'Local Burger Shop',
+            'label' => '2pc Special burger',
+            'section' => 'food',
+            'deliveryAddress' => '123 Test Street',
+            'serviceFee' => 75,
+        ])->assertCreated();
+
+        $orderId = $response->json('order.OrderID');
+        $this->assertDatabaseHas('Orders', [
+            'OrderID' => $orderId, 'TotalPrice' => 265, 'ServiceFee' => 75,
+        ]);
+        $this->assertSame('Local Burger Shop', $response->json('order.OrderSnapshot.source'));
+
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token($admin))->getJson('/api/admin/orders')
+            ->assertOk()->assertJsonPath('data.0.OrderID', $orderId);
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token($admin))->getJson('/api/admin/revenue')
+            ->assertOk()->assertJsonPath('total', 75);
+    }
+
     public function test_order_rejects_a_service_fee_outside_the_sane_range(): void
     {
         $customer = $this->user('customer');
@@ -216,7 +244,7 @@ class OrderApiTest extends TestCase
             'riderId' => $rider->UserID,
         ])->assertOk()
             ->assertJsonPath('order.AssignedRiderID', $rider->UserID)
-            ->assertJsonPath('order.DeliveryStatus', 'confirmed');
+            ->assertJsonPath('order.DeliveryStatus', 'pending_rider');
 
         $this->withToken($this->token($admin))->patchJson("/api/orders/{$order->OrderID}/assign", [
             'riderId' => null,
@@ -226,9 +254,9 @@ class OrderApiTest extends TestCase
     // No customer-facing component read AssignedRiderID at all - a
     // customer never saw who was actually delivering their order. Rather
     // than build a separate "your rider" UI, the name rides along in the
-    // notification a customer already checks, once one is actually
-    // assigned.
-    public function test_assigning_a_rider_names_them_in_the_customer_notification(): void
+    // notification a customer already checks, once that rider explicitly
+    // accepts the assigned order.
+    public function test_rider_confirmation_names_them_in_the_customer_notification(): void
     {
         $customer = $this->user('customer');
         $rider = $this->user('driver');
@@ -239,6 +267,13 @@ class OrderApiTest extends TestCase
 
         $this->withToken($this->token($admin))->patchJson("/api/orders/{$order->OrderID}/assign", [
             'riderId' => $rider->UserID,
+        ])->assertOk()->assertJsonPath('order.DeliveryStatus', 'pending_rider');
+
+        $this->assertDatabaseMissing('Notification', ['UserID' => $customer->UserID]);
+
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token($rider))->patchJson("/api/orders/{$order->OrderID}/status", [
+            'status' => 'confirmed',
         ])->assertOk();
 
         $message = json_decode(Notification::where('UserID', $customer->UserID)->latest('NotificationID')->first()->NotificationMessage, true);
@@ -258,6 +293,55 @@ class OrderApiTest extends TestCase
 
         $message = json_decode(Notification::where('UserID', $customer->UserID)->latest('NotificationID')->first()->NotificationMessage, true);
         $this->assertStringNotContainsString('is your rider', $message['message']);
+    }
+
+    public function test_rider_delivery_notifies_the_owning_customer(): void
+    {
+        $customer = $this->user('customer');
+        $rider = $this->user('driver');
+        $order = Order::create([
+            'UserID' => $customer->UserID,
+            'AssignedRiderID' => $rider->UserID,
+            'TotalPrice' => 100,
+            'DeliveryStatus' => 'out_for_delivery',
+        ]);
+
+        $this->withToken($this->token($rider))->patchJson("/api/orders/{$order->OrderID}/status", [
+            'status' => 'delivered',
+        ])->assertOk()->assertJsonPath('order.DeliveryStatus', 'delivered');
+
+        $notification = Notification::where('UserID', $customer->UserID)->latest('NotificationID')->firstOrFail();
+        $message = json_decode($notification->NotificationMessage, true);
+        $this->assertSame('Order delivered', $message['title']);
+        $this->assertSame($order->OrderID, $message['orderId']);
+    }
+
+    public function test_each_rider_progress_update_notifies_the_owning_customer(): void
+    {
+        $customer = $this->user('customer');
+        $rider = $this->user('driver');
+        $order = Order::create([
+            'UserID' => $customer->UserID,
+            'AssignedRiderID' => $rider->UserID,
+            'TotalPrice' => 100,
+            'DeliveryStatus' => 'confirmed',
+        ]);
+
+        foreach ([
+            'preparing' => 'Order is being prepared',
+            'out_for_delivery' => 'Order is out for delivery',
+            'delivered' => 'Order delivered',
+        ] as $status => $title) {
+            $this->withToken($this->token($rider))
+                ->patchJson("/api/orders/{$order->OrderID}/status", ['status' => $status])
+                ->assertOk()->assertJsonPath('order.DeliveryStatus', $status);
+
+            $notification = Notification::where('UserID', $customer->UserID)
+                ->latest('NotificationID')->firstOrFail();
+            $message = json_decode($notification->NotificationMessage, true);
+            $this->assertSame($title, $message['title']);
+            $this->assertSame($order->OrderID, $message['orderId']);
+        }
     }
 
     public function test_only_admin_can_assign_a_rider(): void
@@ -322,7 +406,7 @@ class OrderApiTest extends TestCase
         $this->app['auth']->forgetGuards();
         $this->withToken($this->token($admin))->patchJson("/api/orders/{$secondOrder->OrderID}/assign", [
             'riderId' => $rider->UserID,
-        ])->assertOk()->assertJsonPath('order.DeliveryStatus', 'confirmed');
+        ])->assertOk()->assertJsonPath('order.DeliveryStatus', 'pending_rider');
 
         $this->app['auth']->forgetGuards();
         $this->withToken($this->token($customer))->patchJson("/api/orders/{$secondOrder->OrderID}/status", [
@@ -332,7 +416,7 @@ class OrderApiTest extends TestCase
         $this->assertDatabaseHas('Orders', [
             'OrderID' => $secondOrder->OrderID,
             'AssignedRiderID' => $rider->UserID,
-            'DeliveryStatus' => 'confirmed',
+            'DeliveryStatus' => 'pending_rider',
         ]);
     }
 

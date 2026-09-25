@@ -2,18 +2,16 @@
    BRAND CARD
    ========================================== */
 
-/* Bare circular tile, no card chrome - matches how Grab/foodpanda present
-   cuisine/brand selection (a photo + label, not a boxed card), which packs
-   noticeably more options into the same width than the previous
-   white-card-with-shadow treatment did. */
 .brand-card {
   width: 100%;
   min-width: 0;
-  padding: 0;
+  min-height: 168px;
+  padding: 20px 12px 16px;
 
   box-sizing: border-box;
-  border: none;
-  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
   font-family: inherit;
 
   display: flex;
@@ -24,7 +22,11 @@
   cursor: pointer;
 
   position: relative;
+  box-shadow: var(--shadow-card);
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
 }
+
+.brand-card:hover { transform:translateY(-3px); border-color:#f3c4d3; box-shadow:var(--shadow-card-hover); }
 
 .brand-card:focus-visible {
   outline: 3px solid rgba(218, 28, 92, 0.35);
@@ -49,8 +51,8 @@
 
   overflow: hidden;
 
-  background-color: #f5f5f5;
-  box-shadow: var(--shadow-card, 0 4px 12px rgba(0, 0, 0, 0.1));
+  background-color: #fff4f7;
+  box-shadow: none;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 
   position: relative;
@@ -58,8 +60,7 @@
 }
 
 .brand-card:hover .brand-image-container {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-card-hover, 0 10px 20px rgba(0, 0, 0, 0.16));
+  transform: scale(1.04);
 }
 
 .brand-image {
@@ -136,6 +137,11 @@
   .brand-image-container {
     width: 68px;
     height: 68px;
+  }
+
+  .brand-card {
+    min-height: 140px;
+    padding: 15px 8px 12px;
   }
 
   .brand-image-placeholder {

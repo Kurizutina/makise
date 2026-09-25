@@ -23,3 +23,80 @@
 .rider-image-zoom-backdrop { position:fixed; inset:0; z-index:1100; display:grid; place-items:center; padding:32px; background:rgba(20,8,15,.82); backdrop-filter:blur(3px); }.rider-image-zoom-backdrop img { max-width:min(100%,900px); max-height:calc(100vh - 64px); object-fit:contain; border-radius:10px; box-shadow:0 24px 70px rgba(0,0,0,.45); }
 .rider-image-zoom-close { position:fixed; top:20px; right:24px; z-index:1101; width:42px; height:42px; border:0; border-radius:50%; background:rgba(255,255,255,.14); color:#fff; font-size:26px; line-height:1; cursor:pointer; }.rider-image-zoom-close:hover { background:rgba(255,255,255,.26); }
 @media(max-width:650px){.rider-dashboard-header{padding:9px 14px}.rider-brand img{width:50px;height:50px}.rider-brand h1{font-size:17px}.rider-header-summary>span{display:none}.rider-dashboard-content{padding:24px 14px 45px}.rider-service-tabs{grid-template-columns:1fr}.rider-service-tabs button{justify-content:flex-start}.rider-service-tabs button strong{margin-left:auto}.rider-order-grid{grid-template-columns:1fr}.rider-detail-summary{grid-template-columns:1fr}.rider-order-modal-backdrop{align-items:end;padding:0}.rider-order-modal{max-height:94vh;border-radius:20px 20px 0 0}.rider-modal-actions button{flex:1}.rider-welcome{align-items:flex-start}}
+
+/* Shared Otu-Zan soft-glass system: readable order work surfaces with glass
+   reserved for the dashboard header, notices, and modal overlays. */
+.rider-dashboard-page {
+  background: var(--color-background, #fffafb);
+  background-image: radial-gradient(circle at 88% 0%, rgba(251,114,73,.10), transparent 25rem);
+  color: var(--color-text, #30262a);
+}
+.rider-dashboard-header {
+  min-height: 88px;
+  background: linear-gradient(120deg, var(--color-primary-dark, #8f173d), var(--color-primary, #da1c5c) 58%, var(--color-accent, #f14570));
+  box-shadow: 0 8px 24px rgba(73,14,35,.14);
+}
+.rider-header-summary > span,
+.rider-header-summary button {
+  border-color: rgba(255,255,255,.25);
+  border-radius: 12px;
+  background: rgba(255,255,255,.14);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: all .2s ease;
+}
+.rider-header-summary button:hover { background: rgba(255,255,255,.23); transform: translateY(-1px); }
+.rider-dashboard-content { padding-top: 40px; }
+.rider-welcome { margin-bottom: 28px; }
+.rider-welcome > div > span { color: var(--color-primary, #da1c5c); }
+.rider-welcome h2 { letter-spacing: -.03em; }
+.rider-welcome p { color: var(--color-text-muted, #766a70); }
+.rider-stat {
+  min-width: 112px;
+  padding: 14px 18px;
+  border-color: rgba(255,255,255,.7);
+  border-radius: 16px;
+  background: rgba(255,255,255,.72);
+  box-shadow: 0 8px 24px rgba(52,26,36,.08);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.rider-service-tabs { gap: 8px; padding: 6px; border: 1px solid #f1e2e7; border-radius: 16px; background: rgba(255,245,248,.86); }
+.rider-service-tabs button { border-radius: 11px; transition: all .2s ease; }
+.rider-service-tabs button:hover { background: rgba(255,255,255,.72); color: var(--color-primary, #da1c5c); }
+.rider-service-tabs button.active { border-color: rgba(255,255,255,.65); background: #fff; box-shadow: 0 5px 14px rgba(52,26,36,.08); }
+.rider-service-tabs button.active strong { background: #fff0f5; color: var(--color-primary, #da1c5c); }
+.rider-section-heading p { color: var(--color-text-muted, #766a70); }
+.rider-order-grid { gap: 16px; }
+.rider-order-card {
+  border-color: var(--color-border, #eee4e8);
+  border-radius: 16px;
+  box-shadow: 0 4px 14px rgba(52,26,36,.07);
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.rider-order-card:hover { transform: translateY(-3px); border-color: #f2cad7; box-shadow: 0 8px 20px rgba(52,26,36,.11); }
+.rider-order-source { border-radius: 12px; background: #fff7f9; }
+.rider-order-source > i { border-radius: 10px; }
+.rider-order-estimate { color: var(--color-primary, #da1c5c); }
+.rider-order-preview button { transition: color .2s ease, transform .2s ease; }
+.rider-order-preview button:hover { transform: translateX(2px); }
+.rider-decision-buttons button,.rider-modal-actions button { border-radius: 11px; transition: all .2s ease; }
+.rider-accept,.rider-advance { border-color: var(--color-primary, #da1c5c); background: linear-gradient(135deg, var(--color-primary, #da1c5c), var(--color-accent, #f14570)); box-shadow: 0 5px 14px rgba(218,28,92,.18); }
+.rider-decision-buttons button:hover,.rider-modal-actions button:hover { transform: translateY(-1px); }
+.rider-empty-orders { border-radius: 18px; background: rgba(255,255,255,.5); }
+.rider-order-modal {
+  border: 1px solid rgba(255,255,255,.7);
+  border-radius: 20px;
+  background: rgba(255,255,255,.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.rider-detail-summary > div { border-radius: 12px; background: #fff7f9; }
+.rider-detail-items,.rider-recipient { border-color: var(--color-border, #eee4e8); border-radius: 14px; }
+.rider-recipient { background: #fff9f1; }
+
+@media(max-width:650px) {
+  .rider-dashboard-header { min-height: 72px; }
+  .rider-dashboard-content { padding-top: 28px; }
+  .rider-stat { padding: 11px 13px; }
+}

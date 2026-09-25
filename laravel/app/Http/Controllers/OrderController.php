@@ -19,14 +19,39 @@ class OrderController extends Controller
     {
         abort_unless($request->user()->Role === 'customer', 403);
         $data = $request->validate([
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.ProductID' => ['required', 'integer', 'distinct', 'exists:Product,ProductID'],
-            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],
+            'items' => ['nullable', 'array', 'min:1', 'required_without:customItems'],
+            'items.*.ProductID' => ['required_with:items', 'integer', 'distinct', 'exists:Product,ProductID'],
+            'items.*.quantity' => ['required_with:items', 'integer', 'min:1', 'max:99'],
+            'customItems' => ['nullable', 'array', 'min:1', 'required_without:items'],
+            'customItems.*.name' => ['required_with:customItems', 'string', 'max:255'],
+            'customItems.*.quantity' => ['required_with:customItems', 'integer', 'min:1', 'max:99'],
+            'customItems.*.price' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
+            'source' => ['nullable', 'string', 'max:150'],
+            'label' => ['nullable', 'string', 'max:255'],
+            'section' => ['nullable', Rule::in(['food', 'item'])],
             'deliveryAddress' => ['required', 'string', 'max:2000'],
             'serviceFee' => ['nullable', 'numeric', 'min:0', 'max:500'],
         ]);
 
         $order = DB::transaction(function () use ($data, $request) {
+            $serviceFee = (float) ($data['serviceFee'] ?? 0);
+            if (!empty($data['customItems'])) {
+                $itemsTotal = collect($data['customItems'])->sum(fn ($item) => (float) ($item['price'] ?? 0) * $item['quantity']);
+                return Order::create([
+                    'UserID' => $request->user()->UserID,
+                    'TotalPrice' => $itemsTotal + $serviceFee,
+                    'ServiceFee' => $serviceFee,
+                    'OrderDate' => now(),
+                    'DeliveryAddress' => $data['deliveryAddress'],
+                    'OrderSnapshot' => [
+                        'source' => $data['source'] ?? 'Otu-Zan',
+                        'label' => $data['label'] ?? 'Customer order',
+                        'section' => $data['section'] ?? 'food',
+                        'items' => $data['customItems'],
+                    ],
+                    'DeliveryStatus' => 'pending_rider',
+                ]);
+            }
             $productIds = collect($data['items'])->pluck('ProductID');
             $products = Product::whereIn('ProductID', $productIds)->where('IsActive', true)->get()->keyBy('ProductID');
 
@@ -42,8 +67,6 @@ class OrderController extends Controller
                     'ProductQuantity' => $item['quantity'],
                 ];
             }
-
-            $serviceFee = (float) ($data['serviceFee'] ?? 0);
 
             $order = Order::create([
                 'UserID' => $request->user()->UserID,
@@ -151,7 +174,7 @@ class OrderController extends Controller
             $orderCount++;
             $service = $order->payments->isNotEmpty()
                 ? 'bills'
-                : ($order->items->first()?->product?->brand?->service?->ServiceType === 'item' ? 'item' : 'food');
+                : ($order->OrderSnapshot['section'] ?? ($order->items->first()?->product?->brand?->service?->ServiceType === 'item' ? 'item' : 'food'));
             $byService[$service] = ($byService[$service] ?? 0) + $fee;
         }
 
@@ -201,7 +224,8 @@ class OrderController extends Controller
         $isOwningCustomerCancelling = $user->Role === 'customer'
             && $order->UserID === $user->UserID
             && $data['status'] === 'cancelled'
-            && $order->DeliveryStatus === 'pending_rider';
+            && $order->DeliveryStatus === 'pending_rider'
+            && is_null($order->AssignedRiderID);
         abort_unless($isAdmin || $isAssignedRider || $isOwningCustomerCancelling, 403);
         abort_if(in_array($order->DeliveryStatus, ['delivered', 'cancelled'], true), 422, 'This order is already finalized.');
 
@@ -238,10 +262,9 @@ class OrderController extends Controller
         // no customer-facing component read AssignedRiderID at all. Rather
         // than build a separate "your rider" UI, the rider's name rides
         // along in the same notification a customer already checks: once
-        // one is assigned (a rider is only ever attached via assign(),
-        // which calls this with 'confirmed'), every status update from
-        // then on names them by first name - the message stays honest
-        // (no name) for the states before a rider is assigned.
+        // one is assigned and explicitly accepts the order, the acceptance
+        // and delivery updates name them by first name - the message stays
+        // honest (no name) for the states before a rider is assigned.
         $riderName = $order->rider?->UserName;
         $riderSuffix = $riderName && in_array($status, ['confirmed', 'out_for_delivery', 'delivered'], true)
             ? " {$this->firstName($riderName)} is your rider."
@@ -277,19 +300,11 @@ class OrderController extends Controller
             abort_unless($rider && $rider->Role === 'driver', 422, 'That user is not a rider.');
         }
 
-        DB::transaction(function () use ($order, $riderId) {
-            $updates = ['AssignedRiderID' => $riderId];
-            if ($riderId && $order->DeliveryStatus === 'pending_rider') {
-                $updates['DeliveryStatus'] = 'confirmed';
-            }
-
-            $order->update($updates);
-
-            if (($updates['DeliveryStatus'] ?? null) === 'confirmed') {
-                $order->queueEntries()->where('QueueStatus', 'waiting')->update(['QueueStatus' => 'done']);
-                $this->notifyStatusChange($order, 'confirmed');
-            }
-        });
+        // Assignment reserves the order for a rider, but is not acceptance.
+        // The assigned rider explicitly confirms or cancels it from their
+        // dashboard; only that status action advances the queue and informs
+        // the customer that the order was accepted.
+        $order->update(['AssignedRiderID' => $riderId]);
 
         return response()->json(['order' => $order->fresh(['items.product', 'rider'])]);
     }

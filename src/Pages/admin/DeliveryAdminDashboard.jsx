@@ -583,17 +583,20 @@ const DeliveryAdminDashboard = () => {
 
   return <main className="admin-dashboard-page">
     <aside className={`admin-sidebar ${isMobileMenuOpen ? 'menu-open' : ''}`}>
-      <div className="admin-brand"><img src="/images/otu-zan-logo.jpg" alt="Otu-Zan" /><div><strong>Otu-Zan</strong><span>Admin Console</span></div></div>
-      <button
-        className="admin-menu-toggle"
-        type="button"
-        aria-label={isMobileMenuOpen ? 'Close admin navigation' : 'Open admin navigation'}
-        aria-controls="admin-navigation"
-        aria-expanded={isMobileMenuOpen}
-        onClick={() => setIsMobileMenuOpen((open) => !open)}
-      >
-        <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars'}`} />
-      </button>
+      <div className="admin-brand">
+        <img src="/images/otu-zan-logo.jpg" alt="Otu-Zan" />
+        <div><strong>Otu-Zan</strong><span>Admin Console</span></div>
+        <button
+          className="admin-menu-toggle"
+          type="button"
+          aria-label={isMobileMenuOpen ? 'Close admin navigation' : 'Open admin navigation'}
+          aria-controls="admin-navigation"
+          aria-expanded={isMobileMenuOpen}
+          onClick={() => setIsMobileMenuOpen((open) => !open)}
+        >
+          <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars'}`} />
+        </button>
+      </div>
       <div className="admin-sidebar-menu" id="admin-navigation">
         <nav>{NAV_ITEMS.map((item) => <button className={activeTab === item.key ? 'active' : ''} type="button" onClick={() => handleTabChange(item.key)} key={item.key}><i className={`fa-solid ${item.icon}`} /><span>{item.label}</span>{item.key === 'live' && pendingCount > 0 && <b>{pendingCount}</b>}</button>)}</nav>
         <div className="admin-account"><span>OA</span><div><strong>Operations Admin</strong><small>Otu-Zan management</small></div></div>
