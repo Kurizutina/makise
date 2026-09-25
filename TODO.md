@@ -67,11 +67,25 @@ flipping the box, to keep this split meaningful over time.
       the **login page's submit button uses a completely different color
       family** (gold/orange gradient, `#F9C12F` -> `#FF9846`) while every
       other primary action in the app is pink - not a deliberate two-tone
-      system, just drift between pages built at different times. Scope:
-      collapse to a deliberate small scale (primary / dark-hover / light-tint)
-      enforced through the existing `:root` tokens repo-wide, and decide on
-      purpose whether gold/orange is a real secondary accent (used
-      consistently for one role, e.g. promos) or should go away.
+      system, just drift between pages built at different times.
+
+      **Recommendation (design-consultant pass, 9/25 - not yet implemented,
+      needs a go-ahead first)**: collapse every hardcoded hex above to three
+      tokens already sitting unused in `:root` - primary / dark (hover,
+      pressed) / light (tint, backgrounds) - and mechanically replace each
+      file's ad hoc value with the matching token. Low-risk, high-payoff:
+      it's a find-and-replace against a decided scale, not a redesign, and
+      it's also the exact prerequisite the Dark Mode item below already
+      needs (same token refactor, do it once, unlock both).
+
+      On the gold/orange: recommend **retiring it**, not keeping it as a
+      secondary accent - nothing in the app currently uses it with intent
+      (no promos/deals surface exists to reserve it for), so it's pure
+      drift, not an underused feature. Login's submit button becomes pink
+      like every other primary action. If a real promo/deals surface gets
+      built later, a deliberate secondary accent can be reconsidered then,
+      scoped to that feature specifically - not resurrected from what's
+      already there by default.
 - [ ] **Footer is still a solid full-bleed saturated-pink block** (design
       critique, 9/23; narrowed 9/25 - see Completed Work for the
       header/service-nav half of this, which is done). Lower urgency now
