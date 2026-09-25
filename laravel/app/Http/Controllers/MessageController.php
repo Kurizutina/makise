@@ -48,7 +48,12 @@ class MessageController extends Controller
             'MessageSeen' => false,
             'MessageDate' => now(),
         ]);
-        return response()->json(['message' => $message->load('sender:UserID,UserName,Role')], 201);
+        // ->fresh() re-reads MessageDate as the same naive "Y-m-d H:i:s"
+        // string index() returns - the in-memory model just created still
+        // holds the raw now() Carbon instance, which serializes with a "Z"
+        // and would double up with toUtcIso() on the frontend (same class
+        // of bug as the naive-datetime gotcha already documented).
+        return response()->json(['message' => $message->fresh()->load('sender:UserID,UserName,Role')], 201);
     }
 
     public function markRead(Request $request, Order $order): JsonResponse

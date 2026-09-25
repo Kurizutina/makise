@@ -11,6 +11,7 @@ import LocationPicker from '../LocationPicker/LocationPicker';
 import { getSessionUser } from '../../../../utils/session';
 import { applyBackendTruth, useBackendOrders } from '../../../../hooks/useBackendOrders';
 import { toLocalNotificationShape, useBackendNotifications } from '../../../../hooks/useBackendNotifications';
+import OrderChat from '../../../common/OrderChat/OrderChat';
 
 const NotificationIcon = () => (
   <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -232,6 +233,8 @@ const CustomerActivity = () => {
                             <EstimatedWait order={order} now={now} />
                           </div>
                         )}
+
+                        <OrderChat order={order} />
                       </article>
                     )) : <EmptyState icon="fa-route" title="No active orders" message="Placed orders will be tracked here." />
                   )}

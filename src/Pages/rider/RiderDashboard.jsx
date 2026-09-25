@@ -10,6 +10,7 @@ import OrderCustomerDetails from '../../components/common/OrderCustomerDetails/O
 import { clearSession, getSessionUser, isAssignedTo } from '../../utils/session';
 import { applyBackendTruth, useBackendOrders } from '../../hooks/useBackendOrders';
 import { apiAssetUrl } from '../../utils/catalog';
+import OrderChat from '../../components/common/OrderChat/OrderChat';
 
 const sections = [
   { key: 'food', label: 'Food Delivery', icon: 'fa-utensils' },
@@ -159,6 +160,8 @@ const RiderDashboard = () => {
             )}
 
             {selectedOrder.details?.fulfillmentMethod === 'pickup' && <div className="rider-recipient"><h3>Pick Up recipient</h3><p><strong>{selectedOrder.details.recipientName}</strong> · {selectedOrder.details.recipientContact}</p><span>{selectedOrder.details.deliveryAddress}</span></div>}
+
+            <OrderChat order={selectedOrder} />
 
             <div className="rider-modal-actions">
               {selectedOrder.status === 'pending_rider' && <><button type="button" className="rider-cancel" onClick={() => updateOrderStatus(selectedOrder, 'cancelled')}>Cancel Order</button><button type="button" className="rider-accept" onClick={() => updateOrderStatus(selectedOrder, 'confirmed')}>Confirm Order</button></>}
