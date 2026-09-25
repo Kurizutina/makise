@@ -15,13 +15,6 @@ flipping the box, to keep this split meaningful over time.
 
 ## High Priority
 
-- [ ] **Customer–rider communication** (teammate request, 9/20; channel decided
-      9/25 - in-app, not phone/SMS; backend done same day, see Completed Work) -
-      real feature, being built in parts. **Part 1 (backend) done**: order-scoped
-      chat endpoints, gated to the order's own customer and its currently
-      assigned rider. **Still outstanding: Part 2, the frontend chat UI** -
-      nothing to talk to it with yet.
-
 - [ ] **Two open decisions still block the *correct final number* for
       Revenue** (user request, 9/24 - the date-filter/graph infrastructure
       that used to block on this is now done, see Completed Work) -
@@ -604,8 +597,9 @@ AI for key business decisions
 
 ## High
 
-- [x] **Customer-rider communication, Part 1 (backend)** (teammate request,
-      9/20; channel confirmed 9/25 - in-app, not phone/SMS; built same day).
+- [x] **Customer-rider communication** (teammate request, 9/20; channel
+      confirmed 9/25 - in-app, not phone/SMS; built same day, backend then
+      frontend, both parts now complete).
       Order-scoped chat, following the earlier product-intake recommendation:
       authenticated, retained, rate-limited, and closed once there's no rider
       to talk to or the order is finalized - not a general inbox, and not
@@ -647,9 +641,41 @@ AI for key business decisions
       1 skipped, same 3 pre-existing `AuthApiTest` failures only. Test
       data cleaned up after.
 
-      **Not done yet - Part 2**: the frontend chat UI (customer and rider
-      dashboards have nothing to talk to these endpoints with). Scoped as
-      its own follow-up rather than built in the same pass.
+      **Part 2 (frontend, same day)**: one shared `OrderChat` component
+      (`src/components/common/OrderChat/`), reused as-is on both the
+      customer Track Orders card and the rider order-detail modal - the
+      backend already decides who can actually read/send, so the frontend
+      doesn't need two different implementations. Shows nothing for a
+      local-only order (no `backendOrderId`), a "chat opens once a rider
+      accepts" hint before assignment, the live thread with a send box
+      once a rider's assigned, and "messaging is closed" (history still
+      visible, input hidden) once the order is finalized. Polls every 5s,
+      same interval and pattern as `useBackendOrders`/
+      `useBackendNotifications`, since the other participant is always on
+      a separate device.
+
+      **A real bug found live, not caught by the backend test suite**: a
+      just-sent message showed "Invalid Date" for its timestamp. Root
+      cause was a variant of the already-documented naive-datetime gotcha -
+      `store()`'s response reflected the freshly-created in-memory model,
+      whose `MessageDate` was still the raw `now()` Carbon instance
+      (serializes with a `Z`), while `index()` returns the same column
+      fresh-from-DB as a naive string (no `Z`) - `toUtcIso()` on the
+      frontend then double-appended a `Z` to the one that already had it.
+      `OrderApiTest`/`PaymentApiTest` never exercise this because nothing
+      reads a `store()` response's timestamp back immediately the way this
+      chat UI does. Fixed by returning `$message->fresh()` instead of the
+      in-memory model, same pattern `OrderController`/`PaymentController`
+      already use for their own `store()` responses.
+
+      Verified live end-to-end, real customer and rider accounts, real
+      MySQL: sent a message as the customer, confirmed it appeared
+      correctly attributed on the rider's dashboard, replied as the rider,
+      confirmed the timestamp fix, then marked the order `delivered` and
+      confirmed history stayed visible with the input replaced by the
+      closed notice. Frontend suite re-run clean (23/27 baseline); backend
+      suite re-run clean (57 passed, same 3 pre-existing failures only).
+      Test data cleaned up after.
 
 - [x] **Item Delivery/Pay Bills had no service fee, or the wrong surcharge
       cutoff time** (Sean's pricing rule, 9/25; fixed same day) - Sean's
