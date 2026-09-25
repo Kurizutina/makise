@@ -1458,3 +1458,15 @@ AI for key business decisions
       (frontend suite went from 20/25 to 21/25). (`54b7bbc`)
 - [x] **Add `.gitignore` entry for test artifacts** — same fix as the
       `.gitignore` item above, resolved together. (`f857600`)
+- [x] **Customer activity drawer getting cluttered** (user report, 9/25) — Track
+      Orders showed every order ever placed (active, delivered, cancelled)
+      forever with no way to clear it, and notifications had no dismiss/clear
+      at all (`NotificationController` only had `index`/`markAllRead`). Track
+      Orders now filters to active orders only (matches Grab/foodpanda
+      convention); notifications get a "Clear all" button. Both are view-only
+      filters scoped per-account via a localStorage timestamp - underlying
+      Orders/Notifications records are untouched, so Revenue and admin History
+      (which read the real tables) are unaffected. Verified live: two test
+      orders (one delivered, one active) plus two test notifications - the
+      delivered order and cleared notifications both dropped from view, the
+      active order stayed. (`f77c37e`)
