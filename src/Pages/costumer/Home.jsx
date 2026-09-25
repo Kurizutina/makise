@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Header from '../../components/home/Header/Header';
+import AnnouncementBar from '../../components/home/Announcements/AnnouncementBar';
 import HomeHero from '../../components/home/HomeHero/HomeHero';
 import Footer from '../../components/home/Footer/Footer';
 import FoodandItemsSection from '../../components/home/FoodandItem/FoodandItemsSection/FoodandItemsSection';
@@ -121,6 +122,27 @@ const Home = () => {
     return () => window.clearTimeout(timer);
   }, [location.state]);
 
+  // Footer links can point back to /home while this component is already
+  // mounted. In that case Home does not remount, so the initial-load ref
+  // above cannot see the new router state. React to it here and apply the
+  // requested service (or restore the home view) immediately.
+  useEffect(() => {
+    const requestedType = location.state?.selectedServiceType;
+    if (requestedType) {
+      const requested = services.find((service) => service.ServiceType === requestedType);
+      if (!requested) return;
+      setSelectedService(requested.ServiceID);
+      setIsHome(false);
+      const timer = window.setTimeout(() => document.getElementById('home-brands')?.scrollIntoView({ behavior: 'smooth' }), 0);
+      return () => window.clearTimeout(timer);
+    }
+    if (location.state?.showHome) {
+      setIsHome(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    return undefined;
+  }, [location.state, services]);
+
   const currentService = services.find((service) => service.ServiceID === selectedService);
   const getCurrentBrands = () => (currentService?.brands || [])
     .filter((brand) => brand.BrandName.toLowerCase().includes(search.trim().toLowerCase()))
@@ -157,6 +179,8 @@ const Home = () => {
         services={services}
         onSearch={setSearch}
       />
+
+      {!isHome && <AnnouncementBar />}
 
       {isHome && (
         <HomeHero

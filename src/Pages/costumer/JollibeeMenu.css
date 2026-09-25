@@ -359,6 +359,14 @@
   object-fit: cover;
 }
 
+.jollibee-product-image.brand-logo {
+  padding: 16px;
+}
+
+.jollibee-product-image.brand-logo img {
+  object-fit: contain;
+}
+
 .jollibee-product-body {
   display: flex;
   flex-direction: column;

@@ -36,10 +36,15 @@ const BestSellersSection = ({ products, onProductSelect }) => {
     <div className="best-sellers-carousel" onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)} onFocus={() => setIsPaused(true)} onBlur={() => setIsPaused(false)}>
       <button className="best-sellers-arrow" type="button" onClick={() => changePage(-1)} aria-label="Show previous best sellers"><i className="fa-solid fa-arrow-left" aria-hidden="true" /></button>
       <div className="best-sellers-track" aria-live="polite">
-        {shown.map((product) => <button type="button" className="best-seller-card" key={product.ProductID} onClick={() => onProductSelect(product)}>
-          <div className="best-seller-image">{catalogImageUrl(product.ImagePath) ? <img src={catalogImageUrl(product.ImagePath)} alt={product.ProductName} /> : <span>{product.BrandName?.[0] || '?'}</span>}</div>
+        {shown.map((product) => {
+          const productImage = catalogImageUrl(product.ImagePath);
+          const brandLogo = catalogImageUrl(product.BrandImagePath);
+          const image = productImage || brandLogo;
+          return <button type="button" className="best-seller-card" key={product.ProductID} onClick={() => onProductSelect(product)}>
+          <div className={`best-seller-image${!productImage && brandLogo ? ' brand-logo' : ''}`}>{image ? <img src={image} alt={productImage ? product.ProductName : `${product.BrandName} logo`} /> : <span>{product.BrandName?.[0] || '?'}</span>}</div>
           <div className="best-seller-body"><h3>{product.ProductName}</h3><p>{product.BrandName}</p><strong className="best-seller-price">{formatPrice(product.ProductPrice)}</strong><span className="best-seller-action"><i className="fa-solid fa-utensils" aria-hidden="true" /> View menu</span></div>
-        </button>)}
+        </button>;
+        })}
       </div>
       <button className="best-sellers-arrow" type="button" onClick={() => changePage(1)} aria-label="Show next best sellers"><i className="fa-solid fa-arrow-right" aria-hidden="true" /></button>
     </div>

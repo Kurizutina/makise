@@ -63,6 +63,14 @@
   border: 1px solid var(--color-border, #eee4e8);
   border-radius: var(--radius-md, 14px);
   background: #fff;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.faq-item:hover,
+.faq-item:focus-within {
+  transform: translateY(-2px);
+  border-color: var(--color-primary, #da1c5c);
+  box-shadow: 0 8px 20px rgba(111, 28, 56, .14);
 }
 
 .faq-item summary {

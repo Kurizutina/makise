@@ -15,7 +15,7 @@ const Footer = () => {
   const navigate = useNavigate();
   const goToService = (serviceType) => (event) => {
     event.preventDefault();
-    navigate('/home', serviceType ? { state: { selectedServiceType: serviceType } } : undefined);
+    navigate('/home', { state: serviceType ? { selectedServiceType: serviceType } : { showHome: true } });
   };
 
   return (

@@ -63,6 +63,7 @@ class CatalogController extends Controller
                 'ImagePath' => $product->ImagePath,
                 'BrandID' => $product->BrandID,
                 'BrandName' => $product->brand->BrandName,
+                'BrandImagePath' => $product->brand->ImagePath,
                 'unitsSold' => $unitsSoldByProductId[$product->ProductID],
             ]);
 

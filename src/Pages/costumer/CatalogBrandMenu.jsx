@@ -36,15 +36,15 @@ const CatalogBrandMenu = () => {
   // and runs unconditionally, same as every other hook in this component.
   const products = useMemo(() => {
     if (!catalog) return [];
-    const brandLogo = catalog.brand.BrandName === "Manuela's"
-      ? catalogImageUrl(catalog.brand.ImagePath)
-      : null;
+    const brandLogo = catalogImageUrl(catalog.brand.ImagePath);
     return catalog.products.map((product) => ({
       id: `catalog-${product.ProductID}`,
       productId: product.ProductID,
       name: product.ProductName,
+      brandName: catalog.brand.BrandName,
       price: Number(product.ProductPrice),
-      image: catalogImageUrl(product.ImagePath) || brandLogo,
+      image: catalogImageUrl(product.ImagePath),
+      fallbackImage: brandLogo,
       category: product.Description || 'Products'
     }));
   }, [catalog]);

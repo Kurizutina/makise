@@ -23,7 +23,7 @@ const HomeHero = ({ brandCount, onBrowseBrands }) => (
       <p>Food, everyday items, and bill payments - delivered fast, tracked in real time from order to doorstep.</p>
       <ul className="home-hero-highlights">
         <li><i className="fa-solid fa-list-check" aria-hidden="true" /><span><strong>{brandCount || 16}+ brands</strong><small>Food, items &amp; bills in one place</small></span></li>
-        <li><i className="fa-solid fa-location-dot" aria-hidden="true" /><span><strong>Real-time tracking</strong><small>Know exactly where your order is</small></span></li>
+        <li><i className="fa-solid fa-location-dot" aria-hidden="true" /><span><strong>Real-Time Progess Tracking</strong><small>Know exactly where your order is</small></span></li>
         <li><i className="fa-solid fa-shield-halved" aria-hidden="true" /><span><strong>Verified &amp; secure</strong><small>Every order confirmed by our team</small></span></li>
       </ul>
       <button className="home-hero-cta" type="button" onClick={onBrowseBrands}>

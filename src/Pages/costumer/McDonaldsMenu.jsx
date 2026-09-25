@@ -47,6 +47,21 @@ const CategoryNavigation = ({ activeCategory, categories, onSelect, restaurantNa
 
 const RestaurantProductCard = ({ product, onAddToCart, showFoodIcons }) => {
   const [variantIndex, setVariantIndex] = useState(0);
+  const [imageSrc, setImageSrc] = useState(product.image || product.fallbackImage || null);
+  const [usingFallbackImage, setUsingFallbackImage] = useState(!product.image && Boolean(product.fallbackImage));
+  useEffect(() => {
+    setImageSrc(product.image || product.fallbackImage || null);
+    setUsingFallbackImage(!product.image && Boolean(product.fallbackImage));
+  }, [product.image, product.fallbackImage]);
+
+  const handleImageError = () => {
+    if (product.fallbackImage && imageSrc !== product.fallbackImage) {
+      setImageSrc(product.fallbackImage);
+      setUsingFallbackImage(true);
+      return;
+    }
+    setImageSrc(null);
+  };
   const variant = product.variants?.[variantIndex];
   const selectedProduct = variant ? {
     ...product,
@@ -58,8 +73,8 @@ const RestaurantProductCard = ({ product, onAddToCart, showFoodIcons }) => {
 
   return (
     <article className="jollibee-product-card" id={product.productId ? `product-card-${product.productId}` : undefined}>
-      {product.image && <div className="jollibee-product-image"><img src={product.image} alt={product.name} loading="lazy" /></div>}
-      {showFoodIcons && !product.image && (
+      {imageSrc && <div className={`jollibee-product-image${usingFallbackImage ? ' brand-logo' : ''}`}><img src={imageSrc} alt={usingFallbackImage ? `${product.brandName || 'Brand'} logo` : product.name} loading="lazy" onError={handleImageError} /></div>}
+      {showFoodIcons && !imageSrc && (
         <div className="restaurant-product-food-icon" aria-hidden="true">
           <FaUtensils />
         </div>
