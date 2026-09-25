@@ -597,6 +597,45 @@ AI for key business decisions
 
 ## High
 
+- [x] **Jollibee catalog images were up to 76x oversized - a real, measured
+      lag source, not a hunch** (user-reported "the system is lagging,"
+      9/25; investigated and fixed same day). User specifically flagged
+      concern for low-end devices/slow connections, so this got measured,
+      not guessed at: checked every brand's image folder size against what
+      the live `Product.ImagePath` data actually references (not just
+      what's on disk - a stale, already-optimized `Jollibee/` folder sits
+      next to the real one, only 3 stale products still point at it).
+      `Jollibee (MVP)/` - the folder 121 real, live products reference -
+      was 76MB. Its 18 JPGs were source photos straight off a camera:
+      **4096×4096px, 1-2MB each**, served as-is to a ~200px menu card. Every
+      other brand's images (McDonald's, Mang Inasal, Kuya Dos, Hongdae
+      Chicken) were already reasonably sized (under ~200KB max) - this
+      wasn't a system-wide problem, it was one folder.
+
+      Found the team had already half-solved this: `scripts/optimize-
+      jollibee-images.js` already existed (sharp, resize to 800px wide,
+      JPEG quality 75) but pointed at the wrong folder (`Jollibee/`, the
+      already-small one) instead of `Jollibee (MVP)/` - it had never
+      actually run against the real images. It also had a real bug: it
+      force-converted every image to JPEG bytes but kept the original
+      filename/extension, so a `.png` file would end up holding JPEG data
+      under a `.png` name. Fixed both: corrected `TARGET_DIR`, and made it
+      preserve format per-file (PNGs get palette-quantized instead of
+      converted, since plain re-encoding actually made a sample PNG larger
+      - confirmed live, 453KB to 574KB - only palette quantization
+      actually shrinks it, 453KB to 154KB at the same 800px budget).
+
+      Ran it against the real folder: **76MB to 23MB** (JPGs individually
+      1-2MB to ~25-35KB; PNGs ~200-400KB to ~70-140KB). Verified every
+      output file with `sharp` - 176 files, correct format matches
+      extension on all of them, zero corrupted. Verified live in the
+      browser: real Jollibee menu page, confirmed a previously-2.55MB
+      image now serves at 35KB via direct `curl` (bypassing any
+      browser-side format negotiation), confirmed no visible quality loss
+      on either a JPEG or a palette-quantized PNG sample. Both test
+      suites re-run clean at their known baselines (image-only change,
+      as expected).
+
 - [x] **Customer-rider communication** (teammate request, 9/20; channel
       confirmed 9/25 - in-app, not phone/SMS; built same day, backend then
       frontend, both parts now complete).
