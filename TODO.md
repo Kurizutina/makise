@@ -15,10 +15,12 @@ flipping the box, to keep this split meaningful over time.
 
 ## High Priority
 
-- [ ] **Customer–rider communication** (teammate request, 9/20) — no chat/messaging
-      exists between customer and rider today. Real feature, not a quick fix; needs
-      its own design pass (in-app chat vs. just exposing contact numbers, etc.)
-      before implementation.
+- [ ] **Customer–rider communication** (teammate request, 9/20; channel decided
+      9/25 - in-app, not phone/SMS; backend done same day, see Completed Work) -
+      real feature, being built in parts. **Part 1 (backend) done**: order-scoped
+      chat endpoints, gated to the order's own customer and its currently
+      assigned rider. **Still outstanding: Part 2, the frontend chat UI** -
+      nothing to talk to it with yet.
 
 - [ ] **Two open decisions still block the *correct final number* for
       Revenue** (user request, 9/24 - the date-filter/graph infrastructure
@@ -601,6 +603,53 @@ AI for key business decisions
       real mobile viewport. (`96d0015`)
 
 ## High
+
+- [x] **Customer-rider communication, Part 1 (backend)** (teammate request,
+      9/20; channel confirmed 9/25 - in-app, not phone/SMS; built same day).
+      Order-scoped chat, following the earlier product-intake recommendation:
+      authenticated, retained, rate-limited, and closed once there's no rider
+      to talk to or the order is finalized - not a general inbox, and not
+      open to admin.
+
+      New `Message` table (`MessageID`, `OrderID`, `SenderUserID`,
+      `MessageBody`, `MessageSeen`, `MessageDate`) and `MessageController`
+      (`index`/`store`/`markRead`). Access rule is the same shape as
+      `OrderController::updateStatus`'s: only the order's own customer or its
+      currently-assigned rider - both directions checked, not just one.
+      `store` additionally 422s if no rider is assigned yet or the order is
+      already `delivered`/`cancelled` - messaging has a real start and end,
+      not an indefinite window. `POST` is rate-limited
+      (`throttle:30,1`, same pattern as the payments/upload endpoints).
+
+      **Two real bugs found and fixed before this was actually correct**:
+      (1) the migration declared the FK columns `unsignedInteger` to match
+      how `Orders.UserID` was originally *declared* - but the live column is
+      plain signed `int(11)` (confirmed via `SHOW COLUMNS`, not assumed),
+      so MySQL rejected the foreign key (error 150) until the columns were
+      changed to signed `integer()` to match reality. SQLite (the test
+      suite's DB) never caught this - it doesn't enforce FK signedness the
+      same way, so this only surfaced once the migration ran against the
+      real dev database. (2) `MessageApiTest`'s "mark read" test initially
+      failed in a way that looked like a controller bug - traced it down to
+      a testing-only issue instead: Sanctum caches the resolved user on the
+      auth guard across requests in the same test method, so switching
+      `withToken()` between users silently kept authenticating as whoever
+      resolved first. Same gotcha `AuthApiTest.php` already works around
+      with `$this->app['auth']->forgetGuards()` - added the same reset here
+      (wrapped in a small `as($user)` test helper) rather than leaving it as
+      a one-off fix, since every multi-user test in this file needed it.
+
+      Verified live against the real MySQL dev database, not just the test
+      suite: seeded a real customer/rider/order via `php artisan tinker`,
+      exercised `POST`/`GET` as both participants and confirmed a stranger
+      gets 422/403 as appropriate through the actual running server (not
+      just SQLite). Backend suite re-run clean: 57 passed (up from 51),
+      1 skipped, same 3 pre-existing `AuthApiTest` failures only. Test
+      data cleaned up after.
+
+      **Not done yet - Part 2**: the frontend chat UI (customer and rider
+      dashboards have nothing to talk to these endpoints with). Scoped as
+      its own follow-up rather than built in the same pass.
 
 - [x] **Item Delivery/Pay Bills had no service fee, or the wrong surcharge
       cutoff time** (Sean's pricing rule, 9/25; fixed same day) - Sean's
