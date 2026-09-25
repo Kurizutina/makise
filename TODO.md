@@ -138,8 +138,6 @@ flipping the box, to keep this split meaningful over time.
       using this folder for something (a reference copy of the schema?). Confirm
       with Sean before deleting rather than assuming it's safe to remove.
       `src/config/roles.js`'s hardcoded codes are unambiguously dead either way.
-- [ ] Backend test coverage for order/payment flows (best done once 1b–1e exist,
-      which they now do - see Completed Work).
 - [ ] *(Needs clarification before scoping)* **"Make it OOP"** (user request,
       9/22) — as stated this doesn't map to a concrete change. The Laravel
       backend already is OOP (Eloquent models, controller classes) - nothing to
@@ -919,6 +917,22 @@ AI for key business decisions
       solid-styled action per card. (`1ecc172`)
 
 ## Medium
+
+- [x] **Backend test coverage for payment flows** (9/25 - `PaymentController`
+      had zero test coverage, unlike `OrderController`'s already-thorough
+      25-test `OrderApiTest.php`). Added `PaymentApiTest.php` (9 tests):
+      bill-payment creation persists the correct order/payment pair and
+      total, `serviceFee`/`amount` bounds validation (0-500 / 0-999999.99),
+      only customers can submit a payment, only admin
+      (`permission:orders.manage`, same route-level gate as `assign` - not
+      a gap, matches the documented pattern) can verify/reject one, a
+      verify/reject notifies the owning customer, and a finalized payment
+      can't be changed again. Checked `PaymentController::updateStatus`'s
+      missing controller-level role check first before assuming it was a
+      bug - confirmed it's route-gated the same deliberate way `assign` is.
+      Full backend suite re-run clean: 51 passed (up from 42), 1 skipped,
+      same 3 pre-existing `AuthApiTest` failures only. Order-flow coverage
+      itself needed no work - already thorough.
 
 - [x] **"Inconsistent empty/loading states (UX)"** (confirmed worse than
       cosmetic during the 9/22 QA pass; fixed 9/25). Admin's Payments tab
