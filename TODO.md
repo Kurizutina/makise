@@ -11,6 +11,34 @@ flipping the box, to keep this split meaningful over time.
 
 ---
 
+## Note for any AI assistant picking this up (added 9/27)
+
+This project is being finished by two people using two different AI assistants
+against the same repo (Claude Code and Codex/Astra), working one task at a
+time with a commit after each. If you're an AI reading this cold:
+
+- **Deadline is September 30.** Client demo, not a soft target.
+- **Budget is tight on both sides** - neither assistant should over-iterate,
+  gold-plate, or refactor beyond what's actually asked. Scope to the minimum
+  that works.
+- **Read recent commits and this file critically before building on them** -
+  don't assume a prior decision, cost estimate, or assumption here is correct
+  just because it's written down. If something looks wrong, say so to the
+  user rather than silently building on top of it.
+- **Keep committing one task at a time.** Commit messages and any TODO.md
+  updates should explain *why*, not just *what* - the next reader (human or
+  AI) has zero shared context beyond this repo. Flag genuine uncertainty
+  explicitly (in the commit or here) rather than presenting a guess as
+  settled.
+- The user relays output between the two assistants sometimes - expect your
+  work to get scrutinized by the other one, and vice versa. That's
+  intentional, not a sign something's wrong.
+- Start by reading the **Data Analytics** section below (all three layers
+  done) and the **semantic product search** entry (in progress, step-by-step
+  checklist with a status per step) before touching either.
+
+---
+
 # Outstanding Work
 
 ## High Priority
