@@ -318,6 +318,7 @@ const RevenueTab = () => {
     <div className="admin-analytics-card"><h2>Revenue by service</h2><p>Calculated from the delivery or service fee on every non-cancelled order{dateFilter ? ' on the selected date' : ' on record, not just what\'s currently loaded'}.</p><div className="admin-revenue-bars">{Object.entries(SERVICE_META).map(([key, meta]) => <div key={key}><span>{meta.label}</span><div><i style={{ width: `${((totals[key] || 0) / maximum) * 100}%`, background: meta.color }} /></div><strong>{formatCurrency(totals[key] || 0)}</strong></div>)}</div></div>
     <PeakOrderingTimeCard data={data} />
     <CustomerSegmentsCard />
+    <DemandForecastCard />
   </section>;
 };
 
@@ -432,6 +433,51 @@ const CustomerSegmentsCard = () => {
         </div>;
       })}
     </div>
+  </div>;
+};
+
+// Data Analytics Layer 3 (predictive) - plain 7-day moving average, no
+// seasonality or tuning (see the backend's own comment for why - this is
+// the deliberately simplest viable version). Shows the last 14 days of
+// actual order counts for context plus the single forecast number.
+const DemandForecastCard = () => {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const api = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    fetch(`${api}/api/admin/demand-forecast`, {
+      headers: { Authorization: `Bearer ${sessionStorage.getItem('otuzanAuthenticated')}` },
+      signal: controller.signal
+    })
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then(setData)
+      .catch(() => { if (!controller.signal.aborted) setError('Unable to load the demand forecast right now. Try again shortly.'); });
+    return () => controller.abort();
+  }, []);
+
+  if (error) return <div className="admin-analytics-card"><h2>Demand forecast</h2><div className="admin-table-empty">{error}</div></div>;
+  if (!data) return <div className="admin-analytics-card"><h2>Demand forecast</h2><div className="admin-table-empty">Loading…</div></div>;
+
+  const recentDays = (data.daily || []).slice(-14);
+
+  return <div className="admin-analytics-card">
+    <h2>Demand forecast</h2>
+    <p>Simple {data.windowSize}-day moving average of daily order volume - a plain baseline, not a full predictive model, to give a rough sense of expected load for staffing.</p>
+    <div className="admin-stat-card featured" style={{ marginBottom: 18 }}>
+      <span>Expected orders tomorrow</span>
+      <strong>{data.forecastNextDay}</strong>
+    </div>
+    {recentDays.length > 0 && <>
+      <h3 className="admin-peak-subheading">Last {recentDays.length} days</h3>
+      <MiniBarRow
+        items={recentDays}
+        valueFor={(d) => d.orders}
+        labelFor={(d) => d.date.slice(5)}
+        titleFor={(d) => `${d.date}: ${d.orders} order${d.orders === 1 ? '' : 's'}`}
+      />
+    </>}
   </div>;
 };
 

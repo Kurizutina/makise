@@ -313,6 +313,50 @@ class OrderController extends Controller
         ]);
     }
 
+    // Data Analytics Layer 3 (predictive) - plain 7-day moving average,
+    // deliberately not a real ML forecast (no seasonality, no tuning) - a
+    // capstone timeline doesn't support more, and TODO.md scopes this layer
+    // as "lowest priority, simplest viable" on purpose. Forecast for
+    // tomorrow is just the average daily order count over the last 7 days
+    // with data; if fewer than 7 days exist yet, it averages whatever's
+    // there instead of refusing to answer.
+    public function demandForecast(): JsonResponse
+    {
+        $timezone = 'Asia/Manila';
+        $windowSize = 7;
+        $today = Carbon::now($timezone)->startOfDay();
+
+        $dailyCounts = [];
+        Order::where('DeliveryStatus', '!=', 'cancelled')->pluck('OrderDate')->each(function ($orderDate) use (&$dailyCounts, $timezone) {
+            $date = Carbon::parse($orderDate, 'UTC')->setTimezone($timezone)->toDateString();
+            $dailyCounts[$date] = ($dailyCounts[$date] ?? 0) + 1;
+        });
+        ksort($dailyCounts);
+
+        // Zero-filled calendar days, not just days that happened to have an
+        // order - averaging only non-zero days would inflate the forecast
+        // whenever there's a gap (e.g. 2 order-days out of the last 7 read
+        // as "busy days average 2/day", when the true rate is 2/7). Capped
+        // to how many days have actually elapsed since the earliest record,
+        // so a brand-new dataset with 2 days of history averages over 2
+        // days, not padded with 5 phantom empty days that never happened.
+        $earliestDate = empty($dailyCounts) ? $today : Carbon::parse(array_key_first($dailyCounts), $timezone);
+        $daysOfHistory = max(1, $earliestDate->diffInDays($today) + 1);
+        $effectiveWindow = min($windowSize, $daysOfHistory);
+
+        $windowTotal = 0;
+        for ($i = 1; $i <= $effectiveWindow; $i++) {
+            $windowTotal += $dailyCounts[$today->copy()->subDays($i)->toDateString()] ?? 0;
+        }
+        $forecast = round($windowTotal / $effectiveWindow, 1);
+
+        return response()->json([
+            'daily' => collect($dailyCounts)->map(fn ($count, $date) => ['date' => $date, 'orders' => $count])->values(),
+            'forecastNextDay' => $forecast,
+            'windowSize' => $effectiveWindow,
+        ]);
+    }
+
     // Position is computed fresh on every request from the actual set of
     // orders still waiting - never stored/decremented - so it can't drift
     // out of sync the way a mutated counter could under concurrent orders.

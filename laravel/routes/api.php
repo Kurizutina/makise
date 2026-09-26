@@ -48,6 +48,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/admin/orders', [OrderController::class, 'indexAll']);
         Route::get('/admin/revenue', [OrderController::class, 'revenue']);
         Route::get('/admin/customer-segments', [OrderController::class, 'customerSegments']);
+        Route::get('/admin/demand-forecast', [OrderController::class, 'demandForecast']);
         Route::patch('/orders/{order}/assign', [OrderController::class, 'assign']);
         Route::patch('/payments/{payment}/status', [PaymentController::class, 'updateStatus']);
     });

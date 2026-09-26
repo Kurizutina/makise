@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use Carbon\Carbon;
 use App\Models\Brand;
 use App\Models\Notification;
 use App\Models\Order;
@@ -609,5 +610,49 @@ class OrderApiTest extends TestCase
         $this->withToken($this->token($customer))->getJson('/api/admin/customer-segments')->assertForbidden();
         $this->app['auth']->forgetGuards();
         $this->withToken($this->token($driver))->getJson('/api/admin/customer-segments')->assertForbidden();
+    }
+
+    // Layer 3 (moving-average forecast). Dates built at Manila noon then
+    // converted to UTC for storage - avoids day-boundary flakiness that
+    // plain now()->subDays() would have depending on the time of day the
+    // suite happens to run. History only goes back 3 days (order placed
+    // "3 days ago"), so the window is capped to 4 days (today's 3 elapsed
+    // days of history + today itself), not the full 7 - zero-filled: day -1
+    // has 3 orders, day -2 has 0, day -3 has 1, day -4 doesn't exist yet.
+    // Average = (3+0+1+0)/4, not (3+1)/2 (which would wrongly ignore the
+    // zero-order days in between).
+    public function test_admin_demand_forecast_averages_recent_days(): void
+    {
+        $admin = $this->user('admin');
+        $customer = $this->user('customer');
+        $manilaNoon = fn (int $daysAgo) => Carbon::now('Asia/Manila')->subDays($daysAgo)->setTime(12, 0)->setTimezone('UTC');
+
+        for ($i = 0; $i < 3; $i++) {
+            $order = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'ServiceFee' => 75, 'DeliveryStatus' => 'delivered']);
+            $order->OrderDate = $manilaNoon(1);
+            $order->save();
+        }
+        $order = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'ServiceFee' => 75, 'DeliveryStatus' => 'delivered']);
+        $order->OrderDate = $manilaNoon(3);
+        $order->save();
+        // Must not count - cancelled.
+        $cancelled = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'ServiceFee' => 75, 'DeliveryStatus' => 'cancelled']);
+        $cancelled->OrderDate = $manilaNoon(1);
+        $cancelled->save();
+
+        $response = $this->withToken($this->token($admin))->getJson('/api/admin/demand-forecast')->assertOk();
+
+        $this->assertEquals(4, $response->json('windowSize'));
+        $this->assertEquals(1.0, $response->json('forecastNextDay'));
+    }
+
+    public function test_only_admin_can_view_demand_forecast(): void
+    {
+        $customer = $this->user('customer');
+        $driver = $this->user('driver');
+
+        $this->withToken($this->token($customer))->getJson('/api/admin/demand-forecast')->assertForbidden();
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token($driver))->getJson('/api/admin/demand-forecast')->assertForbidden();
     }
 }
