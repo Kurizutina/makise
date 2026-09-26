@@ -41,7 +41,7 @@
 }
 
 .location-picker-menu button:hover { background: #f6eef1; }
-.location-picker-menu button.active { background: #fff0f5; color: #da1c5c; font-weight: 700; }
+.location-picker-menu button.active { background: #fff0f5; color: var(--color-primary); font-weight: 700; }
 
 /* Header variant: compact pill sitting next to the brand name - the header
    is a white/neutral bar (not a solid brand-color fill), so this uses a
@@ -57,7 +57,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.location-picker-header .location-picker-trigger:hover { color: var(--color-primary,#da1c5c); text-decoration: underline; }
+.location-picker-header .location-picker-trigger:hover { color: var(--color-primary,var(--color-primary)); text-decoration: underline; }
 
 /* Inline variant: used in the cart drawer / Others order form in place of
    the old native <select>, on a white background. */

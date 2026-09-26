@@ -14,14 +14,18 @@ class CatalogController extends Controller
 {
     public function publicCatalog(): JsonResponse
     {
-        return response()->json(['services' => Service::query()
+        $services = Service::query()
             ->where('IsActive', true)
+            ->select(['ServiceID', 'ServiceName', 'ServiceType', 'Description'])
             ->with(['brands' => fn ($query) => $query->where('IsActive', true)
                 ->whereNotNull('BrandName')->where('BrandName', '<>', '')
+                ->select(['BrandID', 'BrandName', 'ServiceID', 'ImagePath'])
                 ->withCount(['products' => fn ($products) => $products->where('IsActive', true)])
                 ->orderByRaw("CASE WHEN BrandName LIKE 'Others%' THEN 1 ELSE 0 END")
                 ->orderBy('BrandName')])
-            ->orderBy('ServiceID')->get()]);
+            ->orderBy('ServiceID')->get();
+        return response()->json(['services' => $services])
+            ->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=60');
     }
 
     // Windowed to the last 30 days, not all-time, so this reflects current
@@ -75,8 +79,13 @@ class CatalogController extends Controller
         if (!$brand->IsActive || !$brand->service?->IsActive) {
             return response()->json(['error' => 'Brand not available'], 404);
         }
-        return response()->json(['brand' => $brand->load('service'), 'products' => $brand->products()
-            ->where('IsActive', true)->orderBy('ProductName')->get()]);
+        $brand->load('service:ServiceID,ServiceName,ServiceType,IsActive');
+        $products = $brand->products()
+            ->where('IsActive', true)
+            ->select(['ProductID', 'BrandID', 'ProductName', 'ProductPrice', 'ImagePath', 'Description'])
+            ->orderBy('ProductName')->get();
+        return response()->json(['brand' => $brand, 'products' => $products])
+            ->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=60');
     }
 
     public function options(): JsonResponse

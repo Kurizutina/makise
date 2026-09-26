@@ -1,5 +1,14 @@
 export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
+// Catalog changes are uncommon compared with browsing. Keep a small in-tab
+// cache so returning to Home or reopening a menu is instant, but expire it
+// quickly enough that admin changes appear without a hard refresh.
+const CATALOG_CACHE_MS = 60 * 1000;
+let catalogCache = null;
+const brandProductCache = new Map();
+
+const stillFresh = (entry) => entry && (Date.now() - entry.savedAt) < CATALOG_CACHE_MS;
+
 export const apiAssetUrl = (path) => {
   if (!path) return null;
   // Catalog filenames include spaces and some menus use accented names such
@@ -34,9 +43,24 @@ export const apiAssetUrl = (path) => {
 export const catalogImageUrl = apiAssetUrl;
 
 export const getCatalog = async (signal) => {
-  const response = await fetch(`${API_BASE_URL}/api/catalog`, { signal });
+  if (stillFresh(catalogCache)) return catalogCache.data;
+  const response = await fetch(`${API_BASE_URL}/api/catalog`, { signal, cache: 'force-cache' });
   if (!response.ok) throw new Error('Unable to load the catalog. Please try again.');
-  return response.json();
+  const data = await response.json();
+  catalogCache = { data, savedAt: Date.now() };
+  return data;
+};
+
+export const getBrandProducts = async (brandId, signal) => {
+  const cached = brandProductCache.get(String(brandId));
+  if (stillFresh(cached)) return cached.data;
+  const response = await fetch(`${API_BASE_URL}/api/catalog/brands/${brandId}/products`, {
+    signal, cache: 'force-cache'
+  });
+  if (!response.ok) throw new Error('This brand is no longer available.');
+  const data = await response.json();
+  brandProductCache.set(String(brandId), { data, savedAt: Date.now() });
+  return data;
 };
 
 export const getBestSellers = async (signal) => {

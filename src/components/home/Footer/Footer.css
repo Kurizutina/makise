@@ -1,9 +1,9 @@
 .home-footer {
   margin-top: auto;
-  background: #86133b;
-  color: #ffffff;
-  border-top: 5px solid #da1c5c;
-  padding: 44px clamp(20px, 4vw, 56px) 0;
+  background: var(--color-background);
+  color: var(--color-text);
+  border-top: 1px solid var(--color-border);
+  padding: 48px clamp(20px, 4vw, 56px) 0;
 }
 
 .home-footer-content,
@@ -16,21 +16,26 @@
   display: grid;
   grid-template-columns: 1.5fr 1fr 1fr;
   gap: 40px;
-  padding-bottom: 36px;
+  padding: 30px clamp(20px, 3vw, 38px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
 }
 
 .home-footer a {
-  color: inherit;
+  color: var(--color-text);
   text-decoration: none;
 }
 
 .home-footer a:hover {
+  color: var(--color-primary-dark);
   text-decoration: underline;
   text-underline-offset: 4px;
 }
 
 .home-footer a:focus-visible {
-  outline: 2px solid #ffffff;
+  outline: 2px solid var(--color-primary);
   outline-offset: 5px;
   border-radius: 2px;
 }
@@ -39,6 +44,7 @@
   display: inline-block;
   font-size: 24px;
   font-weight: 700;
+  color: var(--color-primary-dark) !important;
 }
 
 .home-footer h2 {
@@ -47,7 +53,7 @@
 }
 
 .home-footer p {
-  color: #f9dce6;
+  color: var(--color-text-muted);
   font-size: 14px;
   line-height: 1.7;
   margin: 0;
@@ -84,6 +90,7 @@
   padding: 10px 0;
   font-size: 14px;
   font-weight: 700;
+  color: var(--color-primary) !important;
 }
 
 .home-footer-social svg {
@@ -92,13 +99,18 @@
 }
 
 .home-footer-bottom {
-  border-top: 1px solid #b25d7a;
+  border-top: 1px solid var(--color-border);
   padding: 20px 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
   font-size: 13px;
+}
+
+.home-footer-bottom a {
+  color: var(--color-primary) !important;
+  font-weight: 700;
 }
 
 .home-footer-bottom p {
@@ -109,15 +121,25 @@
   .home-footer-content {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 28px;
+    text-align: center;
   }
 
   .home-footer-brand {
     grid-column: 1 / -1;
   }
 
+  .home-footer-brand p {
+    margin-inline: auto;
+  }
+
+  .home-footer-social {
+    justify-content: center;
+  }
+
   .home-footer-bottom {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    text-align: center;
   }
 }
 

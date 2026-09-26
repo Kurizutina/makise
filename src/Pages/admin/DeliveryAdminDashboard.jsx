@@ -8,9 +8,9 @@ import { clearSession } from '../../utils/session';
 import { applyBackendTruth, toLocalOrderShape, useBackendOrders } from '../../hooks/useBackendOrders';
 
 const SERVICE_META = {
-  food: { label: 'Food Delivery', icon: 'fa-utensils', color: '#f9c12f' },
-  item: { label: 'Item Delivery', icon: 'fa-box', color: '#ff9846' },
-  bills: { label: 'Pay Bills', icon: 'fa-file-invoice-dollar', color: '#da1c5c' }
+  food: { label: 'Food Delivery', icon: 'fa-utensils', color: 'var(--color-warning)' },
+  item: { label: 'Item Delivery', icon: 'fa-box', color: 'var(--color-primary-dark)' },
+  bills: { label: 'Pay Bills', icon: 'fa-file-invoice-dollar', color: 'var(--color-primary)' }
 };
 
 const STATUS_LABELS = {
@@ -122,7 +122,7 @@ const OrderCard = ({ order, onAssign, onStatus, riders }) => {
 const LiveOrdersTab = ({ orders, onAssign, onStatus, riders }) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const columns = [
-    { key: 'pending', label: 'Pending', color: '#f9c12f', matches: needsRiderAssignment },
+    { key: 'pending', label: 'Pending', color: 'var(--color-warning)', matches: needsRiderAssignment },
     { key: 'awaiting', label: 'Awaiting Rider Response', color: '#3d9be9', matches: isAwaitingRiderResponse },
     { key: 'ongoing', label: 'Ongoing', color: '#34b875', matches: (order) => ACTIVE_STATUSES.includes(order.status) && hasAssignedRider(order) },
     { key: 'cancelled', label: 'Cancelled', color: '#f15a29', matches: (order) => order.status === 'cancelled' }

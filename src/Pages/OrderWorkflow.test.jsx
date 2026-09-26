@@ -72,6 +72,21 @@ test('a customer sees notifications only for orders linked to their account', ()
   expect(actions.notifications).toEqual([{ id: 'OWN-NOTIFICATION', orderId: 'OWN-ORDER' }]);
 });
 
+test('a cart belongs only to the customer who added its items', () => {
+  signIn(42, 'customer');
+  const firstCustomer = render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
+  act(() => actions.addToCart({ id: 'burger', source: 'Shop', name: 'Burger' }));
+  expect(actions.cart).toHaveLength(1);
+
+  // Another signed-in account using the same browser must not inherit the
+  // first account's browser-local cart.
+  firstCustomer.unmount();
+  sessionStorage.setItem('otuzanUser', JSON.stringify({ id: 99, role: 'customer' }));
+  const otherCustomer = render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
+  expect(actions.cart).toEqual([]);
+  otherCustomer.unmount();
+});
+
 // Regression test for a real cross-user privacy leak (found live, 9/23):
 // otuzanCustomerActivity's localStorage blob isn't scoped per account, and
 // useCustomerActivity() used to have no explicit branch for "no session" -
@@ -184,19 +199,26 @@ test('missing rider identity reveals no orders', () => {
   expect(screen.queryByText('ORD-1')).not.toBeInTheDocument();
 });
 
-test('status actions preserve a just-written assignment and reject another rider', () => {
+// updateOrderStatus now returns a Promise (origin/kurizu's optimistic-update
+// architecture - RiderDashboard's updateProgress awaits it to roll back on
+// rejection). A sync act(() => ...) wrapping a thenable return leaves
+// React's act-scope open without ever being awaited closed, which doesn't
+// fail this test itself but corrupts the NEXT test's ability to render at
+// all - found live (9/26) chasing a mystifying failure in an unrelated,
+// later-running test with no thrown error and no stack trace to follow.
+test('status actions preserve a just-written assignment and reject another rider', async () => {
   signIn(1, 'admin');
   render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
-  act(() => {
+  await act(async () => {
     actions.assignOrderToRider('ORD-1', { id: 7, name: 'Seven' });
-    actions.updateOrderStatus('ORD-1', 'preparing');
+    await actions.updateOrderStatus('ORD-1', 'preparing');
   });
   expect(saved().orders[0]).toMatchObject({ status: 'preparing', assignedRider: { id: 7 } });
   signIn(8, 'driver');
-  act(() => actions.updateOrderStatus('ORD-1', 'delivered'));
+  await act(async () => actions.updateOrderStatus('ORD-1', 'delivered'));
   expect(saved().orders[0].status).toBe('preparing');
   signIn(7, 'driver');
-  act(() => actions.updateOrderStatus('ORD-1', 'out_for_delivery'));
+  await act(async () => actions.updateOrderStatus('ORD-1', 'out_for_delivery'));
   expect(saved().orders[0].status).toBe('out_for_delivery');
 });
 

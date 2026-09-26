@@ -2,11 +2,11 @@ import React from 'react';
 
 const ColoredDots = () => {
   const colors = [
-    '#F9C12F',
-    '#DA1C5C',
+    'var(--color-warning)',
+    'var(--color-primary)',
     '#F15A29',
     '#FF5DD4',
-    '#FF9846'
+    'var(--color-primary-dark)'
   ];
 
   return (

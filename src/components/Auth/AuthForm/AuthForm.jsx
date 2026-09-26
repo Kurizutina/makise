@@ -316,13 +316,8 @@ const AuthForm = ({
         type="submit"
         className="action-btn"
         style={{
-          background:
-            currentRole.requiresCode
-              ? `linear-gradient(115deg, ${currentRole.color} 0%, #FF9846 100%)`
-              : `linear-gradient(115deg, #F9C12F 0%, #FF9846 100%)`,
-
-          boxShadow:
-            `0 8px 18px ${currentRole.color}40`
+          background: 'linear-gradient(115deg, var(--color-primary) 0%, var(--color-primary-dark) 100%)',
+          boxShadow: '0 8px 18px rgba(218, 28, 92, 0.25)'
         }}
       >
 

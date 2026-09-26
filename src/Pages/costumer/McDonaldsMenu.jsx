@@ -101,6 +101,41 @@ const RestaurantProductCard = ({ product, onAddToCart, showFoodIcons }) => {
   );
 };
 
+const similarBrandCards = [
+  { name: 'Jollibee', image: '/images/jollibee_logo.jpg' },
+  { name: "McDonald's", image: "/images/mcdonald's_logo.png" },
+  { name: 'Mang Inasal', image: '/images/mang_inasal_logo.png' },
+  { name: "Manuela's", image: '/images/maluelas_logo.jpg' }
+];
+
+// Intentionally presentational: these cards introduce the discovery pattern
+// without adding routes, click handlers, or changing the existing menu flow.
+const SimilarBrands = ({ sourceKey }) => {
+  const brands = similarBrandCards.filter((brand) => brand.name !== sourceKey).slice(0, 3);
+  if (!brands.length) return null;
+
+  return (
+    <section className="similar-brands" aria-labelledby="similar-brands-heading">
+      <div className="similar-brands-heading">
+        <div>
+          <span>Keep exploring</span>
+          <h2 id="similar-brands-heading">More food to discover</h2>
+        </div>
+        <p>Popular choices available through Otu-Zan.</p>
+      </div>
+      <div className="similar-brands-grid">
+        {brands.map((brand) => (
+          <article className="similar-brand-card" key={brand.name}>
+            <img src={brand.image} alt="" />
+            <strong>{brand.name}</strong>
+            <span>Food delivery</span>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+};
+
 export const RestaurantMenu = ({
   restaurantName,
   sourceKey,
@@ -518,6 +553,8 @@ export const RestaurantMenu = ({
           <button type="button" className="jollibee-checkout" disabled={!cart.length} onClick={checkoutCart}>Place Order {itemCount > 0 && `(${itemCount})`}</button>
         </aside>
       </div>
+
+      <SimilarBrands sourceKey={sourceKey} />
 
       {showBackToTop && (
         <button

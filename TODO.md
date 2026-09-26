@@ -36,7 +36,7 @@ flipping the box, to keep this split meaningful over time.
 | Request | Verdict | Priority | Relationship | Product review / scope |
 | --- | --- | --- | --- | --- |
 | Fix cross-device receipt images | Recommended | High - completed | Duplicate / completed | Fixed: persist backend-relative upload paths and resolve legacy localhost URLs against the configured API host. Verify with the deployed/LAN API URL before release. |
-| Customer-rider in-app communication | Recommended with Changes | High | Duplicate | Build order-scoped, authenticated messaging only after a rider is assigned; retain messages, rate-limit them, and close messaging after delivery/cancellation. Do not expose personal phone numbers. |
+| Customer-rider in-app communication | Recommended with Changes | High - completed | Duplicate / completed | Completed 9/25: order-scoped, authenticated customer-rider messaging is implemented after rider assignment, with persisted messages and access control. See Completed Work below. |
 | Separate today's history from older orders | Recommended with Changes | Medium - completed | New / completed | Fixed 9/23: added an All dates/Today/Previous filter to the admin History tab, using the Asia/Manila business-timezone convention already established for Revenue. Defaults to "All dates" to preserve existing behavior. See Completed Work below. |
 | Show product images in Order Details | Recommended with Changes | Medium - completed | New / completed | Fixed 9/24: `toLocalOrderShape` (`useBackendOrders.js`) now resolves each item's image via `catalogImageUrl`; the customer Track Orders tab and the rider order-detail modal both render a small thumbnail per item with a fallback utensils icon when no image exists. Receipt/proof images were untouched. See Completed Work below. |
 | Improve scrolling smoothness system-wide | Recommended with Changes | Medium | Related | Treat this as a measured performance pass: profile long lists, preserve pagination/lazy image loading, and address actual jank. Do not add decorative smooth-scroll behavior that can reduce accessibility or mask rendering problems. |
@@ -51,7 +51,7 @@ flipping the box, to keep this split meaningful over time.
 
 ### Design
 
-- [ ] **Color palette has no enforced system - 7+ ad hoc pink/magenta hex
+- [x] **Color palette has no enforced system - 7+ ad hoc pink/magenta hex
       values in header/footer/tokens alone** (design critique, 9/23, verified
       by grepping the actual CSS rather than going on memory: `#e31b62`,
       `#da1c5c`, `#c81752`, `#a71243`, `#f23d7b`, `#86133b`, `#b25d7a`). The
@@ -64,14 +64,12 @@ flipping the box, to keep this split meaningful over time.
       other primary action in the app is pink - not a deliberate two-tone
       system, just drift between pages built at different times.
 
-      **Recommendation (design-consultant pass, 9/25 - not yet implemented,
-      needs a go-ahead first)**: collapse every hardcoded hex above to three
-      tokens already sitting unused in `:root` - primary / dark (hover,
-      pressed) / light (tint, backgrounds) - and mechanically replace each
-      file's ad hoc value with the matching token. Low-risk, high-payoff:
-      it's a find-and-replace against a decided scale, not a redesign, and
-      it's also the exact prerequisite the Dark Mode item below already
-      needs (same token refactor, do it once, unlock both).
+      **Completed (9/26)**: the listed ad hoc colors were replaced across the
+      UI with the shared `:root` tokens: primary, dark (hover/pressed), and
+      light (tints/backgrounds). The login submit action now uses the same
+      pink primary/dark gradient as the rest of the app. A post-change audit
+      finds no listed ad hoc value outside the canonical primary-token
+      definition; the production build succeeds.
 
       On the gold/orange: recommend **retiring it**, not keeping it as a
       secondary accent - nothing in the app currently uses it with intent
@@ -81,16 +79,6 @@ flipping the box, to keep this split meaningful over time.
       built later, a deliberate secondary accent can be reconsidered then,
       scoped to that feature specifically - not resurrected from what's
       already there by default.
-- [ ] **Footer is still a solid full-bleed saturated-pink block** (design
-      critique, 9/23; narrowed 9/25 - see Completed Work for the
-      header/service-nav half of this, which is done). Lower urgency now
-      than when this was written: the footer no longer sits directly
-      against another saturated block (header/nav are white now, and the
-      FAQ section above the footer is a light cream, not pink), so it no
-      longer creates the "one big color blob" the original critique
-      described - it just reads as an ordinary colored footer, a common
-      enough pattern on its own. Worth revisiting only as part of the
-      broader palette-consolidation item above, not urgent by itself.
 - [ ] **Products without photos hurt conversion** (web research, 9/21;
       re-confirmed and sharpened during the design critique, 9/23) — this is a
       recognized, documented UX problem, not just an aesthetic nitpick: a 2018
@@ -110,7 +98,7 @@ flipping the box, to keep this split meaningful over time.
       Still a content/photography task, not a code fix - but the bar it needs
       to clear just moved, and it's the highest-visual-impact gap left in the
       whole system.
-- [ ] **"Similar brands" section before the footer** (user request, 9/21, noticed on
+- [x] **"Similar brands" section before the footer** (user request, 9/21, noticed on
       foodpanda) — a discovery/cross-sell section at the bottom of a brand's menu
       page suggesting other brands in the same category (e.g. viewing Jollibee
       suggests McDonald's, Mang Inasal — other Food Delivery brands). Standard
@@ -164,39 +152,6 @@ flipping the box, to keep this split meaningful over time.
 
 ## Low Priority
 
-- [ ] *(Optional - needs team discussion)* **Auto-scrolling/looping Best
-      Sellers carousel** (user request, 9/25; built and shown live same
-      day, then reverted at the user's request to discuss with the team
-      first - not a rejection of the approach, just not landing solo).
-      Replaces the current paged carousel (hard array-slice swap every 2s,
-      an abrupt jump cut) with a real horizontally-scrolling track that
-      auto-advances as a smooth slide, loops seamlessly (duplicates the
-      product list once, snaps back invisibly when it passes one full
-      set's width), still allows manual swipe/scroll to override it, and
-      pauses auto-advance on hover/touch/manual-scroll so it doesn't fight
-      the user. No new dependency - confirmed no carousel library in
-      `package.json` first, built on plain CSS/JS (a real horizontal
-      `overflow-x` flex track, not a grid-paged one).
-
-      **Real thing worth knowing if this gets picked back up**: the first
-      version used CSS `scroll-behavior: smooth` plus the native
-      `behavior: 'smooth'` scroll option, and it silently didn't animate
-      anything - confirmed live with an isolated, React-free test element
-      that `scroll-behavior: smooth` no-ops on programmatic scroll
-      assignment in at least one real environment. Fixed by driving the
-      slide with a small hand-rolled `requestAnimationFrame` tween instead
-      of depending on native smooth-scroll support at all - more portable,
-      and worth keeping regardless of which direction the team lands on
-      for the rest of it.
-
-      Verified live before reverting: seeded extra test orders to get
-      enough best-sellers to see the loop clearly, confirmed continuous
-      auto-advance was a real slide (not a jump), the arrow buttons nudged
-      correctly, and the DOM had the expected doubled card count for the
-      loop. Full frontend suite was clean at the 23/27 baseline. Code is
-      not on this branch currently - would need to be rebuilt from this
-      description (straightforward, same approach, same gotcha to avoid)
-      rather than recovered from a commit, since it was never committed.
 - [ ] **Show estimated time on the brand-selection screen** (Grab/foodpanda
       reference, 9/21) — live-checked foodpanda.ph and GrabFood's web apps for
       comparison. foodpanda's "Top brands" section shows a delivery-time estimate
@@ -1075,6 +1030,20 @@ AI for key business decisions
 
 ## Medium
 
+- [x] **Footer visual treatment** (9/26) — replaced the solid, full-bleed
+      saturated-pink block with a light, bordered footer card using the shared
+      surface, text, border, and brand-color tokens. Mobile content is centered;
+      desktop layout remains unchanged. UI-only CSS change.
+
+- [x] **Auth and core-form palette consolidation** (9/26) — replaced the
+      gold/orange authentication treatment with the established Otu-Zan
+      primary/dark pink gradient, including focus states, logo decoration,
+      links, and the submit action. Consolidated the footer plus Pay Bills and
+      Other Orders form accents onto the shared primary, dark, and light tokens;
+      removed unused header-only color aliases. This was a UI-only pass: no
+      authentication, order, navigation, or validation behavior changed.
+      Production build completed successfully.
+
 - [x] **Backend test coverage for payment flows** (9/25 - `PaymentController`
       had zero test coverage, unlike `OrderController`'s already-thorough
       25-test `OrderApiTest.php`). Added `PaymentApiTest.php` (9 tests):
@@ -1430,6 +1399,14 @@ AI for key business decisions
 
 ## Low
 
+- [x] **Auto-scrolling/looping Best Sellers carousel** (user request, 9/25) —
+      implemented as a true sliding strip rather than the original abrupt
+      page-swap. It advances one product at a time every 2.5 seconds, loops
+      with off-screen buffer cards and an imperceptible reset, supports previous/
+      next controls and direct pagination, and pauses while hovered or focused.
+      The implementation is dependency-free and respects reduced-motion
+      preferences. (`943d411`, `ddf8839`, `222528e`)
+
 - [x] **Revenue trend arrow** (user request, 9/24) — up/down indicator on the
       "Total recorded revenue" card, comparing today vs yesterday from the
       revenue endpoint's existing daily breakdown (Asia/Manila calendar
@@ -1509,3 +1486,37 @@ AI for key business decisions
       limitation (see Medium/High priority) - these reduce how often a click
       gets stuck behind other traffic, and stop failures from being
       invisible. (`e396192`, `9abffe7`)
+- [x] **Merged Sean's `kurizu` commits (9/26)** — real architectural overlap,
+      not a routine merge conflict: Sean independently built his own fix for
+      the exact same "click silently does nothing" bug above, but via a
+      different mechanism - `syncStatusToBackend` returning a `Promise<boolean>`
+      that `RiderDashboard`'s new `updateProgress` awaits for optimistic-
+      update-with-rollback, rather than the unconditional-refresh approach
+      here. **Both are needed, not either/or** - resolved by keeping the
+      Promise<boolean> return (so `updateProgress`'s rollback keeps working)
+      *and* always calling `broadcastOrderProgressChanged()` regardless of
+      response status (so a rejected click still self-corrects immediately,
+      not just on success). If either half gets "simplified" away later
+      without reading this note first, the other one silently regresses.
+      Also found and fixed a real pre-existing bug in Sean's own commit while
+      verifying the merge, unrelated to the conflict itself: a test
+      ("status actions preserve a just-written assignment...") still called
+      the now-Promise-returning `updateOrderStatus` inside a sync `act(() =>
+      ...)` without awaiting it - React's `act()` detects the thenable
+      return and treats the whole call as an unclosed async scope, which
+      doesn't fail that test but corrupts the *next* test's ability to
+      render at all (confirmed via bisection against both the pure pre-merge
+      baseline and Sean's own unmerged commit - present in his branch
+      independent of anything on this side). Fixed by awaiting it properly,
+      matching the pattern already used elsewhere in the same file. Also
+      added a `RiderDashboard.jsx` unmount guard (`isMountedRef`) so
+      `updateProgress`'s awaited state updates don't fire after the screen
+      unmounts. Verified live post-merge: (1) the original rejected-click
+      race - order cancelled by admin while a rider's stale screen still
+      showed it as actionable, confirmed the 422 fires, the warning logs,
+      and a clean reload shows the true cancelled state; (2) Sean's
+      optimistic UI - clicking "Confirm Order" showed "Confirmed" instantly,
+      backend confirmed the same status moments later. Both suites at
+      baseline after merging (frontend 24/28 - the known 4 JSDOM failures
+      plus Sean's 1 new passing test; backend 57/60, same 3 pre-existing
+      failures).

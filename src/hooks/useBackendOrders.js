@@ -3,6 +3,10 @@ import { toUtcIso } from '../utils/backendTime';
 import { catalogImageUrl } from '../utils/catalog';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// Status is work-critical while a delivery is active. Two seconds is quick
+// enough to feel live across separate phones without requiring a WebSocket
+// server, and the poller below never overlaps requests.
+const ACTIVE_ORDER_REFRESH_MS = 2000;
 
 // Fired by CustomerActivityContext right after a status/assignment/payment
 // change it made is confirmed by the backend, so every useBackendOrders
@@ -14,6 +18,22 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 // the stale backend status for up to 30s, until the interval happens to
 // fire, which read like "cancel doesn't work until I refresh."
 export const ORDERS_CHANGED_EVENT = 'otuzan:orders-changed';
+export const ORDER_PROGRESS_CHANGED_STORAGE_KEY = 'otuzan:order-progress-changed';
+
+// Custom browser events do not leave the tab that dispatched them. Mirror a
+// confirmed server update through localStorage as well, so a customer and a
+// rider signed in through different tabs immediately refresh each other's
+// server-backed order view. The regular poll remains the fallback for
+// separate devices and for browsers where storage is unavailable.
+export const broadcastOrderProgressChanged = () => {
+  window.dispatchEvent(new Event(ORDERS_CHANGED_EVENT));
+  try {
+    localStorage.setItem(ORDER_PROGRESS_CHANGED_STORAGE_KEY, String(Date.now()));
+  } catch {
+    // Private/storage-restricted browsers still receive the same-tab event
+    // and the scheduled backend refresh.
+  }
+};
 
 // Polls the real backend order API and returns a lookup of backend orders by
 // their OrderID. Returns {} (safe no-op) if there's no session or the
@@ -26,7 +46,20 @@ export const useBackendOrders = (endpoint) => {
     const token = sessionStorage.getItem('otuzanAuthenticated');
     if (!token) return undefined;
     const controller = new AbortController();
-    const load = () => fetch(`${API_BASE_URL}${endpoint}`, {
+    let inFlight = false;
+    // A rider can confirm an order while the customer's previous poll is
+    // still in flight. Do not discard the explicit refresh in that case:
+    // otherwise that old pending_rider response wins and the tracker can
+    // remain on "Waiting for rider" until a later interval happens.
+    let refreshQueued = false;
+    const load = () => {
+      if (document.visibilityState === 'hidden') return;
+      if (inFlight) {
+        refreshQueued = true;
+        return;
+      }
+      inFlight = true;
+      fetch(`${API_BASE_URL}${endpoint}`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal
     })
@@ -37,19 +70,32 @@ export const useBackendOrders = (endpoint) => {
         body.data.forEach((order) => { byId[order.OrderID] = order; });
         setBackendOrdersById(byId);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        inFlight = false;
+        if (refreshQueued) {
+          refreshQueued = false;
+          load();
+        }
+      });
+    };
     load();
     // Status changes are made by riders/admins on separate devices. A short
     // poll keeps customer tracking in sync even though those devices cannot
     // dispatch a shared browser event.
-    const poll = window.setInterval(load, 5000);
+    const poll = window.setInterval(load, ACTIVE_ORDER_REFRESH_MS);
     window.addEventListener(ORDERS_CHANGED_EVENT, load);
+    const refreshFromAnotherTab = (event) => {
+      if (event.key === ORDER_PROGRESS_CHANGED_STORAGE_KEY) load();
+    };
+    window.addEventListener('storage', refreshFromAnotherTab);
     const refreshWhenVisible = () => { if (document.visibilityState === 'visible') load(); };
     document.addEventListener('visibilitychange', refreshWhenVisible);
     return () => {
       controller.abort();
       window.clearInterval(poll);
       window.removeEventListener(ORDERS_CHANGED_EVENT, load);
+      window.removeEventListener('storage', refreshFromAnotherTab);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
   }, [endpoint]);
@@ -84,6 +130,7 @@ export const toLocalOrderShape = (backend) => {
   }
   return {
     id: `BACKEND-${backend.OrderID}`,
+    clientOrderId: snapshot.clientOrderId || null,
     backendOrderId: backend.OrderID,
     backendPaymentId: payment?.PaymentID ?? null,
     source,
@@ -114,7 +161,7 @@ export const toLocalOrderShape = (backend) => {
     queuePosition: backend.queuePosition ?? null,
     serviceFee: Number(backend.ServiceFee) || 0,
     createdAt: toUtcIso(backend.OrderDate),
-    updatedAt: toUtcIso(backend.OrderDate)
+    updatedAt: toUtcIso(backend.StatusUpdatedAt || backend.OrderDate)
   };
 };
 
@@ -134,8 +181,28 @@ export const toLocalOrderShape = (backend) => {
 // same as before this existed) pass through untouched.
 export const applyBackendTruth = (orders, backendOrdersById) => {
   const matchedBackendIds = new Set();
+  const backendOrders = Object.values(backendOrdersById);
   const overlaid = orders.map((order) => {
-    const backend = order.backendOrderId ? backendOrdersById[order.backendOrderId] : null;
+    // backendOrderId is the normal, immediate link. clientOrderId is the
+    // durable fallback for the small window where POST /orders succeeds but
+    // the browser is interrupted before it can save that server ID.
+    let backend = order.backendOrderId
+      ? backendOrdersById[order.backendOrderId]
+      : backendOrders.find((candidate) => String(candidate.OrderSnapshot?.clientOrderId || '') === String(order.id));
+    // Repair cards created before clientOrderId existed as well. This only
+    // considers the same customer, store, and a two-minute creation window;
+    // it lets an already-confirmed item delivery replace its stranded local
+    // pending card without conflating ordinary orders.
+    if (!backend && !order.backendOrderId && order.status === 'pending_rider') {
+      const localCreatedAt = Date.parse(order.createdAt);
+      backend = backendOrders.find((candidate) => {
+        const source = candidate.OrderSnapshot?.source || candidate.items?.[0]?.product?.brand?.BrandName || 'Otu-Zan';
+        return String(candidate.UserID) === String(order.customerId)
+          && source === order.source
+          && Number.isFinite(localCreatedAt)
+          && Math.abs(Date.parse(candidate.OrderDate) - localCreatedAt) <= 120000;
+      });
+    }
     if (!backend) return order;
     matchedBackendIds.add(String(backend.OrderID));
     const payment = backend.payments?.[0];
@@ -144,7 +211,11 @@ export const applyBackendTruth = (orders, backendOrdersById) => {
       status: backend.DeliveryStatus,
       assignedRider: backend.rider ? { id: backend.rider.UserID, name: backend.rider.UserName } : null,
       details: payment ? { ...order.details, paymentStatus: payment.PaymentStatus } : order.details,
-      queuePosition: backend.queuePosition ?? null
+      queuePosition: backend.queuePosition ?? null,
+      // StatusUpdatedAt is the backend's clock for rider/admin actions.
+      // Keeping it on the displayed order makes the progress estimate start
+      // from confirmation instead of from a stale local-storage timestamp.
+      updatedAt: toUtcIso(backend.StatusUpdatedAt || backend.OrderDate)
     };
   });
   const unmatched = Object.values(backendOrdersById)

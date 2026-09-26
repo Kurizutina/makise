@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { toUtcIso } from '../utils/backendTime';
-import { ORDERS_CHANGED_EVENT } from './useBackendOrders';
+import { ORDERS_CHANGED_EVENT, ORDER_PROGRESS_CHANGED_STORAGE_KEY } from './useBackendOrders';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const ACTIVE_NOTIFICATION_REFRESH_MS = 2000;
 
 // Polls the real backend notification API. Returns [] (safe no-op) if
 // there's no session or the request fails - same fallback philosophy as
@@ -14,7 +15,11 @@ export const useBackendNotifications = () => {
     const token = sessionStorage.getItem('otuzanAuthenticated');
     if (!token) return undefined;
     const controller = new AbortController();
-    const load = () => fetch(`${API_BASE_URL}/api/notifications?per_page=50`, {
+    let inFlight = false;
+    const load = () => {
+      if (inFlight || document.visibilityState === 'hidden') return;
+      inFlight = true;
+      fetch(`${API_BASE_URL}/api/notifications?per_page=50`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal
     })
@@ -23,13 +28,15 @@ export const useBackendNotifications = () => {
         if (!body?.data) return;
         setBackendNotifications(body.data);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => { inFlight = false; });
+    };
     load();
     // Rider status changes happen on a different device, so there is no
     // browser event to carry the update to the customer. Poll frequently
     // enough for delivery notifications to feel connected, and always
     // refresh immediately when the customer returns to the tab.
-    const poll = window.setInterval(load, 5000);
+    const poll = window.setInterval(load, ACTIVE_NOTIFICATION_REFRESH_MS);
     // A status update made in this browser (for example while testing the
     // rider and customer accounts in separate tabs) has already been
     // accepted by the server when ORDERS_CHANGED_EVENT fires. Refresh the
@@ -37,12 +44,17 @@ export const useBackendNotifications = () => {
     // the next polling interval. Other devices remain covered by polling
     // and the visibility refresh below.
     window.addEventListener(ORDERS_CHANGED_EVENT, load);
+    const refreshFromAnotherTab = (event) => {
+      if (event.key === ORDER_PROGRESS_CHANGED_STORAGE_KEY) load();
+    };
+    window.addEventListener('storage', refreshFromAnotherTab);
     const refreshWhenVisible = () => { if (document.visibilityState === 'visible') load(); };
     document.addEventListener('visibilitychange', refreshWhenVisible);
     return () => {
       controller.abort();
       window.clearInterval(poll);
       window.removeEventListener(ORDERS_CHANGED_EVENT, load);
+      window.removeEventListener('storage', refreshFromAnotherTab);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
   }, []);

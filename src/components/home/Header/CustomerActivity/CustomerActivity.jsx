@@ -12,6 +12,7 @@ import { getSessionUser } from '../../../../utils/session';
 import { applyBackendTruth, useBackendOrders } from '../../../../hooks/useBackendOrders';
 import { toLocalNotificationShape, useBackendNotifications } from '../../../../hooks/useBackendNotifications';
 import OrderChat from '../../../common/OrderChat/OrderChat';
+import { happenedTodayInManila, remainsVisibleToday } from '../../../../utils/backendTime';
 
 const NotificationIcon = () => (
   <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -95,12 +96,10 @@ const CustomerActivity = () => {
   } = useCustomerActivity();
   const backendOrdersById = useBackendOrders('/api/orders?per_page=50');
   const allOrders = useMemo(() => applyBackendTruth(localOrders, backendOrdersById), [localOrders, backendOrdersById]);
-  // Track Orders is meant for active tracking, not a permanent log - once an
-  // order is finalized (delivered/cancelled) it no longer needs tracking and
-  // was reported as clutter (9/25) once enough orders piled up. The
-  // underlying records are untouched (Revenue/admin History still read the
-  // real Orders table) - this only affects what the customer sees here.
-  const orders = useMemo(() => allOrders.filter((order) => !['delivered', 'cancelled'].includes(order.status)), [allOrders]);
+  const [now, setNow] = useState(Date.now());
+  // Completed orders stay available for the rest of the Manila business day
+  // in both customer tracking and the rider dashboard.
+  const orders = useMemo(() => allOrders.filter((order) => remainsVisibleToday(order, now)), [allOrders, now]);
   const backendNotifications = useBackendNotifications();
   // Local notifications only ever cover "order request sent" (instant,
   // same-device - see placeOrder/placeCartOrder). Everything admin/rider
@@ -116,8 +115,9 @@ const CustomerActivity = () => {
   const notifications = useMemo(() => (
     [...localNotifications, ...backendNotifications.map(toLocalNotificationShape)]
       .filter((item) => Date.parse(item.createdAt) > clearedAt)
+      .filter((item) => happenedTodayInManila(item.createdAt, now))
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-  ), [localNotifications, backendNotifications, clearedAt]);
+  ), [localNotifications, backendNotifications, clearedAt, now]);
   const clearAllNotifications = () => {
     const clearTimestamp = Date.now();
     try { if (clearedAtKey) localStorage.setItem(clearedAtKey, String(clearTimestamp)); } catch { /* ignore */ }
@@ -125,7 +125,6 @@ const CustomerActivity = () => {
   };
   const [openPanel, setOpenPanel] = useState(null);
   const [activityTab, setActivityTab] = useState('notifications');
-  const [now, setNow] = useState(Date.now());
   const customerType = getSessionUser()?.userType || 'non_student';
   const unreadCount = notifications.filter((item) => !item.read).length;
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
@@ -222,7 +221,7 @@ const CustomerActivity = () => {
                           <EstimatedWait order={order} now={now} />
                         )}
 
-                        {order.status === 'pending_rider' && (
+                        {order.status === 'pending_rider' && !order.assignedRider && (
                           <div className="rider-decision-state">
                             <i className="fa-solid fa-clock" aria-hidden="true" /><div><strong>Waiting for a rider</strong><span>Tracking will begin after a rider accepts your order.</span></div>
                           </div>

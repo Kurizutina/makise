@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { getSessionUser, isAssignedTo } from '../utils/session';
 import { CUSTOMER_ACTIVITY_CHANGED } from '../utils/customerProfileSync';
-import { ORDERS_CHANGED_EVENT } from '../hooks/useBackendOrders';
+import { broadcastOrderProgressChanged } from '../hooks/useBackendOrders';
 import { calculateDeliveryFee, findDeliveryLocation } from '../utils/deliveryRates';
 
 const CustomerActivityContext = createContext(null);
@@ -69,11 +69,13 @@ const syncOrderToBackend = (localOrderId, order, deliveryAddress, serviceFee = 0
       body: JSON.stringify(items.every((item) => Number.isInteger(item.productId))
         ? {
           items: items.map((item) => ({ ProductID: item.productId, quantity: item.quantity || 1 })),
+          clientOrderId: localOrderId,
           deliveryAddress: deliveryAddress || 'Not provided', serviceFee: Number(serviceFee) || 0
         }
         : {
           customItems: items.map((item) => ({ name: item.name || 'Custom item', quantity: item.quantity || 1, price: Number(item.price) || 0 })),
           source: order.source || 'Otu-Zan', label: order.label || 'Customer order', section: order.section === 'item' ? 'item' : 'food',
+          clientOrderId: localOrderId,
           deliveryAddress: deliveryAddress || 'Not provided', serviceFee: Number(serviceFee) || 0
         })
     })
@@ -108,15 +110,20 @@ const syncOrderToBackend = (localOrderId, order, deliveryAddress, serviceFee = 0
 // like the click just did nothing.
 const syncStatusToBackend = (backendOrderId, status) => {
   const headers = authHeaders();
-  if (!backendOrderId || !headers) return;
-  fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/status`, {
+  if (!backendOrderId || !headers) return Promise.resolve(false);
+  return fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/status`, {
     method: 'PATCH', headers, body: JSON.stringify({ status })
   })
     .then((response) => {
       if (!response.ok) console.warn(`Status update to "${status}" was rejected (order may have already been finalized elsewhere).`);
-      window.dispatchEvent(new Event(ORDERS_CHANGED_EVENT));
+      // Broadcast on rejection too, not just success (see comment above) -
+      // merged with origin/kurizu's Promise<boolean> return (RiderDashboard's
+      // updateProgress awaits this to roll back its optimistic status update
+      // on failure), rather than picking one fix over the other.
+      broadcastOrderProgressChanged();
+      return response.ok;
     })
-    .catch(() => {});
+    .catch(() => false);
 };
 
 const syncAssignmentToBackend = (backendOrderId, riderId) => {
@@ -127,7 +134,7 @@ const syncAssignmentToBackend = (backendOrderId, riderId) => {
   })
     .then((response) => {
       if (!response.ok) console.warn('Rider assignment change was rejected (order may have already changed elsewhere).');
-      window.dispatchEvent(new Event(ORDERS_CHANGED_EVENT));
+      broadcastOrderProgressChanged();
     })
     .catch(() => {});
 };
@@ -170,7 +177,7 @@ const syncPaymentStatusToBackend = (backendPaymentId, status) => {
   fetch(`${API_BASE_URL}/api/payments/${backendPaymentId}/status`, {
     method: 'PATCH', headers, body: JSON.stringify({ status })
   })
-    .then((response) => { if (response.ok) window.dispatchEvent(new Event(ORDERS_CHANGED_EVENT)); })
+    .then((response) => { if (response.ok) broadcastOrderProgressChanged(); })
     .catch(() => {});
 };
 
@@ -234,9 +241,23 @@ const loadActivity = () => {
   }
 };
 
+// Orders are server-backed, but carts intentionally remain browser-local
+// until checkout. The activity blob is shared by every account that uses
+// this browser, so cart lines must carry an owner; otherwise a customer who
+// signs in after someone else inherits their basket. Old untagged lines are
+// treated as a guest cart rather than being assigned to the next account.
+const activeCartOwner = () => {
+  const user = getSessionUser();
+  return user?.role === 'customer' && user.id != null ? `customer:${user.id}` : 'guest';
+};
+
+const cartOwner = (item) => item.cartOwner || 'guest';
+const cartForActiveOwner = (items = []) => items.filter((item) => cartOwner(item) === activeCartOwner());
+const tagCartForActiveOwner = (items = []) => items.map((item) => ({ ...item, cartOwner: activeCartOwner() }));
+
 export const CustomerActivityProvider = ({ children }) => {
   const saved = useMemo(() => loadActivity(), []);
-  const [cart, setCart] = useState(saved.cart || []);
+  const [cart, setCart] = useState(() => cartForActiveOwner(saved.cart));
   const [orders, setOrders] = useState((saved.orders || []).filter((order) => {
     const riderName = String(order.assignedRider?.name || '').trim().toLowerCase();
     return riderName !== 'jayson deguzman';
@@ -288,7 +309,7 @@ export const CustomerActivityProvider = ({ children }) => {
       if (event.key !== STORAGE_KEY || !event.newValue) return;
       try {
         const next = JSON.parse(event.newValue);
-        setCart(next.cart || []);
+        setCart(cartForActiveOwner(next.cart));
         setOrders((next.orders || []).filter((order) => String(order.assignedRider?.name || '').trim().toLowerCase() !== 'jayson deguzman'));
         setNotifications(next.notifications || []);
       } catch {
@@ -297,7 +318,7 @@ export const CustomerActivityProvider = ({ children }) => {
     };
     window.addEventListener('storage', syncActivity);
     const syncProfileOrders = (event) => {
-      setCart(event.detail.cart || []);
+      setCart(cartForActiveOwner(event.detail.cart));
       setOrders((event.detail.orders || []).filter((order) => String(order.assignedRider?.name || '').trim().toLowerCase() !== 'jayson deguzman'));
       setNotifications(event.detail.notifications || []);
     };
@@ -322,10 +343,17 @@ export const CustomerActivityProvider = ({ children }) => {
 
   const persist = (nextCart, nextOrders, nextNotifications) => {
     const latest = loadActivity();
+    // Preserve cart lines belonging to other signed-in customers (or the
+    // guest basket) while replacing only this account's visible basket.
+    // This also makes concurrent tabs for the same customer stay in sync.
+    const storedCart = [
+      ...(latest.cart || []).filter((item) => cartOwner(item) !== activeCartOwner()),
+      ...tagCartForActiveOwner(nextCart)
+    ];
     const mergedOrders = mergeById(nextOrders, latest.orders || []);
     const mergedNotifications = mergeById(nextNotifications, latest.notifications || []);
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      cart: nextCart,
+      cart: storedCart,
       orders: mergedOrders,
       notifications: mergedNotifications
     }));
@@ -346,7 +374,7 @@ export const CustomerActivityProvider = ({ children }) => {
       ? cart.map((entry) => entry.cartId === cartId
         ? { ...entry, quantity: entry.quantity + (item.quantity || 1) }
         : entry)
-      : [...cart, { ...item, cartId, quantity: item.quantity || 1 }];
+      : [...cart, { ...item, cartId, quantity: item.quantity || 1, cartOwner: activeCartOwner() }];
     updateAll(nextCart, orders, notifications);
   };
 
@@ -484,19 +512,18 @@ export const CustomerActivityProvider = ({ children }) => {
       // carries the real backend customerId/status even with no local copy.
       const isOwningCustomerCancelling = user?.role === 'customer' && status === 'cancelled'
         && String(orderRef?.customerId) === String(user?.id) && orderRef?.status === 'pending_rider';
-      if (!backendOrderId || !(user?.role === 'admin' || user?.role === 'driver' || isOwningCustomerCancelling)) return;
-      syncStatusToBackend(backendOrderId, status);
-      return;
+      if (!backendOrderId || !(user?.role === 'admin' || user?.role === 'driver' || isOwningCustomerCancelling)) return Promise.resolve(false);
+      return syncStatusToBackend(backendOrderId, status);
     }
-    if (currentOrder.status === status) return;
+    if (currentOrder.status === status) return Promise.resolve(true);
     const user = getSessionUser();
     // A customer may cancel their own order while it's still pending_rider -
     // same server-side rule as OrderController::updateStatus. Anything past
     // that point (confirmed onward) is out of their hands.
     const isOwningCustomerCancelling = user?.role === 'customer' && status === 'cancelled'
       && String(currentOrder.customerId) === String(user?.id) && currentOrder.status === 'pending_rider';
-    if (user?.role !== 'admin' && !(user?.role === 'driver' && isAssignedTo(currentOrder, user)) && !isOwningCustomerCancelling) return;
-    if (['delivered', 'cancelled'].includes(currentOrder.status)) return;
+    if (user?.role !== 'admin' && !(user?.role === 'driver' && isAssignedTo(currentOrder, user)) && !isOwningCustomerCancelling) return Promise.resolve(false);
+    if (['delivered', 'cancelled'].includes(currentOrder.status)) return Promise.resolve(false);
 
     const statusContent = {
       confirmed: ['Order accepted', `${currentOrder.label} was accepted. Tracking is now available.`],
@@ -506,7 +533,7 @@ export const CustomerActivityProvider = ({ children }) => {
       delivered: ['Order delivered', `${currentOrder.label} has been delivered.`]
     };
     const content = statusContent[status];
-    if (!content) return;
+    if (!content) return Promise.resolve(false);
 
     const updatedAt = new Date().toISOString();
     const estimatedWaitMinutes = currentOrder.estimatedWaitMinutes
@@ -538,7 +565,13 @@ export const CustomerActivityProvider = ({ children }) => {
         type: status === 'cancelled' ? 'cancelled' : 'status'
       }, ...(latest.notifications || notifications)];
     updateAll(latest.cart || cart, nextOrders, nextNotifications);
-    syncStatusToBackend(currentOrder.backendOrderId, status);
+    // Local-only legacy orders have no server request to wait for. Backend
+    // orders return a success flag so callers can keep an optimistic status
+    // visible while a stale poll is still in flight, then roll it back if
+    // the server rejects the transition.
+    return currentOrder.backendOrderId
+      ? syncStatusToBackend(currentOrder.backendOrderId, status)
+      : Promise.resolve(true);
   };
 
   const assignOrderToRider = (orderRef, rider) => {

@@ -27,14 +27,14 @@
 
 .hover-animate:hover {
   transform: translate(8px, -8px);
-  box-shadow: 8px 8px 0 #F9C12F;
+  box-shadow: 8px 8px 0 var(--color-primary-light);
 }
 
 .logo-section {
   background: #ffffff;
   padding: 3rem 2.5rem;
   border-radius: 2rem;
-  box-shadow: 8px 8px 0 #F9C12F, 0 10px 40px rgba(0, 0, 0, 0.08);
+  box-shadow: 8px 8px 0 var(--color-primary-light), 0 10px 40px rgba(0, 0, 0, 0.08);
   border: 2px solid #f0f0f0;
   text-align: center;
   width: 100%;
@@ -66,7 +66,7 @@
 /* Enhanced hover effect for logo section */
 .logo-section:hover {
   transform: translate(4px, -4px);
-  box-shadow: 12px 12px 0 #F9C12F, 0 15px 45px rgba(0, 0, 0, 0.12);
+  box-shadow: 12px 12px 0 var(--color-primary-light), 0 15px 45px rgba(0, 0, 0, 0.12);
 }
 
 /* Logo styles */
@@ -82,7 +82,7 @@
 .logo-placeholder {
   width: 90px;
   height: 90px;
-  background: linear-gradient(135deg, #F9C12F 0%, #F15A29 80%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 80%);
   border-radius: 25px;
   display: flex;
   align-items: center;
@@ -106,7 +106,7 @@
   font-weight: 700;
   font-size: 2.2rem;
   letter-spacing: -0.5px;
-  background: linear-gradient(to right, #DA1C5C, #F15A29);
+  background: linear-gradient(to right, var(--color-primary), var(--color-primary-dark));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -171,7 +171,7 @@
 .circle-1 {
   width: 150px;
   height: 150px;
-  background: #F9C12F;
+  background: var(--color-primary-light);
   top: -50px;
   right: -50px;
 }
@@ -179,7 +179,7 @@
 .circle-2 {
   width: 100px;
   height: 100px;
-  background: #DA1C5C;
+  background: var(--color-primary);
   bottom: 30px;
   left: -30px;
 }
@@ -187,7 +187,7 @@
 .circle-3 {
   width: 80px;
   height: 80px;
-  background: #F15A29;
+  background: var(--color-primary-dark);
   bottom: -20px;
   right: 40px;
 }
@@ -351,7 +351,7 @@
 .remember-me-label input {
   width: 15px;
   height: 15px;
-  accent-color: #DA1C5C;
+  accent-color: var(--color-primary);
   cursor: pointer;
 }
 
@@ -372,7 +372,7 @@
 
 .input-field:focus + .input-icon,
 .input-icon-wrapper:focus-within .input-icon {
-  color: #F9C12F;
+  color: var(--color-primary);
 }
 
 .input-field {
@@ -398,9 +398,9 @@ select.input-field {
 }
 
 .input-field:focus {
-  border-color: #F9C12F;
+  border-color: var(--color-primary);
   background: white;
-  box-shadow: 0 0 0 4px rgba(249, 193, 47, 0.1);
+  box-shadow: 0 0 0 4px rgba(218, 28, 92, 0.1);
 }
 
 /* Access code */
@@ -442,7 +442,7 @@ select.input-field {
 }
 
 .toggle-password:hover {
-  color: #F9C12F;
+  color: var(--color-primary);
 }
 
 /* Submit button */
@@ -491,7 +491,7 @@ select.input-field {
 }
 
 .toggle-mode span {
-  color: #DA1C5C;
+  color: var(--color-primary);
   font-weight: 700;
   cursor: pointer;
   margin-left: 0.3rem;
@@ -499,7 +499,7 @@ select.input-field {
 }
 
 .toggle-mode span:hover {
-  color: #F15A29;
+  color: var(--color-primary-dark);
   text-decoration: underline;
 }
 
@@ -515,7 +515,7 @@ select.input-field {
 }
 
 .auth-secondary-link:hover {
-  color: #F15A29;
+  color: var(--color-primary-dark);
   text-decoration: underline;
 }
 
@@ -600,7 +600,7 @@ select.input-field {
 
   .hover-animate:hover {
     transform: translate(4px, -4px);
-    box-shadow: 4px 4px 0 #F9C12F;
+    box-shadow: 4px 4px 0 var(--color-primary-light);
   }
 }
 
