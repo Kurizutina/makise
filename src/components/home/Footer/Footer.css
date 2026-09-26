@@ -1,9 +1,28 @@
 .home-footer {
+  position: relative;
   margin-top: auto;
   background: var(--color-background);
   color: var(--color-text);
-  border-top: 1px solid var(--color-border);
-  padding: 48px clamp(20px, 4vw, 56px) 0;
+  padding: 56px clamp(20px, 4vw, 56px) 0;
+}
+
+/* Whatever renders above Footer (the brand grid, FAQ, etc.) sits on the
+   same near-white background this section starts with, so a plain
+   border-top alone read as almost no break at all (reported live, 9/26 -
+   the brand grid and footer "blend into one continuous block"). A full-
+   width colored band - the same brand gradient FAQ's hero already uses,
+   so this doesn't introduce a new color - gives a clear seam between
+   "page content" and "footer" the way GrabFood/foodpanda-style sites
+   (and the Jollibee reference given) separate the two, without needing
+   a CTA banner's worth of content to justify it. */
+.home-footer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: linear-gradient(120deg, #e51d5a 0%, #ed3856 52%, #fb6940 100%);
 }
 
 .home-footer-content,
