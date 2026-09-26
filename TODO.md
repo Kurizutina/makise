@@ -334,7 +334,7 @@ AI for key business decisions
       revenue-definition decision (High Priority) before starting; that
       decision only changes what number `ServiceFee`-based revenue shows, not
       any of this layer's structure.
-- [ ] **Layer 2 — RFM Customer Segmentation (Diagnostic Analytics)**. Score each
+- [x] **Layer 2 — RFM Customer Segmentation (Diagnostic Analytics)**. Score each
       customer on Recency (days since last order), Frequency (order count), and
       Monetary value (total spend) to classify them into segments like
       loyal/at-risk/new
@@ -342,12 +342,23 @@ AI for key business decisions
       Segmentation](https://clevertap.com/blog/rfm-analysis/);
       [ScienceDirect/JTAER: Customer Segmentation Using an Extended RFM Model and
       Clustering Algorithms in
-      E-Commerce](https://doi.org/10.3390/jtaer21050142)). Genuinely achievable
-      with plain SQL aggregation over the existing `Orders` table - no
-      machine-learning library needed, no dependency on Layer 1 landing first.
-      **Cheapest of the three layers and doesn't need to wait on anything else** -
-      it's a query, not a feature. Gives the paper a named, citable methodology
-      instead of "we counted things."
+      E-Commerce](https://doi.org/10.3390/jtaer21050142)). **Completed 9/26**:
+      new `GET /api/admin/customer-segments` scores every customer with at
+      least one non-cancelled order 1-5 on each dimension by quintile rank
+      across the customer base, then maps the combination to a named segment
+      (Champions/Loyal/At Risk/New/Needs Attention/Lost) - the standard
+      technique from the citations above, not a bespoke scheme. Monetary is
+      each customer's own total spend (`TotalPrice`), deliberately different
+      from the business's own Revenue figure (`ServiceFee` only, still a
+      separate open decision) - RFM needs real order value to tell customers
+      apart, which a flat delivery fee can't do. Admin Revenue tab shows a
+      "Customer segments" card - summary sentence + bar breakdown, no full
+      customer table (matches the "don't show everything at once" approach
+      already established for Layer 1). Verified live with seeded customers
+      of distinct profiles - correct Champions/Lost classification, correct
+      bar widths/colors confirmed via the DOM. Three new backend tests
+      (classification, cancelled-order exclusion, zero-order exclusion,
+      admin-only access).
 - [ ] **Layer 3 — Lightweight Predictive Demand Forecast (Predictive Analytics)**.
       A rolling average or day-of-week seasonal average of past order volume, to
       project expected orders for the next day/hour, framed as informing rider
