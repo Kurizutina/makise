@@ -79,6 +79,17 @@ flipping the box, to keep this split meaningful over time.
       built later, a deliberate secondary accent can be reconsidered then,
       scoped to that feature specifically - not resurrected from what's
       already there by default.
+- [x] **No visual separation between page content and the footer** (user
+      report, 9/26, Jollibee's own site given as a reference for a colored
+      full-width band before the footer). The footer's background was nearly
+      identical to whatever rendered above it - the brand grid's transparent
+      background, FAQ's white end - and the existing `border-top` alone
+      wasn't enough of a break. Added a thin (6px) full-width gradient band
+      above the footer, reusing FAQ's existing hero gradient rather than
+      introducing a new color, plus slightly more top padding. Verified live
+      on both paths Footer renders on (the brand-grid view and the
+      FAQ-ending view - the band blends naturally into FAQ's own
+      same-family gradient with no visual artifact). (`6d5c6e7`)
 - [ ] **Products without photos hurt conversion** (web research, 9/21;
       re-confirmed and sharpened during the design critique, 9/23) — this is a
       recognized, documented UX problem, not just an aesthetic nitpick: a 2018
