@@ -316,7 +316,64 @@ const RevenueTab = () => {
     </div>
     <div className="admin-analytics-card"><h2>Revenue over time</h2><p>Daily total across every day on record - unaffected by the date filter above, so the trend stays visible while you drill into a single day's numbers.</p><RevenueBarGraph daily={data.daily || []} /></div>
     <div className="admin-analytics-card"><h2>Revenue by service</h2><p>Calculated from the delivery or service fee on every non-cancelled order{dateFilter ? ' on the selected date' : ' on record, not just what\'s currently loaded'}.</p><div className="admin-revenue-bars">{Object.entries(SERVICE_META).map(([key, meta]) => <div key={key}><span>{meta.label}</span><div><i style={{ width: `${((totals[key] || 0) / maximum) * 100}%`, background: meta.color }} /></div><strong>{formatCurrency(totals[key] || 0)}</strong></div>)}</div></div>
+    <PeakOrderingTimeCard data={data} />
   </section>;
+};
+
+// Data Analytics Layer 1 (descriptive) - when orders actually come in, so
+// staffing/rider availability can be planned around real demand instead of
+// a guess. Always all-time (same reasoning as the daily revenue series
+// above - a single filtered day can't show a meaningful day-of-week
+// pattern), computed server-side from the same non-cancelled order set
+// OrderController::revenue already fetches - no extra request.
+const HOUR_LABELS = Array.from({ length: 24 }, (_, hour) => {
+  const period = hour < 12 ? 'AM' : 'PM';
+  const display = hour % 12 === 0 ? 12 : hour % 12;
+  return `${display}${period}`;
+});
+const DAY_ABBREVIATIONS = { Sunday: 'Sun', Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat' };
+
+const MiniBarRow = ({ items, labelFor, valueFor, titleFor }) => {
+  const maxValue = Math.max(...items.map(valueFor), 1);
+  return <div className="admin-peak-bars">
+    {items.map((item, index) => (
+      <div className="admin-peak-bar" key={index} title={titleFor(item)}>
+        <i style={{ height: `${(valueFor(item) / maxValue) * 100}%` }} />
+        <span>{labelFor(item, index)}</span>
+      </div>
+    ))}
+  </div>;
+};
+
+const PeakOrderingTimeCard = ({ data }) => {
+  const peakHours = data.peakHours || [];
+  const peakDays = data.peakDays || [];
+  const hasOrders = peakHours.some((h) => h.orders > 0);
+
+  return <div className="admin-analytics-card">
+    <h2>Peak ordering time</h2>
+    <p>
+      {hasOrders && data.peakHour != null
+        ? `Orders peak around ${HOUR_LABELS[data.peakHour]} on ${data.peakDay}s - all-time, unaffected by the date filter above.`
+        : 'Not enough order history yet to identify a pattern.'}
+    </p>
+    {hasOrders && <>
+      <h3 className="admin-peak-subheading">By hour of day</h3>
+      <MiniBarRow
+        items={peakHours}
+        valueFor={(h) => h.orders}
+        labelFor={(h, index) => (index % 3 === 0 ? HOUR_LABELS[h.hour] : '')}
+        titleFor={(h) => `${HOUR_LABELS[h.hour]}: ${h.orders} order${h.orders === 1 ? '' : 's'}`}
+      />
+      <h3 className="admin-peak-subheading">By day of week</h3>
+      <MiniBarRow
+        items={peakDays}
+        valueFor={(d) => d.orders}
+        labelFor={(d) => DAY_ABBREVIATIONS[d.day]}
+        titleFor={(d) => `${d.day}: ${d.orders} order${d.orders === 1 ? '' : 's'}`}
+      />
+    </>}
+  </div>;
 };
 
 // Plain inline SVG bar chart - the `daily` breakdown OrderController::

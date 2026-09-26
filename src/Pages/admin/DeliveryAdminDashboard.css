@@ -171,6 +171,11 @@
 }
 .admin-analytics-card { padding: 24px; background: rgba(255,255,255,.92); }
 .admin-analytics-card > p { color: var(--admin-muted); }
+.admin-peak-subheading { margin: 18px 0 10px; font-size: 13px; font-weight: 700; color: var(--admin-muted); text-transform: uppercase; letter-spacing: .04em; }
+.admin-peak-bars { display: flex; align-items: flex-end; gap: 4px; height: 90px; }
+.admin-peak-bar { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; flex: 1 1 0; height: 100%; min-width: 0; }
+.admin-peak-bar i { display: block; width: 100%; min-height: 2px; border-radius: 4px 4px 0 0; background: var(--admin-pink, #da1c5c); }
+.admin-peak-bar span { margin-top: 6px; font-size: 10px; color: var(--admin-muted); white-space: nowrap; }
 .admin-payment-card { padding: 18px; transition: transform .2s ease, box-shadow .2s ease; }
 .admin-payment-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(52,26,36,.09); }
 .admin-catalog-tabs button { transition: color .2s ease, border-color .2s ease; }

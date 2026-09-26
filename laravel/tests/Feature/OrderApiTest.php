@@ -504,6 +504,40 @@ class OrderApiTest extends TestCase
         $this->assertCount(2, $response->json('daily'));
     }
 
+    // Layer 1 analytics (peak ordering time). Two orders land in Manila
+    // Monday 04:00, one in Manila Friday 18:00, plus a cancelled order at a
+    // third hour/day that would otherwise dominate - it must be excluded,
+    // same as it already is from every other figure this endpoint returns.
+    public function test_admin_revenue_reports_peak_hour_and_day(): void
+    {
+        $customer = $this->user('customer');
+        $admin = $this->user('admin');
+
+        $mondayA = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 175, 'ServiceFee' => 75, 'DeliveryStatus' => 'delivered']);
+        $mondayA->OrderDate = '2026-09-20 20:00:00'; // 2026-09-21 04:00 Manila, Monday
+        $mondayA->save();
+        $mondayB = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 175, 'ServiceFee' => 75, 'DeliveryStatus' => 'delivered']);
+        $mondayB->OrderDate = '2026-09-20 20:15:00'; // same Manila hour/day
+        $mondayB->save();
+        $friday = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 175, 'ServiceFee' => 75, 'DeliveryStatus' => 'delivered']);
+        $friday->OrderDate = '2026-09-25 10:00:00'; // 2026-09-25 18:00 Manila, Friday
+        $friday->save();
+        $cancelled = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 175, 'ServiceFee' => 75, 'DeliveryStatus' => 'cancelled']);
+        $cancelled->OrderDate = '2026-09-22 01:00:00'; // would otherwise be the peak alone
+        $cancelled->save();
+
+        $response = $this->withToken($this->token($admin))->getJson('/api/admin/revenue')->assertOk();
+
+        $this->assertEquals(4, $response->json('peakHour'));
+        $this->assertEquals('Monday', $response->json('peakDay'));
+        $peakHours = collect($response->json('peakHours'));
+        $this->assertEquals(2, $peakHours->firstWhere('hour', 4)['orders']);
+        $this->assertEquals(1, $peakHours->firstWhere('hour', 18)['orders']);
+        $peakDays = collect($response->json('peakDays'));
+        $this->assertEquals(2, $peakDays->firstWhere('day', 'Monday')['orders']);
+        $this->assertEquals(1, $peakDays->firstWhere('day', 'Friday')['orders']);
+    }
+
     public function test_only_admin_can_view_revenue(): void
     {
         $customer = $this->user('customer');

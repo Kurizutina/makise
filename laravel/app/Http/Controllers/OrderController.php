@@ -169,11 +169,22 @@ class OrderController extends Controller
         $byService = ['food' => 0.0, 'item' => 0.0, 'bills' => 0.0];
         $total = 0.0;
         $orderCount = 0;
+        // Peak ordering time (Layer 1 analytics) - always all-time, same as
+        // $daily above, since a single filtered day can't show a meaningful
+        // day-of-week pattern and hour-of-day is more useful aggregated
+        // across every day on record than for one day in isolation.
+        // hourCounts index = hour of day (0-23); dayCounts index = Carbon's
+        // dayOfWeek (0 = Sunday .. 6 = Saturday), both in Asia/Manila.
+        $hourCounts = array_fill(0, 24, 0);
+        $dayCounts = array_fill(0, 7, 0);
 
         foreach ($orders as $order) {
             $fee = (float) $order->ServiceFee;
-            $date = Carbon::parse($order->OrderDate, 'UTC')->setTimezone($timezone)->toDateString();
+            $placedAt = Carbon::parse($order->OrderDate, 'UTC')->setTimezone($timezone);
+            $date = $placedAt->toDateString();
             $daily[$date] = ($daily[$date] ?? 0) + $fee;
+            $hourCounts[$placedAt->hour]++;
+            $dayCounts[$placedAt->dayOfWeek]++;
 
             if ($requestedDate && $date !== $requestedDate) continue;
 
@@ -186,12 +197,19 @@ class OrderController extends Controller
         }
 
         ksort($daily);
+        $dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        $peakHour = array_search(max($hourCounts), $hourCounts);
+        $peakDay = array_search(max($dayCounts), $dayCounts);
 
         return response()->json([
             'total' => round($total, 2),
             'byService' => array_map(fn ($value) => round($value, 2), $byService),
             'daily' => collect($daily)->map(fn ($value, $date) => ['date' => $date, 'revenue' => round($value, 2)])->values(),
             'orderCount' => $orderCount,
+            'peakHours' => collect($hourCounts)->map(fn ($count, $hour) => ['hour' => $hour, 'orders' => $count])->values(),
+            'peakDays' => collect($dayCounts)->map(fn ($count, $day) => ['day' => $dayNames[$day], 'orders' => $count])->values(),
+            'peakHour' => array_sum($hourCounts) > 0 ? $peakHour : null,
+            'peakDay' => array_sum($dayCounts) > 0 ? $dayNames[$peakDay] : null,
         ]);
     }
 
