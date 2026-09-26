@@ -1,28 +1,22 @@
+/* Second attempt at this (9/26) - a thin gradient hairline on top of a
+   background that's otherwise identical to the page body read as a stray
+   rendering glitch, not a deliberate break, and `margin-top: auto` inside
+   `.home-page`'s min-height:100vh flex column was force-pushing Footer all
+   the way to the viewport's bottom on any page short enough not to fill
+   it (Pay Bills' small grid, for example) - a large dead gap of the exact
+   same color on both sides, with the hairline floating uselessly in the
+   middle of it. Real fix, closer to how delivery apps actually do this
+   (a visibly different footer background + the footer following content
+   directly, not glued to the viewport edge): drop margin-top: auto so
+   Footer sits right after whatever content precedes it, and give it its
+   own tinted background (--color-primary-light, already in the palette -
+   not a new color) distinctly different from the page body's
+   --color-background. No gradient hairline needed once the two areas
+   are actually different colors. */
 .home-footer {
-  position: relative;
-  margin-top: auto;
-  background: var(--color-background);
+  background: var(--color-primary-light);
   color: var(--color-text);
-  padding: 56px clamp(20px, 4vw, 56px) 0;
-}
-
-/* Whatever renders above Footer (the brand grid, FAQ, etc.) sits on the
-   same near-white background this section starts with, so a plain
-   border-top alone read as almost no break at all (reported live, 9/26 -
-   the brand grid and footer "blend into one continuous block"). A full-
-   width colored band - the same brand gradient FAQ's hero already uses,
-   so this doesn't introduce a new color - gives a clear seam between
-   "page content" and "footer" the way GrabFood/foodpanda-style sites
-   (and the Jollibee reference given) separate the two, without needing
-   a CTA banner's worth of content to justify it. */
-.home-footer::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 6px;
-  background: linear-gradient(120deg, #e51d5a 0%, #ed3856 52%, #fb6940 100%);
+  padding: 40px clamp(20px, 4vw, 56px) 0;
 }
 
 .home-footer-content,
