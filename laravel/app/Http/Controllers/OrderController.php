@@ -213,6 +213,106 @@ class OrderController extends Controller
         ]);
     }
 
+    // Data Analytics Layer 2 (diagnostic) - RFM customer segmentation.
+    // Recency/Frequency/Monetary, scored 1-5 by quintile across the
+    // customer base (standard RFM technique - see TODO.md's citations),
+    // then mapped to named segments so the paper has a real, citable
+    // methodology instead of "we counted things."
+    //
+    // Monetary here is each customer's own total spend (TotalPrice - items
+    // plus service fee), deliberately NOT the same figure as the business's
+    // own Revenue above (ServiceFee only) - RFM's Monetary is about
+    // identifying valuable customers, which a flat delivery fee can't do
+    // (every order carries the same fee regardless of size); the business's
+    // still-open Revenue definition (High Priority) is a different question
+    // and doesn't affect this at all. Only non-cancelled orders count,
+    // matching Revenue's own exclusion.
+    public function customerSegments(): JsonResponse
+    {
+        $now = Carbon::now();
+
+        // Filtered in PHP rather than a SQL HAVING clause on the withCount
+        // subquery column - portable across MySQL (real dev DB) and SQLite
+        // (tests), which disagrees with MySQL on referencing a subquery
+        // alias in HAVING.
+        $customers = User::where('Role', 'customer')
+            ->withCount(['orders as frequency' => fn ($query) => $query->where('DeliveryStatus', '!=', 'cancelled')])
+            ->withSum(['orders as monetary' => fn ($query) => $query->where('DeliveryStatus', '!=', 'cancelled')], 'TotalPrice')
+            ->withMax(['orders as last_order_date' => fn ($query) => $query->where('DeliveryStatus', '!=', 'cancelled')], 'OrderDate')
+            ->get()
+            ->filter(fn ($customer) => $customer->frequency > 0)
+            ->values();
+
+        if ($customers->isEmpty()) {
+            return response()->json(['customers' => [], 'segments' => [], 'totalCustomers' => 0]);
+        }
+
+        $customers = $customers->map(function ($customer) use ($now) {
+            $customer->recencyDays = (int) round(Carbon::parse($customer->last_order_date, 'UTC')->diffInDays($now));
+            return $customer;
+        });
+
+        // Quintile score, 1 (worst) - 5 (best), computed by rank rather than
+        // a fixed threshold so it adapts to however many customers actually
+        // exist - a handful of test accounts and a thousand real ones both
+        // still produce a meaningful 1-5 spread instead of everyone landing
+        // in the same bucket.
+        $score = function ($collection, string $field, bool $lowerIsBetter = false) {
+            $sorted = $collection->pluck($field)->sort()->values();
+            $count = $sorted->count();
+            return function ($value) use ($sorted, $count, $lowerIsBetter) {
+                $rank = $sorted->search($value);
+                $percentile = $count > 1 ? $rank / ($count - 1) : 1;
+                $quintile = min(5, (int) floor($percentile * 5) + 1);
+                return $lowerIsBetter ? 6 - $quintile : $quintile;
+            };
+        };
+        $recencyScorer = $score($customers, 'recencyDays', lowerIsBetter: true);
+        $frequencyScorer = $score($customers, 'frequency');
+        $monetaryScorer = $score($customers, 'monetary');
+
+        // Simplified segment mapping (5 named buckets, not the full 25-cell
+        // RFM matrix) - matches the level of detail CleverTap/mainstream CRM
+        // tools present by default (see TODO.md's citation), appropriate for
+        // a dashboard rather than a dedicated analytics tool.
+        $segmentFor = function (int $r, int $f) {
+            if ($r >= 4 && $f >= 4) return 'Champions';
+            if ($r >= 3 && $f >= 4) return 'Loyal';
+            if ($r <= 2 && $f >= 3) return 'At Risk';
+            if ($r >= 4 && $f <= 2) return 'New';
+            if ($r <= 2 && $f <= 2) return 'Lost';
+            return 'Needs Attention';
+        };
+
+        $results = $customers->map(function ($customer) use ($recencyScorer, $frequencyScorer, $monetaryScorer, $segmentFor) {
+            $r = $recencyScorer($customer->recencyDays);
+            $f = $frequencyScorer($customer->frequency);
+            $m = $monetaryScorer((float) $customer->monetary);
+            return [
+                'id' => $customer->UserID,
+                'name' => $customer->UserName,
+                'email' => $customer->Email,
+                'recencyDays' => $customer->recencyDays,
+                'frequency' => $customer->frequency,
+                'monetary' => round((float) $customer->monetary, 2),
+                'rfmScore' => "{$r}{$f}{$m}",
+                'segment' => $segmentFor($r, $f),
+            ];
+        })->sortBy('recencyDays')->values();
+
+        $segmentCounts = $results->countBy('segment');
+        $segmentOrder = ['Champions', 'Loyal', 'At Risk', 'New', 'Needs Attention', 'Lost'];
+
+        return response()->json([
+            'customers' => $results,
+            'segments' => collect($segmentOrder)
+                ->map(fn ($name) => ['segment' => $name, 'count' => $segmentCounts->get($name, 0)])
+                ->filter(fn ($row) => $row['count'] > 0)
+                ->values(),
+            'totalCustomers' => $results->count(),
+        ]);
+    }
+
     // Position is computed fresh on every request from the actual set of
     // orders still waiting - never stored/decremented - so it can't drift
     // out of sync the way a mutated counter could under concurrent orders.

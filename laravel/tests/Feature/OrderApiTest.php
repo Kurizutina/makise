@@ -547,4 +547,67 @@ class OrderApiTest extends TestCase
         $this->app['auth']->forgetGuards();
         $this->withToken($this->token($driver))->getJson('/api/admin/revenue')->assertForbidden();
     }
+
+    // Layer 2 analytics (RFM segmentation). Exactly two customers with
+    // maximally different profiles - with only two data points, quintile
+    // scoring places them at the extremes (1 and 5) on every dimension,
+    // so the resulting segments are deterministic regardless of exact
+    // scoring-curve details. customerB's cancelled order would double its
+    // frequency/monetary if wrongly counted - same exclusion Revenue
+    // already applies.
+    public function test_admin_customer_segments_classifies_champions_and_lost(): void
+    {
+        $admin = $this->user('admin');
+        $customerA = $this->user('customer', 'frequent@test.com');
+        $customerB = $this->user('customer', 'inactive@test.com');
+
+        for ($i = 0; $i < 5; $i++) {
+            Order::create([
+                'UserID' => $customerA->UserID, 'TotalPrice' => 300, 'ServiceFee' => 75,
+                'DeliveryStatus' => 'delivered', 'OrderDate' => now()->subDays($i),
+            ]);
+        }
+        $old = Order::create([
+            'UserID' => $customerB->UserID, 'TotalPrice' => 50, 'ServiceFee' => 25, 'DeliveryStatus' => 'delivered',
+        ]);
+        $old->OrderDate = now()->subDays(300);
+        $old->save();
+        // Must not count - cancelled.
+        Order::create(['UserID' => $customerB->UserID, 'TotalPrice' => 999, 'ServiceFee' => 500, 'DeliveryStatus' => 'cancelled']);
+
+        $response = $this->withToken($this->token($admin))->getJson('/api/admin/customer-segments')->assertOk();
+
+        $this->assertEquals(2, $response->json('totalCustomers'));
+        $byEmail = collect($response->json('customers'))->keyBy('email');
+
+        $frequent = $byEmail['frequent@test.com'];
+        $this->assertEquals('Champions', $frequent['segment']);
+        $this->assertEquals(5, $frequent['frequency']);
+        $this->assertEquals(1500, $frequent['monetary']);
+
+        $inactive = $byEmail['inactive@test.com'];
+        $this->assertEquals('Lost', $inactive['segment']);
+        $this->assertEquals(1, $inactive['frequency']);
+        $this->assertEquals(50, $inactive['monetary']);
+    }
+
+    public function test_customer_with_no_orders_is_excluded_from_segments(): void
+    {
+        $admin = $this->user('admin');
+        $this->user('customer', 'noorders@test.com');
+
+        $response = $this->withToken($this->token($admin))->getJson('/api/admin/customer-segments')->assertOk();
+
+        $this->assertEquals(0, $response->json('totalCustomers'));
+    }
+
+    public function test_only_admin_can_view_customer_segments(): void
+    {
+        $customer = $this->user('customer');
+        $driver = $this->user('driver');
+
+        $this->withToken($this->token($customer))->getJson('/api/admin/customer-segments')->assertForbidden();
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token($driver))->getJson('/api/admin/customer-segments')->assertForbidden();
+    }
 }

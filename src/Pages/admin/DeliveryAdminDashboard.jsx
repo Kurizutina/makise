@@ -317,6 +317,7 @@ const RevenueTab = () => {
     <div className="admin-analytics-card"><h2>Revenue over time</h2><p>Daily total across every day on record - unaffected by the date filter above, so the trend stays visible while you drill into a single day's numbers.</p><RevenueBarGraph daily={data.daily || []} /></div>
     <div className="admin-analytics-card"><h2>Revenue by service</h2><p>Calculated from the delivery or service fee on every non-cancelled order{dateFilter ? ' on the selected date' : ' on record, not just what\'s currently loaded'}.</p><div className="admin-revenue-bars">{Object.entries(SERVICE_META).map(([key, meta]) => <div key={key}><span>{meta.label}</span><div><i style={{ width: `${((totals[key] || 0) / maximum) * 100}%`, background: meta.color }} /></div><strong>{formatCurrency(totals[key] || 0)}</strong></div>)}</div></div>
     <PeakOrderingTimeCard data={data} />
+    <CustomerSegmentsCard />
   </section>;
 };
 
@@ -373,6 +374,64 @@ const PeakOrderingTimeCard = ({ data }) => {
         titleFor={(d) => `${d.day}: ${d.orders} order${d.orders === 1 ? '' : 's'}`}
       />
     </>}
+  </div>;
+};
+
+// Data Analytics Layer 2 (diagnostic) - RFM customer segmentation. A
+// separate fetch from the revenue data above (different endpoint,
+// different shape - customers, not orders), so it loads and errors
+// independently rather than blocking the revenue cards above it.
+const SEGMENT_META = {
+  Champions: { color: '#34b875', description: 'Recent, frequent, high-spending - your best customers.' },
+  Loyal: { color: '#3d9be9', description: 'Order often and recently, not yet top spenders.' },
+  'At Risk': { color: '#f9c12f', description: "Used to order often, haven't in a while - worth a nudge." },
+  New: { color: '#da1c5c', description: 'Just started ordering - too early to tell how often they will return.' },
+  'Needs Attention': { color: '#b285a3', description: "Middling on every measure - not a clear segment either way." },
+  Lost: { color: '#8b8b8b', description: "Infrequent and long inactive - least likely to come back on their own." }
+};
+
+const CustomerSegmentsCard = () => {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const api = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    fetch(`${api}/api/admin/customer-segments`, {
+      headers: { Authorization: `Bearer ${sessionStorage.getItem('otuzanAuthenticated')}` },
+      signal: controller.signal
+    })
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then(setData)
+      .catch(() => { if (!controller.signal.aborted) setError('Unable to load customer segments right now. Try again shortly.'); });
+    return () => controller.abort();
+  }, []);
+
+  if (error) return <div className="admin-analytics-card"><h2>Customer segments</h2><div className="admin-table-empty">{error}</div></div>;
+  if (!data) return <div className="admin-analytics-card"><h2>Customer segments</h2><div className="admin-table-empty">Loading…</div></div>;
+
+  if (!data.totalCustomers) {
+    return <div className="admin-analytics-card">
+      <h2>Customer segments</h2>
+      <p>RFM (Recency, Frequency, Monetary) segmentation - not enough order history yet to group customers.</p>
+    </div>;
+  }
+
+  const maximum = Math.max(...data.segments.map((s) => s.count), 1);
+
+  return <div className="admin-analytics-card">
+    <h2>Customer segments</h2>
+    <p>RFM (Recency, Frequency, Monetary) segmentation across {data.totalCustomers} customer{data.totalCustomers === 1 ? '' : 's'} with at least one order - each scored on how recently, how often, and how much they've spent, relative to every other customer.</p>
+    <div className="admin-revenue-bars">
+      {data.segments.map(({ segment, count }) => {
+        const meta = SEGMENT_META[segment] || {};
+        return <div key={segment} title={meta.description}>
+          <span>{segment}</span>
+          <div><i style={{ width: `${(count / maximum) * 100}%`, background: meta.color || 'var(--admin-pink)' }} /></div>
+          <strong>{count}</strong>
+        </div>;
+      })}
+    </div>
   </div>;
 };
 
