@@ -298,19 +298,28 @@ giants: Gartner's own 2025 research puts 81% of organizations using analytics or
 AI for key business decisions
 ([source](https://www.gartner.com/en/newsroom/press-releases/2025-06-17-gartner-announces-top-data-and-analytics-predictions)).
 
-- [ ] **Layer 1 — Revenue Trends & Best-Sellers (Descriptive Analytics)**.
-      Revenue and best-sellers are already live:
-      `GET /api/admin/revenue` aggregates real, persisted `ServiceFee` by
-      calendar day and by service; `GET /api/catalog/best-sellers` ranks
-      products by real units sold in the last 30 days; the admin dashboard also
-      renders the daily revenue trend as a bar chart. The remaining work for
-      this analytics layer is a peak-ordering-time query (hour-of-day / day-of-week).
-      Dashboard design research recommends keeping each view to a handful of
-      KPIs with one clear primary metric, not a wall of numbers
-      ([Improvado: Dashboard Design Best
-      Practices](https://improvado.io/blog/dashboard-design-guide)) - resist the
-      urge to show everything at once. **This is the layer to implement first**
-      - most of it is already done as a side effect of the bug fix.
+- [x] **Layer 1 — Revenue Trends & Best-Sellers (Descriptive Analytics)**.
+      Revenue and best-sellers were already live: `GET /api/admin/revenue`
+      aggregates real, persisted `ServiceFee` by calendar day and by service;
+      `GET /api/catalog/best-sellers` ranks products by real units sold in the
+      last 30 days; the admin dashboard renders the daily revenue trend as a
+      bar chart. **Completed 9/26**: the remaining piece, a peak-ordering-time
+      query (hour-of-day / day-of-week), is done - `OrderController::revenue`
+      now also returns an hourly and day-of-week order-count distribution
+      (computed from the same non-cancelled order set it already fetches, no
+      new query), and the admin Revenue tab shows a "Peak ordering time" card
+      with a plain-language summary plus two small bar charts. Dashboard
+      design research recommends keeping each view to a handful of KPIs with
+      one clear primary metric, not a wall of numbers ([Improvado: Dashboard
+      Design Best Practices](https://improvado.io/blog/dashboard-design-guide))
+      - this card follows that: one sentence, two compact charts, nothing
+      more. Verified live: seeded orders concentrated on Friday evenings,
+      confirmed the dashboard correctly identified "6PM on Fridays" as the
+      peak, with a cancelled order excluded from the calculation. Layer 1 is
+      now fully done - this was confirmed **not blocked** by the still-open
+      revenue-definition decision (High Priority) before starting; that
+      decision only changes what number `ServiceFee`-based revenue shows, not
+      any of this layer's structure.
 - [ ] **Layer 2 — RFM Customer Segmentation (Diagnostic Analytics)**. Score each
       customer on Recency (days since last order), Frequency (order count), and
       Monetary value (total spend) to classify them into segments like
