@@ -79,25 +79,20 @@ flipping the box, to keep this split meaningful over time.
       built later, a deliberate secondary accent can be reconsidered then,
       scoped to that feature specifically - not resurrected from what's
       already there by default.
-- [x] **No visual separation between page content and the footer** (user
-      report, 9/26, Jollibee's own site given as a reference). First attempt
-      (a thin 6px gradient hairline) missed the actual cause and looked like
-      a rendering glitch, not a deliberate divider - correctly called out
-      live as "unfinished, not intentional." The real problem: `margin-top:
-      auto` inside `.home-page`'s `min-height:100vh` flex column was
-      force-pushing Footer all the way to the viewport's bottom on any page
-      short enough not to fill it (Pay Bills' small grid, for example) - a
-      large dead gap of `--color-background` on both sides, since Footer
-      itself also used that same token, with the hairline floating uselessly
-      in the middle of it. Fixed properly: dropped `margin-top: auto` so
-      Footer follows content directly instead of being glued to the
-      viewport edge, and gave it its own tinted background
-      (`--color-primary-light`, already in the palette) so it's visibly,
-      not just technically, different from the page body - matches how
-      delivery apps actually handle this (differently-colored footer +
-      tight spacing), not a hairline on an otherwise identical background.
-      Verified live on both the Pay Bills view (the exact one that showed
-      the dead space) and the Food Delivery view. (`6d5c6e7`, `5ca91e7`)
+- [ ] **Parked (9/26): brand grid/footer visual separation still not right.**
+      User report, Jollibee's own site given as a reference. Two attempts so
+      far, both landed as real improvements but not the actual fix the user
+      wants: (1) a thin 6px gradient hairline - too subtle, read as a
+      rendering glitch rather than a deliberate divider; (2) removed
+      `margin-top: auto` (was force-pushing Footer to the viewport's bottom
+      on short pages, e.g. Pay Bills, leaving a large dead gap) and gave
+      Footer its own tinted background (`--color-primary-light`) instead of
+      sharing `--color-background` with the page body - closer, but still
+      called "not landing" after several rounds. Parked per explicit
+      instruction rather than continuing to iterate blind - needs a fresh
+      look (concrete before/after screenshots from the user, or a design
+      pass) before touching `Footer.css` again. Priority shifted to Data
+      Analytics. (`6d5c6e7`, `5ca91e7` - both still live, not reverted)
 - [ ] **Products without photos hurt conversion** (web research, 9/21;
       re-confirmed and sharpened during the design critique, 9/23) — this is a
       recognized, documented UX problem, not just an aesthetic nitpick: a 2018
