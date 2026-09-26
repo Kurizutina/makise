@@ -359,21 +359,25 @@ AI for key business decisions
       bar widths/colors confirmed via the DOM. Three new backend tests
       (classification, cancelled-order exclusion, zero-order exclusion,
       admin-only access).
-- [ ] **Layer 3 — Lightweight Predictive Demand Forecast (Predictive Analytics)**.
-      A rolling average or day-of-week seasonal average of past order volume, to
-      project expected orders for the next day/hour, framed as informing rider
-      staffing. Real platforms do this with full ML pipelines analyzing
-      historical sales, seasonality, and local events
-      ([Kody Technolab: Predictive Analytics in
+- [x] **Layer 3 — Lightweight Predictive Demand Forecast (Predictive Analytics)**.
+      A rolling average of past order volume, to project expected orders for
+      the next day, framed as informing rider staffing. Real platforms do
+      this with full ML pipelines analyzing historical sales, seasonality,
+      and local events ([Kody Technolab: Predictive Analytics in
       Delivery](https://kodytechnolab.com/blog/predictive-analytics-in-delivery/);
       [Deliverect: How Data Analytics is Revolutionizing Online Food
-      Ordering](https://www.deliverect.com/en-us/blog/trending/how-data-analytics-is-revolutionizing-the-online-food-ordering-industry)) -
-      a capstone timeline doesn't support that, but a moving-average forecast
-      computed in plain PHP/SQL is still legitimately "predictive analytics" for
-      the paper without needing an ML stack this project doesn't have anywhere
-      else in its architecture. **Do this one last, and only if time allows** -
-      it's the most "emerging-tech-sounding" layer for the paper, but the least
-      load-bearing for the actual running system.
+      Ordering](https://www.deliverect.com/en-us/blog/trending/how-data-analytics-is-revolutionizing-the-online-food-ordering-industry))
+      - a capstone timeline doesn't support that. **Completed 9/26**, scoped
+      down exactly as planned: a plain N-day (up to 7) moving average of
+      daily non-cancelled order counts, zero-filled for no-order days so a
+      gap doesn't inflate the average, capped to however much order history
+      actually exists. Deliberately no seasonality, no tuning - the
+      simplest viable version, per this entry's own original scoping.
+      New `GET /api/admin/demand-forecast`; admin Revenue tab shows a
+      "Demand forecast" card (forecast number + last 14 days for context).
+      Verified live in one pass against real data - forecast and window
+      size both matched hand-calculation exactly, no rework needed.
+      **All three Data Analytics layers are now done.**
 
 ## Non-code / academic
 
