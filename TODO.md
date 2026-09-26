@@ -388,6 +388,19 @@ AI for key business decisions
       what's currently documented - still confirm the switch before it goes into
       the paper, but you now have a concrete, achievable, industry-validated plan
       (above) to bring to that conversation instead of an open question.
+- [ ] **Emerging-tech reassessment — evaluate semantic product search as a
+      replacement/addition to current Data Analytics component, pending
+      research confirmation** (user request, 9/27). Prompted by an honest
+      industry-perspective read (9/27): RFM segmentation and moving-average
+      forecasting are real, correctly-implemented techniques, but neither is
+      current by actual industry standards - RFM dates to 1990s direct-mail
+      CRM, moving averages are foundational statistics, and both are
+      standard/mature practice today, not emerging. Semantic
+      (embedding-based) product search is being researched as a genuinely
+      current (2024-2025) alternative or addition, grounded in this system's
+      actual product catalog (599 products) rather than order volume it
+      doesn't have yet. Research in progress as of 9/27 - not yet a decided
+      direction.
 
 ---
 
