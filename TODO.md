@@ -388,19 +388,40 @@ AI for key business decisions
       what's currently documented - still confirm the switch before it goes into
       the paper, but you now have a concrete, achievable, industry-validated plan
       (above) to bring to that conversation instead of an open question.
-- [ ] **Emerging-tech reassessment — evaluate semantic product search as a
-      replacement/addition to current Data Analytics component, pending
-      research confirmation** (user request, 9/27). Prompted by an honest
-      industry-perspective read (9/27): RFM segmentation and moving-average
-      forecasting are real, correctly-implemented techniques, but neither is
-      current by actual industry standards - RFM dates to 1990s direct-mail
-      CRM, moving averages are foundational statistics, and both are
-      standard/mature practice today, not emerging. Semantic
-      (embedding-based) product search is being researched as a genuinely
-      current (2024-2025) alternative or addition, grounded in this system's
-      actual product catalog (599 products) rather than order volume it
-      doesn't have yet. Research in progress as of 9/27 - not yet a decided
-      direction.
+- [ ] **In progress (9/27): semantic product search, added alongside the
+      existing Data Analytics component (not a replacement).** Research
+      completed and decision made to proceed - see reasoning below. Prompted
+      by an honest industry-perspective read: RFM segmentation and
+      moving-average forecasting are real, correctly-implemented techniques,
+      but neither is current by actual industry standards - RFM dates to
+      1990s direct-mail CRM, moving averages are foundational statistics,
+      both are standard/mature practice today, not emerging.
+      **Research findings**: DoorDash's own 2025-2026 engineering work
+      (DashCLIP, LLM-generated content embeddings) confirms semantic search
+      is genuinely current practice at a directly comparable delivery
+      platform, including specifically for cold-start/low-data discovery.
+      Concrete user benefit for this system: covering the whole Science City
+      of Muñoz (not a single campus) means a linguistically diverse user
+      base - exact-keyword search returns nothing for a misspelled or
+      colloquial product name ("chicken joy" vs "Chickenjoy"), semantic
+      search tolerates that. Cost verified negligible (~$0.001 one-time
+      backfill for 599 products, fractions of a cent per search,
+      OpenAI `text-embedding-3-small`). One new `.env` variable (an
+      embedding API key), with a fallback to the existing substring search
+      if the API is unreachable.
+      **Implementation is being built as small, independently-committable
+      steps** (explicit user instruction, 9/27, given limited remaining
+      weekly budget shared across other coursework) - each step commits
+      separately so a groupmate can pull and continue from a clean state at
+      any point if work stops partway through. Progress:
+      - [x] Step 1: `Embedding` JSON column added to `Product` (`683f907`).
+      - [ ] Step 2: embedding-service class (API call wrapper, mockable in
+            tests so the automated suite never spends real API budget).
+      - [ ] Step 3: one-time backfill command for existing products.
+      - [ ] Step 4: search endpoint (embed query, cosine similarity, fallback
+            to substring search on API failure).
+      - [ ] Step 5: frontend wiring into the existing search bar.
+      - [ ] Step 6: single live verification pass with real data.
 
 ---
 
