@@ -80,16 +80,24 @@ flipping the box, to keep this split meaningful over time.
       scoped to that feature specifically - not resurrected from what's
       already there by default.
 - [x] **No visual separation between page content and the footer** (user
-      report, 9/26, Jollibee's own site given as a reference for a colored
-      full-width band before the footer). The footer's background was nearly
-      identical to whatever rendered above it - the brand grid's transparent
-      background, FAQ's white end - and the existing `border-top` alone
-      wasn't enough of a break. Added a thin (6px) full-width gradient band
-      above the footer, reusing FAQ's existing hero gradient rather than
-      introducing a new color, plus slightly more top padding. Verified live
-      on both paths Footer renders on (the brand-grid view and the
-      FAQ-ending view - the band blends naturally into FAQ's own
-      same-family gradient with no visual artifact). (`6d5c6e7`)
+      report, 9/26, Jollibee's own site given as a reference). First attempt
+      (a thin 6px gradient hairline) missed the actual cause and looked like
+      a rendering glitch, not a deliberate divider - correctly called out
+      live as "unfinished, not intentional." The real problem: `margin-top:
+      auto` inside `.home-page`'s `min-height:100vh` flex column was
+      force-pushing Footer all the way to the viewport's bottom on any page
+      short enough not to fill it (Pay Bills' small grid, for example) - a
+      large dead gap of `--color-background` on both sides, since Footer
+      itself also used that same token, with the hairline floating uselessly
+      in the middle of it. Fixed properly: dropped `margin-top: auto` so
+      Footer follows content directly instead of being glued to the
+      viewport edge, and gave it its own tinted background
+      (`--color-primary-light`, already in the palette) so it's visibly,
+      not just technically, different from the page body - matches how
+      delivery apps actually handle this (differently-colored footer +
+      tight spacing), not a hairline on an otherwise identical background.
+      Verified live on both the Pay Bills view (the exact one that showed
+      the dead space) and the Food Delivery view. (`6d5c6e7`, `5ca91e7`)
 - [ ] **Products without photos hurt conversion** (web research, 9/21;
       re-confirmed and sharpened during the design critique, 9/23) — this is a
       recognized, documented UX problem, not just an aesthetic nitpick: a 2018
