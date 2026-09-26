@@ -416,9 +416,16 @@ AI for key business decisions
       what's currently documented - still confirm the switch before it goes into
       the paper, but you now have a concrete, achievable, industry-validated plan
       (above) to bring to that conversation instead of an open question.
-- [ ] **In progress (9/27): semantic product search, added alongside the
-      existing Data Analytics component (not a replacement).** Research
-      completed and decision made to proceed - see reasoning below. Prompted
+- [ ] **In progress (9/27), NOT required for the Sept 30 deadline: semantic
+      product search, added alongside the existing Data Analytics component
+      (not a replacement).** All three Data Analytics layers above are the
+      complete, working, demoable emerging-tech deliverable on their own -
+      this is a stretch addition, not something to block the deadline on.
+      Only 1 of 6 planned steps is done (see checklist below) - the feature
+      does nothing yet beyond an unused database column; there is no search
+      endpoint, no embedding logic, and no `.env` variable actually needed
+      yet (one will be, starting at Step 2 - don't add it before then).
+      Research completed and decision made to proceed - see reasoning below. Prompted
       by an honest industry-perspective read: RFM segmentation and
       moving-average forecasting are real, correctly-implemented techniques,
       but neither is current by actual industry standards - RFM dates to
