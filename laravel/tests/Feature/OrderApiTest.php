@@ -720,5 +720,38 @@ class OrderApiTest extends TestCase
             'deliveryAddress' => 'Villa Javier, Block 2',
         ])->assertCreated();
     }
+
+    public function test_assign_rejects_rider_with_active_order(): void
+    {
+        $admin = $this->user('admin');
+        $driver = $this->user('driver');
+        $customer = $this->user('customer');
+
+        $order1 = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'ServiceFee' => 75, 'DeliveryStatus' => 'confirmed', 'DeliveryAddress' => 'CLSU Main Campus']);
+        $order2 = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 200, 'ServiceFee' => 75, 'DeliveryStatus' => 'pending_rider', 'DeliveryAddress' => 'CLSU Main Campus']);
+
+        // Assign driver to order1
+        $this->withToken($this->token($admin))->patchJson("/api/orders/{$order1->OrderID}/assign", [
+            'riderId' => $driver->UserID,
+        ])->assertOk();
+
+        $this->app['auth']->forgetGuards();
+
+        // Attempting to assign same driver to order2 must fail (422)
+        $response = $this->withToken($this->token($admin))->patchJson("/api/orders/{$order2->OrderID}/assign", [
+            'riderId' => $driver->UserID,
+        ]);
+        $response->assertUnprocessable();
+        $this->assertStringContainsString('active delivery in progress', (string) ($response->json('error') ?? $response->json('message')));
+
+        // Once order1 is delivered, assignment to order2 should succeed
+        $order1->update(['DeliveryStatus' => 'delivered']);
+        $this->app['auth']->forgetGuards();
+
+        $this->withToken($this->token($admin))->patchJson("/api/orders/{$order2->OrderID}/assign", [
+            'riderId' => $driver->UserID,
+        ])->assertOk();
+    }
 }
+
 

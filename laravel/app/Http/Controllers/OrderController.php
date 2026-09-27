@@ -500,6 +500,13 @@ class OrderController extends Controller
         if ($riderId) {
             $rider = User::find($riderId);
             abort_unless($rider && $rider->Role === 'driver', 422, 'That user is not a rider.');
+
+            $hasActiveOrder = Order::where('AssignedRiderID', $riderId)
+                ->where('OrderID', '!=', $order->OrderID)
+                ->whereNotIn('DeliveryStatus', ['delivered', 'cancelled'])
+                ->exists();
+
+            abort_if($hasActiveOrder, 422, 'That rider already has an active delivery in progress.');
         }
 
         // Assignment reserves the order for a rider, but is not acceptance.
