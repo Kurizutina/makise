@@ -37,7 +37,7 @@ Route::middleware('auth:sanctum')->group(function () {
     })->middleware('throttle:20,1');
     Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:20,1');
     Route::get('/orders', [OrderController::class, 'index']);
-    Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus']);
+    Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->middleware('throttle:30,1');
     Route::post('/payments', [PaymentController::class, 'store'])->middleware('throttle:20,1');
     Route::get('/orders/{order}/messages', [MessageController::class, 'index']);
     Route::post('/orders/{order}/messages', [MessageController::class, 'store'])->middleware('throttle:30,1');
@@ -49,8 +49,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/admin/revenue', [OrderController::class, 'revenue']);
         Route::get('/admin/customer-segments', [OrderController::class, 'customerSegments']);
         Route::get('/admin/demand-forecast', [OrderController::class, 'demandForecast']);
-        Route::patch('/orders/{order}/assign', [OrderController::class, 'assign']);
-        Route::patch('/payments/{payment}/status', [PaymentController::class, 'updateStatus']);
+        Route::patch('/orders/{order}/assign', [OrderController::class, 'assign'])->middleware('throttle:30,1');
+        Route::patch('/payments/{payment}/status', [PaymentController::class, 'updateStatus'])->middleware('throttle:30,1');
     });
     Route::middleware('permission:riders.view')->get('/riders', function (Request $request) {
         return response()->json(['riders' => User::where('Role', 'driver')
@@ -59,24 +59,24 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('permission:catalog.manage')->prefix('admin/catalog')->group(function () {
         Route::get('/options', [CatalogController::class, 'options']);
         Route::get('/services', [CatalogController::class, 'services']);
-        Route::post('/services', [CatalogController::class, 'storeService']);
-        Route::put('/services/{service}', [CatalogController::class, 'updateService']);
-        Route::delete('/services/{service}', [CatalogController::class, 'destroyService']);
+        Route::post('/services', [CatalogController::class, 'storeService'])->middleware('throttle:30,1');
+        Route::put('/services/{service}', [CatalogController::class, 'updateService'])->middleware('throttle:30,1');
+        Route::delete('/services/{service}', [CatalogController::class, 'destroyService'])->middleware('throttle:30,1');
         Route::get('/brands', [CatalogController::class, 'brands']);
-        Route::post('/brands', [CatalogController::class, 'storeBrand']);
-        Route::put('/brands/{brand}', [CatalogController::class, 'updateBrand']);
-        Route::delete('/brands/{brand}', [CatalogController::class, 'destroyBrand']);
+        Route::post('/brands', [CatalogController::class, 'storeBrand'])->middleware('throttle:30,1');
+        Route::put('/brands/{brand}', [CatalogController::class, 'updateBrand'])->middleware('throttle:30,1');
+        Route::delete('/brands/{brand}', [CatalogController::class, 'destroyBrand'])->middleware('throttle:30,1');
         Route::get('/products', [CatalogController::class, 'products']);
         Route::get('/categories', [CatalogController::class, 'categories']);
-        Route::post('/products', [CatalogController::class, 'storeProduct']);
-        Route::put('/products/{product}', [CatalogController::class, 'updateProduct']);
-        Route::delete('/products/{product}', [CatalogController::class, 'destroyProduct']);
+        Route::post('/products', [CatalogController::class, 'storeProduct'])->middleware('throttle:30,1');
+        Route::put('/products/{product}', [CatalogController::class, 'updateProduct'])->middleware('throttle:30,1');
+        Route::delete('/products/{product}', [CatalogController::class, 'destroyProduct'])->middleware('throttle:30,1');
     });
     Route::middleware('permission:accounts.manage')->prefix('admin/accounts')->group(function () {
         Route::get('/{role}', [AccountManagementController::class, 'index']);
-        Route::post('/{role}', [AccountManagementController::class, 'store']);
-        Route::put('/{role}/{account}', [AccountManagementController::class, 'update']);
-        Route::delete('/{role}/{account}', [AccountManagementController::class, 'destroy']);
+        Route::post('/{role}', [AccountManagementController::class, 'store'])->middleware('throttle:30,1');
+        Route::put('/{role}/{account}', [AccountManagementController::class, 'update'])->middleware('throttle:30,1');
+        Route::delete('/{role}/{account}', [AccountManagementController::class, 'destroy'])->middleware('throttle:30,1');
     });
 });
 Route::get('/health', fn () => response()->json(['status' => 'ok', 'backend' => 'laravel']));
