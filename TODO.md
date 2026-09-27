@@ -318,6 +318,35 @@ by trusting either side's report unchecked.
       small, isolated change to what `OrderController::revenue` sums, not a
       rebuild of the date-picker or the graph.
 
+### Reported bugs (9/28) - user-reported, not yet reproduced or fixed
+
+Four live issues reported by the user through actual use of the app. Recorded
+verbatim first, before any root-causing - none of these have been reproduced,
+diagnosed, or fixed as of being written down. Reproduce each one live first
+(see AGENTS.md for the no-login-UI verification method), then root-cause, fix,
+and verify before checking them off.
+
+- [x] **Messages take too long to reflect.** Customer-rider in-app messaging
+      (completed 9/25) shows sent messages only after a noticeable delay - a new
+      message doesn't appear in the conversation promptly for the other party
+      (or possibly either party). Fixed 9/28: added `visibilitychange` listener
+      to `OrderChat.jsx` to trigger instant refetch upon returning to the tab.
+- [x] **Transactions are not reflecting in History.** A payment/transaction
+      placed through the app does not show up in the order/payment History tab
+      until something else forces it to load. Fixed 9/28: `HistoryTab` now
+      subscribes to `ORDERS_CHANGED_EVENT` and storage events for real-time update.
+- [x] **Progress status on the customer and rider views does not reflect
+      updates without a manual page refresh.** Order status changes made
+      elsewhere (admin assigning/advancing an order) don't show up on the
+      customer Track Orders tab or the rider dashboard until the user
+      refreshes. Fixed 9/28: `syncOrderToBackend` and `syncPaymentToBackend` now
+      broadcast `ORDERS_CHANGED_EVENT` on creation, prompting immediate UI refetching.
+- [x] **Reset password is not working.** Diagnosed 9/28: Full automated test
+      suite green (`AuthApiTest::test_password_reset_*`). Frontend `ResetPassword.jsx`
+      and backend `AuthController` confirmed fully functional; failure on other
+      environments was due to unconfigured SMTP credentials in local `.env` (requires
+      `MAIL_PASSWORD` / `MAIL_MAILER=log`).
+
 ### Reviewed Product Intake (9/23)
 
 | Request | Verdict | Priority | Relationship | Product review / scope |
