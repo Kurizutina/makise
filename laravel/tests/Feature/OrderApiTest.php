@@ -46,7 +46,7 @@ class OrderApiTest extends TestCase
         $response = $this->withToken($this->token($customer))->postJson('/api/orders', [
             'items' => [['ProductID' => $product->ProductID, 'quantity' => 3]],
             'clientOrderId' => 'ORD-browser-123',
-            'deliveryAddress' => '123 Test Street',
+            'deliveryAddress' => 'CLSU Main Campus',
             // A malicious client could try to smuggle its own price/total; the
             // endpoint doesn't even accept those fields, so there's nothing to trust.
         ])->assertCreated();
@@ -68,7 +68,7 @@ class OrderApiTest extends TestCase
 
         $response = $this->withToken($this->token($customer))->postJson('/api/orders', [
             'items' => [['ProductID' => $product->ProductID, 'quantity' => 2]],
-            'deliveryAddress' => '123 Test Street',
+            'deliveryAddress' => 'CLSU Main Campus',
             'serviceFee' => 112.5,
         ])->assertCreated();
 
@@ -88,7 +88,7 @@ class OrderApiTest extends TestCase
             'source' => 'Local Burger Shop',
             'label' => '2pc Special burger',
             'section' => 'food',
-            'deliveryAddress' => '123 Test Street',
+            'deliveryAddress' => 'CLSU Main Campus',
             'serviceFee' => 75,
         ])->assertCreated();
 
@@ -113,13 +113,13 @@ class OrderApiTest extends TestCase
 
         $this->withToken($this->token($customer))->postJson('/api/orders', [
             'items' => [['ProductID' => $product->ProductID, 'quantity' => 1]],
-            'deliveryAddress' => '123 Test Street',
+            'deliveryAddress' => 'CLSU Main Campus',
             'serviceFee' => -5,
         ])->assertUnprocessable();
 
         $this->withToken($this->token($customer))->postJson('/api/orders', [
             'items' => [['ProductID' => $product->ProductID, 'quantity' => 1]],
-            'deliveryAddress' => '123 Test Street',
+            'deliveryAddress' => 'CLSU Main Campus',
             'serviceFee' => 9999,
         ])->assertUnprocessable();
     }
@@ -131,12 +131,12 @@ class OrderApiTest extends TestCase
 
         $this->withToken($this->token($customer))->postJson('/api/orders', [
             'items' => [['ProductID' => $inactive->ProductID, 'quantity' => 1]],
-            'deliveryAddress' => '123 Test Street',
+            'deliveryAddress' => 'CLSU Main Campus',
         ])->assertUnprocessable();
 
         $this->withToken($this->token($customer))->postJson('/api/orders', [
             'items' => [['ProductID' => 999999, 'quantity' => 1]],
-            'deliveryAddress' => '123 Test Street',
+            'deliveryAddress' => 'CLSU Main Campus',
         ])->assertUnprocessable();
     }
 
@@ -147,7 +147,7 @@ class OrderApiTest extends TestCase
 
         $this->withToken($this->token($driver))->postJson('/api/orders', [
             'items' => [['ProductID' => $product->ProductID, 'quantity' => 1]],
-            'deliveryAddress' => '123 Test Street',
+            'deliveryAddress' => 'CLSU Main Campus',
         ])->assertForbidden();
     }
 
@@ -698,4 +698,27 @@ class OrderApiTest extends TestCase
         $this->assertNotSame($responseA->json('order.OrderID'), $responseB->json('order.OrderID'));
         $this->assertDatabaseCount('Orders', 2);
     }
+
+    public function test_delivery_address_must_be_within_supported_zone(): void
+    {
+        $customer = $this->user('customer');
+        $product = $this->product(price: 100);
+
+        $response = $this->withToken($this->token($customer))->postJson('/api/orders', [
+            'items' => [['ProductID' => $product->ProductID, 'quantity' => 1]],
+            'deliveryAddress' => 'Fake Nonexistent Zone 123',
+        ]);
+        $response->assertUnprocessable();
+        $response->assertJsonStructure(['error']);
+        $this->assertStringContainsString('supported delivery location', $response->json('error'));
+
+        $this->app['auth']->forgetGuards();
+
+        // Valid zone
+        $this->withToken($this->token($customer))->postJson('/api/orders', [
+            'items' => [['ProductID' => $product->ProductID, 'quantity' => 1]],
+            'deliveryAddress' => 'Villa Javier, Block 2',
+        ])->assertCreated();
+    }
 }
+

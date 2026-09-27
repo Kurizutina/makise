@@ -34,7 +34,25 @@ class OrderController extends Controller
             // card with this authoritative record even if the asynchronous
             // OrderID patch is interrupted.
             'clientOrderId' => ['nullable', 'string', 'max:100'],
-            'deliveryAddress' => ['required', 'string', 'max:2000'],
+            'deliveryAddress' => [
+                'required',
+                'string',
+                'max:2000',
+                function ($attribute, $value, $fail) {
+                    $locations = ['CLSU Main Campus', 'Bagong Sikat', 'Villa Javier', 'Bukang Liwayway', 'Tobias Ville', 'Villa Isidra', 'PNR Main'];
+                    $normalized = mb_strtolower($value);
+                    $matched = false;
+                    foreach ($locations as $loc) {
+                        if (str_contains($normalized, mb_strtolower($loc))) {
+                            $matched = true;
+                            break;
+                        }
+                    }
+                    if (!$matched) {
+                        $fail('Delivery address must be within a supported delivery location (CLSU Main Campus, Bagong Sikat, Villa Javier, Bukang Liwayway, Tobias Ville, Villa Isidra, PNR Main).');
+                    }
+                },
+            ],
             'serviceFee' => ['nullable', 'numeric', 'min:0', 'max:500'],
         ]);
 

@@ -75,7 +75,7 @@ class SecurityApiTest extends TestCase
             'ProductPrice' => 120,
             'IsActive' => true,
         ]);
-        $payload = "Unit 1'; DROP TABLE Orders; --";
+        $payload = "CLSU Main Campus, Unit 1'; DROP TABLE Orders; --";
 
         $this->withToken($customer->createToken('sqli-test')->plainTextToken)
             ->postJson('/api/orders', [
