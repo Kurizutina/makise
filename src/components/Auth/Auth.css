@@ -490,7 +490,12 @@ select.input-field {
   color: var(--color-primary);
 }
 
-/* Submit button */
+/* Submit button. The brand background has to live here: .action-btn sets
+   white text, so without it the button renders white-on-white (the UA's
+   light-grey button face at best) on the white auth card - which is why the
+   "Reset password" confirmation was effectively unreadable. Call sites that
+   used to patch this in with an inline gradient or an extra class now get it
+   by default. */
 .action-btn {
   width: 100%;
   padding: 1rem;
@@ -500,6 +505,8 @@ select.input-field {
   font-size: 1rem;
   letter-spacing: 0.3px;
   color: white;
+  background: linear-gradient(115deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  box-shadow: 0 8px 18px rgba(218, 28, 92, 0.25);
   margin-top: 0.8rem;
   cursor: pointer;
   transition: all 0.3s ease;
