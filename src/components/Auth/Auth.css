@@ -520,6 +520,12 @@ select.input-field {
   transform: translateY(0);
 }
 
+/* Keep the password-reset call to action consistent with the login button. */
+.reset-link-btn {
+  background: linear-gradient(115deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  box-shadow: 0 8px 18px rgba(218, 28, 92, 0.25);
+}
+
 /* Divider */
 .divider {
   border: 0.5px solid #e8e8e8;

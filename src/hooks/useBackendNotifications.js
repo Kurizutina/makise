@@ -16,8 +16,16 @@ export const useBackendNotifications = () => {
     if (!token) return undefined;
     const controller = new AbortController();
     let inFlight = false;
+    // A rider update can arrive just as the previous notification request is
+    // finishing. Keep that refresh instead of dropping it, otherwise the
+    // customer can continue seeing the earlier status until the next poll.
+    let refreshQueued = false;
     const load = () => {
-      if (inFlight || document.visibilityState === 'hidden') return;
+      if (document.visibilityState === 'hidden') return;
+      if (inFlight) {
+        refreshQueued = true;
+        return;
+      }
       inFlight = true;
       fetch(`${API_BASE_URL}/api/notifications?per_page=50`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -29,7 +37,13 @@ export const useBackendNotifications = () => {
         setBackendNotifications(body.data);
       })
       .catch(() => {})
-      .finally(() => { inFlight = false; });
+      .finally(() => {
+        inFlight = false;
+        if (refreshQueued) {
+          refreshQueued = false;
+          load();
+        }
+      });
     };
     load();
     // Rider status changes happen on a different device, so there is no
