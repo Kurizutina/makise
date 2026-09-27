@@ -4,12 +4,12 @@ import Home from './Home';
 const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({ useNavigate: () => mockNavigate, useLocation: () => ({ state: null }) }));
 jest.mock('../../context/CustomerActivityContext', () => ({ useCustomerActivity: () => ({ addToCart: jest.fn(), placeOrder: jest.fn() }) }));
-jest.mock('../../components/home/Header/Header', () => ({ services, selectedService, onServiceChange }) => (
-  <nav>{services.map((service) => <button key={service.ServiceID} onClick={() => onServiceChange(service.ServiceID)} aria-pressed={selectedService === service.ServiceID}>{service.ServiceName}</button>)}</nav>
+jest.mock('../../components/home/Header/Header', () => ({ services, selectedService, onServiceChange, onSearch }) => (
+  <nav><input aria-label="Search brands" onChange={(event) => onSearch(event.target.value)} />{services.map((service) => <button key={service.ServiceID} onClick={() => onServiceChange(service.ServiceID)} aria-pressed={selectedService === service.ServiceID}>{service.ServiceName}</button>)}</nav>
 ));
 jest.mock('../../components/home/Footer/Footer', () => () => null);
-jest.mock('../../components/home/FoodandItem/FoodandItemsSection/FoodandItemsSection', () => ({ brands, onBrandSelect }) => (
-  <div data-testid="brand-grid">{brands.map((brand) => <button key={brand.id} onClick={() => onBrandSelect(brand)}>{brand.name}</button>)}</div>
+jest.mock('../../components/home/FoodandItem/FoodandItemsSection/FoodandItemsSection', () => ({ brands, emptyMessage, onBrandSelect }) => (
+  <div data-testid="brand-grid">{brands.map((brand) => <button key={brand.id} onClick={() => onBrandSelect(brand)}>{brand.name}</button>)}{!brands.length && emptyMessage && <p role="status">{emptyMessage}</p>}</div>
 ));
 
 afterEach(() => { delete global.fetch; mockNavigate.mockClear(); });
@@ -21,7 +21,9 @@ test('home shows API brands and opens the current database product catalog', asy
       { BrandID: 3, BrandName: 'Others (Food Delivery)', ImagePath: null, products_count: 0 },
       { BrandID: 1, BrandName: 'Jollibee', ImagePath: null, products_count: 0 },
     ] },
-    { ServiceID: 2, ServiceName: 'Item Delivery', ServiceType: 'item', brands: [] },
+    { ServiceID: 2, ServiceName: 'Item Delivery', ServiceType: 'item', brands: [
+      { BrandID: 2, BrandName: 'Jolly Mart', ImagePath: null, products_count: 1 },
+    ] },
   ] }) });
   render(<Home />);
   // Home now opens on a distinct "Home" view (hero + Best Sellers) - the
@@ -37,4 +39,17 @@ test('home shows API brands and opens the current database product catalog', asy
   ]);
   fireEvent.click(screen.getByRole('button', { name: 'Item Delivery' }));
   expect(screen.queryByRole('button', { name: "Manuela's" })).not.toBeInTheDocument();
+});
+
+test('search shows matching brands from every service and an empty state', async () => {
+  global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ services: [
+    { ServiceID: 1, ServiceName: 'Food Delivery', ServiceType: 'food', brands: [{ BrandID: 1, BrandName: 'Jollibee', ImagePath: null, products_count: 1 }] },
+    { ServiceID: 2, ServiceName: 'Item Delivery', ServiceType: 'item', brands: [{ BrandID: 2, BrandName: 'Jolly Mart', ImagePath: null, products_count: 1 }] },
+  ] }) });
+  render(<Home />);
+  await screen.findByRole('button', { name: 'Food Delivery' });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search brands' }), { target: { value: 'jol' } });
+  expect((await within(screen.getByTestId('brand-grid')).findAllByRole('button')).map((button) => button.textContent)).toEqual(['Jollibee', 'Jolly Mart']);
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search brands' }), { target: { value: 'missing' } });
+  expect(screen.getByRole('status')).toHaveTextContent('No brands match your search');
 });

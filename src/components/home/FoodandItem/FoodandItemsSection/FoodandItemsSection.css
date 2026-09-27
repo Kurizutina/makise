@@ -78,6 +78,11 @@
   justify-content: start;
 }
 
+.brand-list-empty {
+  margin: 8px 0 0;
+  color: var(--color-text-muted, #6f6670);
+}
+
 
 /* =========================
    MOBILE

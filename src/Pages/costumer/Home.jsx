@@ -144,20 +144,27 @@ const Home = () => {
   }, [location.state, services]);
 
   const currentService = services.find((service) => service.ServiceID === selectedService);
-  const getCurrentBrands = () => (currentService?.brands || [])
-    .filter((brand) => brand.BrandName.toLowerCase().includes(search.trim().toLowerCase()))
-    .map((brand) => ({
+  const searchTerm = search.trim().toLocaleLowerCase();
+  const toBrandCard = (brand, service) => ({
       id: brand.BrandID,
       name: brand.BrandName.startsWith('Others (') ? 'Others' : brand.BrandName,
       image: catalogImageUrl(brand.ImagePath),
-      type: currentService.ServiceType,
+      type: service.ServiceType,
       productsCount: brand.products_count
-    }))
+    });
+  const sortBrands = (brands) => brands
     .sort((first, second) => {
       if (first.name === 'Hongdae Chicken') return -1;
       if (second.name === 'Hongdae Chicken') return 1;
       return Number(first.name === 'Others') - Number(second.name === 'Others');
     });
+  const getCurrentBrands = () => sortBrands((currentService?.brands || [])
+    .map((brand) => toBrandCard(brand, currentService)));
+  const getSearchResults = () => sortBrands(services.flatMap((service) => (service.brands || [])
+    .filter((brand) => brand.BrandName.toLocaleLowerCase().includes(searchTerm))
+    .map((brand) => toBrandCard(brand, service))));
+  const showingSearchResults = searchTerm.length > 0;
+  const displayedBrands = showingSearchResults ? getSearchResults() : getCurrentBrands();
 
 
   // Change section title depending on service
@@ -177,7 +184,10 @@ const Home = () => {
         onHomeClick={() => { setIsHome(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
         isHome={isHome}
         services={services}
-        onSearch={setSearch}
+        onSearch={(value) => {
+          setSearch(value);
+          if (value.trim()) setIsHome(false);
+        }}
       />
 
       {!isHome && <AnnouncementBar />}
@@ -204,8 +214,9 @@ const Home = () => {
 
       {!isHome && <FoodandItemsSection
         id="home-brands"
-        title={getSectionTitle()}
-        brands={getCurrentBrands()}
+        title={showingSearchResults ? `Search results for “${search.trim()}”` : getSectionTitle()}
+        brands={displayedBrands}
+        emptyMessage={showingSearchResults ? 'No brands match your search. Try another name.' : undefined}
         onBrandSelect={(brand) => {
           if (brand.type !== 'bills' && brand.productsCount > 0) {
             navigate(`/catalog/brands/${brand.id}`);

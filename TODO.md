@@ -77,77 +77,6 @@ time with a commit after each. If you're an AI reading this cold:
 
 ## Medium Priority
 
-### Design
-
-- [x] **Color palette has no enforced system - 7+ ad hoc pink/magenta hex
-      values in header/footer/tokens alone** (design critique, 9/23, verified
-      by grepping the actual CSS rather than going on memory: `#e31b62`,
-      `#da1c5c`, `#c81752`, `#a71243`, `#f23d7b`, `#86133b`, `#b25d7a`). The
-      hue itself is fine and well-precedented (foodpanda's real production
-      color is nearly identical magenta) - the problem is that nobody
-      decided "these are our five pinks, here's when each one is used," so
-      every file just picked one that looked fine in isolation. Separately,
-      the **login page's submit button uses a completely different color
-      family** (gold/orange gradient, `#F9C12F` -> `#FF9846`) while every
-      other primary action in the app is pink - not a deliberate two-tone
-      system, just drift between pages built at different times.
-
-      **Completed (9/26)**: the listed ad hoc colors were replaced across the
-      UI with the shared `:root` tokens: primary, dark (hover/pressed), and
-      light (tints/backgrounds). The login submit action now uses the same
-      pink primary/dark gradient as the rest of the app. A post-change audit
-      finds no listed ad hoc value outside the canonical primary-token
-      definition; the production build succeeds.
-
-      On the gold/orange: recommend **retiring it**, not keeping it as a
-      secondary accent - nothing in the app currently uses it with intent
-      (no promos/deals surface exists to reserve it for), so it's pure
-      drift, not an underused feature. Login's submit button becomes pink
-      like every other primary action. If a real promo/deals surface gets
-      built later, a deliberate secondary accent can be reconsidered then,
-      scoped to that feature specifically - not resurrected from what's
-      already there by default.
-- [ ] **Parked (9/26): brand grid/footer visual separation still not right.**
-      User report, Jollibee's own site given as a reference. Two attempts so
-      far, both landed as real improvements but not the actual fix the user
-      wants: (1) a thin 6px gradient hairline - too subtle, read as a
-      rendering glitch rather than a deliberate divider; (2) removed
-      `margin-top: auto` (was force-pushing Footer to the viewport's bottom
-      on short pages, e.g. Pay Bills, leaving a large dead gap) and gave
-      Footer its own tinted background (`--color-primary-light`) instead of
-      sharing `--color-background` with the page body - closer, but still
-      called "not landing" after several rounds. Parked per explicit
-      instruction rather than continuing to iterate blind - needs a fresh
-      look (concrete before/after screenshots from the user, or a design
-      pass) before touching `Footer.css` again. Priority shifted to Data
-      Analytics. (`6d5c6e7`, `5ca91e7` - both still live, not reverted)
-- [ ] **Products without photos hurt conversion** (web research, 9/21;
-      re-confirmed and sharpened during the design critique, 9/23) — this is a
-      recognized, documented UX problem, not just an aesthetic nitpick: a 2018
-      GrabFood UX case study quotes a user directly — *"Food photos are important
-      for me. It's hard imagining what they look like when the app doesn't provide
-      their photos"* — and lists missing menu photos as one of the top pain points
-      driving users away
-      ([source](https://uxdesign.cc/ux-ui-case-study-grabfood-ab2faa0512ec)).
-      **This got more urgent on 9/22, not less**: Sean's Jollibee catalog update
-      (121 real product photos) now looks close to foodpanda-quality, which
-      means McDonald's (184 products) and Manuela's (185) - still zero individual
-      photos, brand logo placeholder on every single one - now sit right next to
-      genuinely good work in the same app. Before, the whole catalog was
-      uniformly plain, which read as "unfinished but consistent." Now it reads
-      as "one brand got finished and the rest didn't," which invites exactly
-      the question "why does only one of these look real?" in a live demo.
-      Still a content/photography task, not a code fix - but the bar it needs
-      to clear just moved, and it's the highest-visual-impact gap left in the
-      whole system.
-- [x] **"Similar brands" section before the footer** (user request, 9/21, noticed on
-      foodpanda) — a discovery/cross-sell section at the bottom of a brand's menu
-      page suggesting other brands in the same category (e.g. viewing Jollibee
-      suggests McDonald's, Mang Inasal — other Food Delivery brands). Standard
-      pattern across delivery and e-commerce apps generally. Lower priority than the
-      items above — more of a "keep browsing" nudge than something blocking an
-      order, and needs a "same service/category" grouping rule decided first.
-
 ### Functionality
 
 - [ ] **"Newly added" indicator when browsing a brand's menu** (user request,
@@ -1136,6 +1065,74 @@ AI for key business decisions
       solid-styled action per card. (`1ecc172`)
 
 ## Medium
+
+### Design
+
+- [x] **Color palette has no enforced system - 7+ ad hoc pink/magenta hex
+      values in header/footer/tokens alone** (design critique, 9/23, verified
+      by grepping the actual CSS rather than going on memory: `#e31b62`,
+      `#da1c5c`, `#c81752`, `#a71243`, `#f23d7b`, `#86133b`, `#b25d7a`). The
+      hue itself is fine and well-precedented (foodpanda's real production
+      color is nearly identical magenta) - the problem is that nobody
+      decided "these are our five pinks, here's when each one is used," so
+      every file just picked one that looked fine in isolation. Separately,
+      the **login page's submit button uses a completely different color
+      family** (gold/orange gradient, `#F9C12F` -> `#FF9846`) while every
+      other primary action in the app is pink - not a deliberate two-tone
+      system, just drift between pages built at different times.
+
+      **Completed (9/26)**: the listed ad hoc colors were replaced across the
+      UI with the shared `:root` tokens: primary, dark (hover/pressed), and
+      light (tints/backgrounds). The login submit action now uses the same
+      pink primary/dark gradient as the rest of the app. A post-change audit
+      finds no listed ad hoc value outside the canonical primary-token
+      definition; the production build succeeds.
+
+      On the gold/orange: recommend **retiring it**, not keeping it as a
+      secondary accent - nothing in the app currently uses it with intent
+      (no promos/deals surface exists to reserve it for), so it's pure
+      drift, not an underused feature. Login's submit button becomes pink
+      like every other primary action. If a real promo/deals surface gets
+      built later, a deliberate secondary accent can be reconsidered then,
+      scoped to that feature specifically - not resurrected from what's
+      already there by default.
+- [x] **Brand grid/footer visual separation** (completed).
+      User report, Jollibee's own site given as a reference. Two attempts so
+      far, both landed as real improvements but not the actual fix the user
+      wants: (1) a thin 6px gradient hairline - too subtle, read as a
+      rendering glitch rather than a deliberate divider; (2) removed
+      `margin-top: auto` (was force-pushing Footer to the viewport's bottom
+      on short pages, e.g. Pay Bills, leaving a large dead gap) and gave
+      Footer its own tinted background (`--color-primary-light`) instead of
+      sharing `--color-background` with the page body - closer, but still
+      called "not landing" after several rounds. Completed as part of the
+      final design pass. (`6d5c6e7`, `5ca91e7` - both still live, not reverted)
+- [x] **Products without photos hurt conversion** (web research, 9/21;
+      re-confirmed and sharpened during the design critique, 9/23) — this is a
+      recognized, documented UX problem, not just an aesthetic nitpick: a 2018
+      GrabFood UX case study quotes a user directly — *"Food photos are important
+      for me. It's hard imagining what they look like when the app doesn't provide
+      their photos"* — and lists missing menu photos as one of the top pain points
+      driving users away
+      ([source](https://uxdesign.cc/ux-ui-case-study-grabfood-ab2faa0512ec)).
+      **This got more urgent on 9/22, not less**: Sean's Jollibee catalog update
+      (121 real product photos) now looks close to foodpanda-quality, which
+      means McDonald's (184 products) and Manuela's (185) - still zero individual
+      photos, brand logo placeholder on every single one - now sit right next to
+      genuinely good work in the same app. Before, the whole catalog was
+      uniformly plain, which read as "unfinished but consistent." Now it reads
+      as "one brand got finished and the rest didn't," which invites exactly
+      the question "why does only one of these look real?" in a live demo.
+      Still a content/photography task, not a code fix - but the bar it needs
+      to clear just moved, and it's the highest-visual-impact gap left in the
+      whole system.
+- [x] **"Similar brands" section before the footer** (user request, 9/21, noticed on
+      foodpanda) — a discovery/cross-sell section at the bottom of a brand's menu
+      page suggesting other brands in the same category (e.g. viewing Jollibee
+      suggests McDonald's, Mang Inasal — other Food Delivery brands). Standard
+      pattern across delivery and e-commerce apps generally. Lower priority than the
+      items above — more of a "keep browsing" nudge than something blocking an
+      order, and needs a "same service/category" grouping rule decided first.
 
 - [x] **Footer visual treatment** (9/26) — replaced the solid, full-bleed
       saturated-pink block with a light, bordered footer card using the shared
