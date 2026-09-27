@@ -56,7 +56,13 @@ const OrderChat = ({ order }) => {
     // Separate devices do not share browser events. Refresh an open chat
     // every second; skipped overlapping/hidden-tab requests keep this cheap.
     const poll = window.setInterval(load, CHAT_REFRESH_MS);
-    return () => { active = false; window.clearInterval(poll); };
+    const refreshWhenVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      active = false;
+      window.clearInterval(poll);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
   }, [backendOrderId, hasRider]);
 
   // Browser tabs do not share window events, but BroadcastChannel does.
