@@ -5,7 +5,7 @@ import './DeliveryAdminDashboard.css';
 import OrderCustomerDetails from '../../components/common/OrderCustomerDetails/OrderCustomerDetails';
 import { apiAssetUrl, broadcastCatalogChanged, catalogImageUrl } from '../../utils/catalog';
 import { clearSession } from '../../utils/session';
-import { applyBackendTruth, toLocalOrderShape, useBackendOrders } from '../../hooks/useBackendOrders';
+import { applyBackendTruth, ORDERS_CHANGED_EVENT, ORDER_PROGRESS_CHANGED_STORAGE_KEY, toLocalOrderShape, useBackendOrders } from '../../hooks/useBackendOrders';
 
 const SERVICE_META = {
   food: { label: 'Food Delivery', icon: 'fa-utensils', color: 'var(--color-warning)' },
@@ -210,7 +210,20 @@ const HistoryTab = () => {
   const [error, setError] = useState('');
   const today = useMemo(() => manilaDateString(Date.now()), []);
 
+  const [refreshCount, setRefreshCount] = useState(0);
+
   useEffect(() => { setPage(1); }, [dateFilter]);
+
+  useEffect(() => {
+    const handleOrdersChanged = () => setRefreshCount((c) => c + 1);
+    const handleStorageChange = (e) => { if (e.key === ORDER_PROGRESS_CHANGED_STORAGE_KEY) setRefreshCount((c) => c + 1); };
+    window.addEventListener(ORDERS_CHANGED_EVENT, handleOrdersChanged);
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener(ORDERS_CHANGED_EVENT, handleOrdersChanged);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -225,7 +238,7 @@ const HistoryTab = () => {
       .then(setResult)
       .catch(() => { if (!controller.signal.aborted) setError('Unable to load history right now. Try again shortly.'); });
     return () => controller.abort();
-  }, [page, dateFilter]);
+  }, [page, dateFilter, refreshCount]);
 
   if (error) return <section><div className="admin-table-empty">{error}</div></section>;
   if (!result) return <section><div className="admin-table-empty">Loading history…</div></section>;

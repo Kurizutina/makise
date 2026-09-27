@@ -86,7 +86,10 @@ const syncOrderToBackend = (localOrderId, order, deliveryAddress, serviceFee = 0
       .then((response) => (response.ok ? response.json() : null))
       .then((body) => {
         const backendOrderId = body?.order?.OrderID;
-        if (backendOrderId) patchStoredOrder(localOrderId, { backendOrderId });
+        if (backendOrderId) {
+          patchStoredOrder(localOrderId, { backendOrderId });
+          broadcastOrderProgressChanged();
+        }
       })
       .catch(() => {});
   } catch {
@@ -187,7 +190,10 @@ const syncPaymentToBackend = (localOrderId, details, serviceFee = 0) => {
     })
       .then((response) => (response.ok ? response.json() : null))
       .then((body) => {
-        if (body?.orderId) patchStoredOrder(localOrderId, { backendOrderId: body.orderId, backendPaymentId: body.payment?.PaymentID });
+        if (body?.orderId) {
+          patchStoredOrder(localOrderId, { backendOrderId: body.orderId, backendPaymentId: body.payment?.PaymentID });
+          broadcastOrderProgressChanged();
+        }
       })
       .catch(() => {});
   } catch {
