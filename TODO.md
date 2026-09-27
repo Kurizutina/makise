@@ -11,6 +11,182 @@ flipping the box, to keep this split meaningful over time.
 
 ---
 
+## Deep Code Review (9/27) - code-level design/security review, pre-deployment
+
+Requested as a deeper pass than the ISO/IEC 25010 audit above: actual
+code-reading of the schema, API surface, and business logic, plus live
+testing where practical, rather than general QA checklist knowledge. Every
+finding below states explicitly whether it was **confirmed live** (actually
+exercised through the running app/API) or **read from code** (inferred from
+source, not exercised - stated honestly where live-testing would have been
+destructive or wasn't reached). Nothing below has been fixed - findings only.
+
+### Critical / launch-blocking
+
+- **`APP_DEBUG=true` leaks full stack traces with real server file paths to
+  ordinary users.** Confirmed live: `PATCH /api/orders/999999/status` (a
+  customer hitting a nonexistent order ID) returned Laravel's raw debug
+  output - full trace, `C:\xampp\htdocs\Otu-Zan\laravel\vendor\...` paths,
+  Symfony internals - instead of a clean error. Root cause: the app's custom
+  exception handler (`bootstrap/app.php`) only special-cases
+  `ValidationException` and `AuthenticationException`; anything else (like
+  `ModelNotFoundException`) falls through to Laravel's default renderer,
+  which respects `APP_DEBUG`. Confirmed `laravel/.env` currently has
+  `APP_DEBUG=true`. This is the same item already in the Pre-deployment
+  checklist below - this session re-confirms it's still true, live, the day
+  before deployment. **Must be `false` in whatever `.env` actually gets
+  deployed tomorrow** - a one-line change, but a serious one if missed.
+
+### High
+
+- **No server-side protection against duplicate order submission.**
+  Confirmed live: fired 3 concurrent, identical `POST /api/orders` requests
+  (same `clientOrderId`) - all 3 returned `201` and created 3 separate real
+  orders in the database. The only existing duplicate-click guard
+  (`isPlacingOrderRef` in `CustomerActivityContext.jsx`) is frontend-only
+  and per-tab; it does nothing against two browser tabs, a retried request
+  after a slow response, or literal API abuse. `clientOrderId` is stored in
+  `OrderSnapshot` for the frontend's own reconciliation but is never checked
+  for uniqueness server-side.
+- **`deliveryAddress` accepts arbitrary text - not validated against any
+  real deliverable zone.** Confirmed live: submitted `"Fake Nonexistent
+  Zone"` as the delivery address on a real order - accepted with `201`, no
+  validation error. The backend only checks `required|string|max:2000`; it
+  has no concept of the frontend's fixed zone list
+  (`src/utils/deliveryRates.js`) at all. Combined with `serviceFee` being
+  client-supplied and only bounded `0-500` (already a documented trust
+  boundary in this file, not new), a malicious or broken client can place an
+  order for a location the business cannot actually deliver to, with a fee
+  that doesn't necessarily match any real zone.
+- **A rider can be assigned to unlimited overlapping/conflicting orders.**
+  Confirmed live: created 2 separate pending orders, assigned the *same*
+  rider to both via `PATCH /orders/{order}/assign` while the first was still
+  unaccepted - both assignments succeeded with `200`. `OrderController::assign`
+  (line ~460) has no check for whether the target rider already has an
+  active (non-finalized) order. An admin (or a compromised admin session)
+  could stack many concurrent deliveries onto one rider with no warning.
+
+### Medium
+
+- **Schema drift: `Product.StockQuantity` still exists in the live database
+  despite a migration that should have removed it.** Confirmed directly:
+  `Schema::hasColumn('Product','StockQuantity')` returns `true`, and it
+  appears (always `0`) in every product/order API response, even though
+  `2026_09_17_000006_remove_product_stock.php` is marked "Ran" in
+  `php artisan migrate:status` and its `up()` drops the column. Column is
+  unused (not in `$fillable`, not referenced anywhere in `src/`) - harmless
+  functionally, but proves this database's actual schema doesn't fully match
+  what the migration history claims, which is worth knowing before trusting
+  `migrate:status` alone on a shared/production database.
+- **Inconsistent error-response shape across endpoints - and it compounds
+  the `APP_DEBUG` issue above.** Confirmed live: validation and auth
+  failures return a clean, deliberate `{"error": "..."}` shape (there's a
+  global handler for exactly those two exception types), but anything else
+  - confirmed with the same `ModelNotFoundException` above - returns
+  Laravel's default shape (`message`/`exception`/`trace` keys). Not
+  consistent, and the inconsistency is exactly where the debug-mode leak
+  above is visible.
+- **Cascade-delete behavior on `Users` is broad and irreversible - read
+  from migrations, not live-tested (deleting a real account is destructive,
+  so this wasn't exercised against real data).** `Orders.UserID` is
+  `cascadeOnDelete` - deleting a customer account deletes every order they
+  ever placed (and, transitively, those orders' items/payments/messages,
+  all also cascade). No soft-delete exists anywhere in this schema. If an
+  admin ever deletes a customer/rider account (the `destroy` endpoint in
+  `AccountManagementController` exists and is live), their entire order and
+  financial history disappears with no way back - worth deciding if that's
+  actually the intended behavior for a system with real payment records, or
+  if accounts should be deactivated instead of hard-deleted.
+- **`Messages.SenderUserID` also cascades on delete, which can silently
+  erase the *other* party's conversation history too - read from
+  migrations, not live-tested for the same reason as above.** Deleting a
+  rider or customer account deletes every message they ever sent, across
+  every order - not just messages tied to orders that get deleted via the
+  `Orders` cascade above, but potentially messages on orders whose *other*
+  participant is unaffected. That participant's side of the conversation
+  vanishes without them deleting anything.
+- **Rate-limiting (`throttle`) is applied inconsistently across mutating
+  endpoints - read from `routes/api.php`, not exploited live.**
+  `POST /orders`, `POST /payments`, `POST /orders/{order}/messages`, and the
+  bill-document upload all have `throttle` middleware; `PATCH
+  /orders/{order}/status`, `PATCH /orders/{order}/assign`, and every
+  `admin/*` route do not. Not necessarily wrong (some of these are
+  admin-only and lower-risk), but it's ad hoc rather than a deliberate,
+  documented policy.
+
+### Low
+
+- **`GET /api/health/db` is public and reveals the real database name.**
+  Confirmed live: returns `{"status":"connected","database":"otu-zan-db",...}`
+  with no authentication. Minor information disclosure - a health check
+  doesn't need to name the actual database to anyone who can reach it.
+
+### What was checked and found clean (confirmed, not assumed)
+
+- **Order/payment creation is transaction-wrapped** (`DB::transaction` in
+  both `OrderController::store` and `PaymentController::store`) - a failed
+  request genuinely can't leave partial order/item or payment/order rows.
+- **Foreign keys are consistently defined with deliberate, sensible
+  on-delete behavior** everywhere except the two cascade concerns flagged
+  above: `OrderItems.ProductID` is `restrictOnDelete` (can't delete a
+  product with order history - forces deactivation via `IsActive` instead,
+  which the codebase already supports), `Brands.BrandID` similarly
+  restricts, and `Orders.AssignedRiderID`/`Brands.ServiceID` correctly
+  `nullOnDelete` rather than cascading destructively.
+- **Delivery zones are a frontend-only concept** (`src/utils/deliveryRates.js`,
+  a plain JS array) - there is no `DeliveryZone` database table, so "what
+  happens if a delivery zone is deleted" doesn't apply as a database-integrity
+  question; the real gap is the `deliveryAddress` validation issue above.
+- **Basic validation edge cases are all handled correctly server-side** -
+  confirmed live: zero-item cart (422), quantity of 100 (422, over the
+  99 max), quantity of exactly 99 (201, accepted), negative service fee
+  (422), missing delivery address (422).
+- **Full route sweep of `routes/api.php` found no endpoint that looks like
+  it's missing authorization it should have.** Every mutating endpoint
+  either sits inside the `auth:sanctum` group with its own role check
+  (`OrderController::updateStatus`, `MessageController`'s participant check,
+  `NotificationController` scoped to `$request->user()`) or behind a
+  `permission:` gate for admin-only routes. `AccountManagementController`'s
+  mass-assignment surface is properly whitelisted - `Role` is taken only
+  from the URL segment (restricted to `driver`/`customer` via
+  `ensureManagedRole`), never from the request body, so there's no path to
+  self-escalate to `admin` through this endpoint.
+- **Dependency audit**: `composer audit` (backend) - **0 vulnerabilities**.
+  `npm audit` (frontend) - **31 total: 13 high, 9 moderate, 9 low, 0
+  critical**, but nearly all of them are in `react-scripts`'s pinned
+  dev-tooling dependency tree (webpack-dev-server, svgo, postcss, css-select,
+  etc.) - build/dev-server-time exposure, not code shipped to end users in
+  the production bundle. No critical-severity findings either way.
+- **Empty/loading states are handled consistently, spot-checked via source
+  across admin, rider, and customer pages** - not live-clicked through every
+  page (see "not covered" below). Admin tabs consistently distinguish
+  "still loading" from "genuinely empty" with a repeated
+  icon+heading+subtext pattern (`admin-table-empty`/`admin-page-empty`);
+  the rider dashboard and customer cart (`McDonaldsMenu.jsx`) both have a
+  matching empty state. Nothing found inconsistent in what was checked, but
+  this is a lighter pass than a full visual walkthrough.
+
+### Not covered this pass - budget ran out here, stopping cleanly
+
+- **Full live-click visual/interaction consistency pass** (spacing, button
+  styles, loading-indicator consistency measured across Home, Food
+  Delivery, Pay Bills, and Admin Analytics) - only empty-state handling was
+  spot-checked via source, per above. No screenshots taken, no computed
+  styles compared.
+- **Zero-item-cart and empty-search-result UI review** - the *backend*
+  validation for a zero-item order was tested live (422, correct), but the
+  *frontend* empty-cart and empty-search-result screens were not re-clicked
+  through as part of this specific pass (empty-cart markup was found via
+  source read, not exercised live this session).
+- **Concurrent-order stock/race conditions beyond the duplicate-submission
+  test above** - this system has no inventory/stock concept to race against
+  (`StockQuantity` exists in the schema but is dead, unused data - see
+  Medium above), so a classic "two orders claim the last unit" race isn't
+  applicable here; only the duplicate-submission and rider-conflict races
+  were actually tested.
+
+---
+
 ## Handoff message (9/27) - read this first if you're picking this up cold
 
 1. **Three real bugs are found, live-verified, and currently UNFIXED in
