@@ -266,7 +266,11 @@ const AuthPage = ({ mode }) => {
           ? `Welcome to Otu-Zan, ${username || name}! Your ${roleName} account has been created.`
           : `Welcome back! Redirecting to your ${roleName} dashboard...`
       });
-      navigate(getDashboardPath(result.user.role), { replace: true });
+      if (result.mustChangePassword) {
+        navigate('/change-password', { replace: true });
+      } else {
+        navigate(getDashboardPath(result.user.role), { replace: true });
+      }
     } catch (error) {
       setMessage({
         type: 'error',

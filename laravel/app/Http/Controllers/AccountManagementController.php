@@ -37,7 +37,7 @@ class AccountManagementController extends Controller
         $data = $this->accountData($request);
         $data['Role'] = $role;
         $data['PasswordHash'] = Hash::make($data['password']);
-        $data['MustChangePassword'] = false;
+        $data['MustChangePassword'] = ($role === 'driver');
         unset($data['password']);
 
         $account = User::create($data);

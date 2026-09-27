@@ -460,7 +460,7 @@ export const CustomerActivityProvider = ({ children }) => {
     if (section === 'bills') {
       syncPaymentToBackend(order.id, details, order.serviceFee);
     } else {
-      syncOrderToBackend(order.id, order, customer.customerAddress, order.serviceFee);
+      syncOrderToBackend(order.id, order, order.deliveryLocationName, order.serviceFee);
     }
     return order;
   });
@@ -514,7 +514,7 @@ export const CustomerActivityProvider = ({ children }) => {
     }));
     const nextCart = source ? cart.filter((item) => item.source !== source) : [];
     updateAll(nextCart, [...newOrders, ...orders], [...newNotifications, ...notifications]);
-    newOrders.forEach((order) => syncOrderToBackend(order.id, order, customer.customerAddress, order.serviceFee));
+    newOrders.forEach((order) => syncOrderToBackend(order.id, order, order.deliveryLocationName, order.serviceFee));
     return newOrders[0];
   });
 
