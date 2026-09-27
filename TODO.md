@@ -34,8 +34,7 @@ time with a commit after each. If you're an AI reading this cold:
   work to get scrutinized by the other one, and vice versa. That's
   intentional, not a sign something's wrong.
 - Start by reading the **Data Analytics** section below (all three layers
-  done) and the **semantic product search** entry (in progress, step-by-step
-  checklist with a status per step) before touching either.
+  complete) before changing its implementation or documentation.
 
 ---
 
@@ -59,31 +58,10 @@ time with a commit after each. If you're an AI reading this cold:
       small, isolated change to what `OrderController::revenue` sums, not a
       rebuild of the date-picker or the graph.
 
-### Reviewed Product Intake (9/23)
-
-| Request | Verdict | Priority | Relationship | Product review / scope |
-| --- | --- | --- | --- | --- |
-| Fix cross-device receipt images | Recommended | High - completed | Duplicate / completed | Fixed: persist backend-relative upload paths and resolve legacy localhost URLs against the configured API host. Verify with the deployed/LAN API URL before release. |
-| Customer-rider in-app communication | Recommended with Changes | High - completed | Duplicate / completed | Completed 9/25: order-scoped, authenticated customer-rider messaging is implemented after rider assignment, with persisted messages and access control. See Completed Work below. |
-| Separate today's history from older orders | Recommended with Changes | Medium - completed | New / completed | Fixed 9/23: added an All dates/Today/Previous filter to the admin History tab, using the Asia/Manila business-timezone convention already established for Revenue. Defaults to "All dates" to preserve existing behavior. See Completed Work below. |
-| Show product images in Order Details | Recommended with Changes | Medium - completed | New / completed | Fixed 9/24: `toLocalOrderShape` (`useBackendOrders.js`) now resolves each item's image via `catalogImageUrl`; the customer Track Orders tab and the rider order-detail modal both render a small thumbnail per item with a fallback utensils icon when no image exists. Receipt/proof images were untouched. See Completed Work below. |
-| Improve scrolling smoothness system-wide | Recommended with Changes | Medium | Related | Treat this as a measured performance pass: profile long lists, preserve pagination/lazy image loading, and address actual jank. Do not add decorative smooth-scroll behavior that can reduce accessibility or mask rendering problems. |
-| Make the brand logo square | Recommended with Changes | Low | Related | Use a square logo container with `object-fit: contain`; do not crop or distort brand artwork. This complements the existing compact brand-tile work. |
-| Research competitor color schemes and refine the palette | Recommended with Changes | Medium | Duplicate | Continue the existing token/palette-consolidation item. Use competitor research for conventions, not imitation; define accessible primary, hover, surface, text, and semantic status colors around the Otu-Zan logo. |
-| Stop notifications after logout | Recommended | High - completed | New / completed | Fixed 9/23: `useCustomerActivity()` had no branch for "no session," so a guest fell through to the same unfiltered path as admin and could see whichever customer's orders/notifications were last cached on that browser. See Completed Work below for the reproduction and fix. |
-| Put the mobile sign-in card at the top | Not Recommended as a standalone task | Not Recommended | Related | Fold this into the modal-authentication work below. A separate top-of-page login layout conflicts with the current guest-browsing entry point and would create two competing auth experiences. |
-| Show current/general location in the header, while allowing a delivery location selection | Recommended with Changes | Medium - completed | Duplicate / completed | Fixed 9/24: header now shows the saved delivery location foodpanda/GrabFood-style, with a custom in-DOM picker replacing the native `<select>` everywhere it was used. See Completed Work below. Device-geolocation ask was out of scope - the location set is one of the fixed billable delivery zones, not a free-form address. |
-| Open Login/Sign Up as a modal over a blurred homepage | Recommended with Changes | Medium | Related | Keep guest browsing, then open an accessible modal from the header. Use focus trapping, Escape/backdrop close, and a mobile full-screen sheet rather than a blurred, cramped card; preserve the current direct auth route as a fallback. |
-
 ## Medium Priority
 
 ### Functionality
 
-- [ ] **"Newly added" indicator when browsing a brand's menu** (user request,
-      9/22) — `Product` currently has no creation timestamp (the model disables
-      Eloquent timestamps and its migrations add none), so this first needs a
-      timestamp migration/backfill policy before a reliable recency badge or
-      section can be built.
 - [ ] Delete dead Express backend (`backend/`) + hardcoded access codes in
       `src/config/roles.js` — not currently exploitable (Laravel ignores role/accessCode
       on register), but it's a loaded gun sitting in the repo. **Needs a decision,
@@ -92,57 +70,9 @@ time with a commit after each. If you're an AI reading this cold:
       using this folder for something (a reference copy of the schema?). Confirm
       with Sean before deleting rather than assuming it's safe to remove.
       `src/config/roles.js`'s hardcoded codes are unambiguously dead either way.
-- [ ] *(Needs clarification before scoping)* **"Make it OOP"** (user request,
-      9/22) — as stated this doesn't map to a concrete change. The Laravel
-      backend already is OOP (Eloquent models, controller classes) - nothing to
-      change there. If this means converting React function components back to
-      class components, that's a step backward from current React best practice
-      and not recommended. If it means extracting business logic out of fat
-      controllers into dedicated Service classes, that's a legitimate
-      maintainability refactor, but it's internal-architecture-only (no visible
-      behavior change) and refactors like that are exactly where regressions
-      hide close to a deadline - confirm which is actually meant (and whether
-      it's coming from a specific rubric requirement) before touching anything.
-- [ ] *(Needs a decision before scoping)* **OpenLeaflet map for delivery
-      location** (user request, 9/22) — the biggest/riskiest design-adjacent item
-      raised this round, not a quick add. Today's delivery-fee system
-      (`utils/deliveryRates.js`) is keyed off fixed named zones (CLSU Main
-      Campus, Bagong Sikat, etc.) with a flat fee per zone. A real map means
-      arbitrary lat/lng pins, which doesn't map onto that fee model without
-      deciding: (a) snap-to-nearest-zone - keeps current pricing logic, the map
-      is just a nicer picker than a dropdown, or (b) real distance-based
-      pricing - a bigger change, and needs a geocoding call (Nominatim for
-      OpenStreetMap, free but rate-limited, usage-policy compliance required)
-      to turn a picked point into an address. Needs (a) vs (b) decided before
-      any implementation starts.
-- [ ] *(Needs specifics)* **"Make the header better"** (user request, 9/22) —
-      too vague to scope as stated. Either point at a specific reference site's
-      header the way foodpanda/Deliveroo were used for the entry-point and hero
-      work already landed, or describe concretely what's not working about the
-      current one.
 
 ## Low Priority
 
-- [ ] **Show estimated time on the brand-selection screen** (Grab/foodpanda
-      reference, 9/21) — live-checked foodpanda.ph and GrabFood's web apps for
-      comparison. foodpanda's "Top brands" section shows a delivery-time estimate
-      (e.g. "5 min") right on the brand tile, before the customer even opens the
-      menu. Otu-Zan's Home.jsx brand grid shows only logo + name — no timing context
-      up front. Would need real prep-time data per brand/service to be honest, not
-      just decorative (tie to `calculateEstimatedWaitMinutes`, already used inside
-      each menu page, just not surfaced one level up).
-- [ ] **Dark mode** (teammate/user request, 9/21) — technically possible, nothing
-      architecturally blocks it, but it's a real chunk of work, not a quick toggle:
-      checked the codebase and found 545 hardcoded hex color values across 17 of the
-      19 CSS files, zero use of CSS custom properties anywhere. Doing it properly
-      means (1) refactoring those into CSS variables first (same prerequisite as the
-      color-palette-consolidation item above - do that work once, get both), (2)
-      designing an actual dark palette — a judgment call, not just inverting colors,
-      since the brand's pink/magenta needs to still read as "Otu-Zan" on a dark
-      background, (3) a toggle + persisted preference, (4) checking every page
-      (login, customer menus, cart, rider dashboard, admin dashboard) for
-      contrast/legibility in both modes. Reasonable nice-to-have; not something to
-      start before the higher-priority items above are done.
 - [ ] Clean up stale "jayson deguzman" hardcoded filter in
       `CustomerActivityContext.jsx` (4 places) — verify no live bad data still depends
       on it first.
@@ -237,14 +167,6 @@ time with a commit after each. If you're an AI reading this cold:
 ---
 
 ## Data Analytics (Emerging Technology)
-
-**Current status, honestly: researched and planned only. Zero layers implemented
-yet.** The plan below is real, specific, and grounded in what this system's schema
-already collects - but none of it is running code today. See the chat conversation
-from 9/23 for the exact answer/script to give if asked "where is the emerging
-technology in your system" during a progress check - the short version is: be
-honest that you're in the implementation phase with a validated plan, not claim
-something exists that doesn't.
 
 Researched how real delivery platforms and e-commerce systems apply data
 analytics, and grounded the plan in what Otu-Zan's schema already collects
@@ -345,48 +267,6 @@ AI for key business decisions
       what's currently documented - still confirm the switch before it goes into
       the paper, but you now have a concrete, achievable, industry-validated plan
       (above) to bring to that conversation instead of an open question.
-- [ ] **In progress (9/27), NOT required for the Sept 30 deadline: semantic
-      product search, added alongside the existing Data Analytics component
-      (not a replacement).** All three Data Analytics layers above are the
-      complete, working, demoable emerging-tech deliverable on their own -
-      this is a stretch addition, not something to block the deadline on.
-      Only 1 of 6 planned steps is done (see checklist below) - the feature
-      does nothing yet beyond an unused database column; there is no search
-      endpoint, no embedding logic, and no `.env` variable actually needed
-      yet (one will be, starting at Step 2 - don't add it before then).
-      Research completed and decision made to proceed - see reasoning below. Prompted
-      by an honest industry-perspective read: RFM segmentation and
-      moving-average forecasting are real, correctly-implemented techniques,
-      but neither is current by actual industry standards - RFM dates to
-      1990s direct-mail CRM, moving averages are foundational statistics,
-      both are standard/mature practice today, not emerging.
-      **Research findings**: DoorDash's own 2025-2026 engineering work
-      (DashCLIP, LLM-generated content embeddings) confirms semantic search
-      is genuinely current practice at a directly comparable delivery
-      platform, including specifically for cold-start/low-data discovery.
-      Concrete user benefit for this system: covering the whole Science City
-      of Muñoz (not a single campus) means a linguistically diverse user
-      base - exact-keyword search returns nothing for a misspelled or
-      colloquial product name ("chicken joy" vs "Chickenjoy"), semantic
-      search tolerates that. Cost verified negligible (~$0.001 one-time
-      backfill for 599 products, fractions of a cent per search,
-      OpenAI `text-embedding-3-small`). One new `.env` variable (an
-      embedding API key), with a fallback to the existing substring search
-      if the API is unreachable.
-      **Implementation is being built as small, independently-committable
-      steps** (explicit user instruction, 9/27, given limited remaining
-      weekly budget shared across other coursework) - each step commits
-      separately so a groupmate can pull and continue from a clean state at
-      any point if work stops partway through. Progress:
-      - [x] Step 1: `Embedding` JSON column added to `Product` (`683f907`).
-      - [ ] Step 2: embedding-service class (API call wrapper, mockable in
-            tests so the automated suite never spends real API budget).
-      - [ ] Step 3: one-time backfill command for existing products.
-      - [ ] Step 4: search endpoint (embed query, cosine similarity, fallback
-            to substring search on API failure).
-      - [ ] Step 5: frontend wiring into the existing search bar.
-      - [ ] Step 6: single live verification pass with real data.
-
 ---
 
 # Completed Work
