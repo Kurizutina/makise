@@ -318,9 +318,9 @@ by trusting either side's report unchecked.
       small, isolated change to what `OrderController::revenue` sums, not a
       rebuild of the date-picker or the graph.
 
-### Reported bugs (9/28) - user-reported, not yet reproduced or fixed
+### Reported bugs (9/28) - user-reported
 
-Four live issues reported by the user through actual use of the app. Recorded
+Six live issues reported by the user through actual use of the app. Recorded
 verbatim first, before any root-causing - none of these have been reproduced,
 diagnosed, or fixed as of being written down. Reproduce each one live first
 (see AGENTS.md for the no-login-UI verification method), then root-cause, fix,
@@ -346,6 +346,40 @@ and verify before checking them off.
       and backend `AuthController` confirmed fully functional; failure on other
       environments was due to unconfigured SMTP credentials in local `.env` (requires
       `MAIL_PASSWORD` / `MAIL_MAILER=log`).
+- [x] **Forgot-password reset link always errors "This password reset link is
+      invalid or expired." even when the new password is submitted quickly.**
+      Reported 9/28. **Fixed 9/28** — could *not* be reproduced with a single
+      fresh link: verified live end-to-end against the running server (fresh
+      token → `POST /api/auth/reset-password` → `200`), and the rendered email
+      carries an intact URL (both `href`s decode byte-identical to the source
+      URL). The DB still held the reporter's own row — unexpired and never
+      consumed — so the 422 could only mean the submitted token didn't match the
+      stored hash, i.e. a **superseded** link: `updateOrInsert` silently kills
+      the previous token the moment a second "forgot password" request goes
+      out, so with two emails in the inbox the older one is a dead end (requesting
+      again after a slow/delayed first email is the natural way to hit this).
+      Three changes: `requestPasswordReset` now stores the token **before**
+      sending the email (was send-then-insert — a real, if narrow, race — and on
+      send failure now deletes the row instead of orphaning it); `resetPassword`
+      now separates "invalid / already used / replaced by a newer link — open
+      the newest email or request a new one" from "has expired" instead of one
+      dead-end string; and `ResetPassword`/`ForgotPassword` got the `useRef`
+      duplicate-submit guard (`placeOrder`'s pattern) so a rapid second click
+      can't fire a second send that kills the link in flight, or a second POST
+      whose 422 overwrites a successful reset's confirmation. Verified live
+      against the running server: wrong token → new message, backdated token →
+      "has expired", fresh token → `200`.
+- [x] **The "Reset password" confirmation/submit button is not visible enough.**
+      Reported 9/28. **Fixed 9/28** — root cause in `Auth.css`: `.action-btn`
+      sets `color: white` but never sets a `background`, so on the white auth
+      card it rendered white text on the browser's default light-grey button
+      face (effectively unreadable). Only two call sites had patched this in —
+      login via an inline gradient in `AuthForm.jsx`, "Send reset link" via the
+      extra `.reset-link-btn` class — which left `ResetPassword`'s and
+      `ChangePassword`'s buttons unfixed. The brand gradient + shadow now live
+      on `.action-btn` itself, so every auth submit button gets it. Verified:
+      the running dev server's served bundle contains the new rule (confirmed by
+      reading the served CSS, not by screenshot).
 
 ### Reviewed Product Intake (9/23)
 
