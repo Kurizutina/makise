@@ -11,6 +11,53 @@ flipping the box, to keep this split meaningful over time.
 
 ---
 
+## Handoff message (9/27) - read this first if you're picking this up cold
+
+1. **Three real bugs are found, live-verified, and currently UNFIXED in
+   code.** A fix was written and committed, then fully reverted (never
+   pushed) because a groupmate/Codex was reportedly working the same
+   issues in parallel, to avoid conflicting changes. Nobody has actually
+   landed a fix for any of these three as of this message:
+   - `AccountManagementController.php:40` - `MustChangePassword` hardcoded
+     to `false` for every admin-created account (should be
+     `$role === 'driver'` or similar role-based logic).
+   - `CustomerActivityContext.jsx:463` and `:517` - `syncOrderToBackend`
+     passes `customer.customerAddress` instead of
+     `order.deliveryLocationName`, so orders store `DeliveryAddress` as
+     "Not provided" even when a real delivery zone was selected.
+   - Forgot Password 503 - root cause was a local `.env` gap (blank
+     `MAIL_PASSWORD` with `MAIL_MAILER=smtp`), not a code bug. Resolved
+     locally on this machine's `.env` (gitignored, not shared), but no
+     code-side robustness fix has landed, and anyone else's `.env` without
+     real SMTP credentials will still hit it.
+2. **There is an unresolved discrepancy with a "Codex found no bugs"
+   claim.** Issues #1 and #2 above were re-confirmed live and reproducible
+   on the current `origin/kurizu` code in the same session this was
+   written. See "Audit Progress" below for the full evidence. Resolve this
+   by having whoever made that claim reproduce it live (real account, real
+   API call) - don't just trust either side's report at face value.
+3. **The requested full ISO/IEC 25010 audit is roughly 25% complete** (2 of
+   8 characteristics actually done - Functional Suitability and Security).
+   Performance Efficiency, Compatibility, Flexibility, and Safety have had
+   zero testing. Interaction Capability and Reliability were only
+   nominally touched. See "Audit Progress" below for the full breakdown.
+4. **Next steps, in order**: (a) whoever continues this should first agree
+   with the groupmate/Codex on who fixes the 3 bugs above, so the work
+   isn't duplicated or built in conflicting ways a second time; (b) then
+   decide, given the Sept 30 deadline, whether to continue the remaining
+   ~75% of the audit or accept Functional Suitability + Security as the
+   verified scope and stop there.
+5. **What NOT to redo**: Data Analytics Layers 1-3 (Revenue Trends, RFM
+   Customer Segmentation, Demand Forecast) are genuinely complete and
+   live-verified - see the Data Analytics section below. The footer
+   visual-separation fix is also genuinely done (Completed Work → Medium,
+   9/26) despite an earlier, now-corrected note in this file calling it
+   "parked." Semantic product search is genuinely NOT built beyond an
+   unused `Embedding` database column (1 of 6 planned steps) - see the
+   Data Analytics section for the honest status; don't assume more exists.
+
+---
+
 ## Audit Progress (9/27) - partial, budget-limited, NOT a complete ISO/IEC 25010 audit
 
 A full-system audit was requested against the 8 ISO/IEC 25010:2023 quality
@@ -34,7 +81,7 @@ findings, not resolved work.**
 | 1. Functional Suitability | **Done** (live-verified) | Order placement, Pay Bills modal, admin login/dashboard, all 3 Data Analytics layers exercised live with real accounts through the running app. The `DeliveryAddress` bug (below) was found this way, not by reading code. |
 | 2. Performance Efficiency | **Not started** | No response-time or load-behavior testing at all. |
 | 3. Compatibility | **Not started** | No cross-browser/cross-device testing. No external-API data exchange exists yet to test (semantic search has no code beyond an unused DB column - see Data Analytics section below). |
-| 4. Interaction Capability | **Partial, coincidentally** | Only the already-known, already-parked footer visual-separation issue is documented, and that predates this audit. No deliberate usability pass, error-messaging audit, or UI-organization review was actually done as part of this audit. |
+| 4. Interaction Capability | **Not touched by this audit** | No deliberate usability pass, error-messaging audit, or UI-organization review was done as part of this audit. (Correction: an earlier version of this note called the footer visual-separation issue "parked" - that's stale. It's recorded as done in Completed Work → Medium, "Footer visual treatment" (9/26). Not re-verified as part of this audit either way.) |
 | 5. Reliability | **Partial** | Only the semantic-search fallback path was considered, and it turned out moot (no search code exists to fail). General reliability - error/interruption handling, data-loss scenarios - untested. |
 | 6. Security | **Done** (live-verified) | `MustChangePassword` regression traced through full git history and reproduced live (see below). RBAC/session-expiry/SQLi verified via the passing automated `SecurityApiTest` suite. |
 | 7. Flexibility | **Not started** | No testing across screen sizes, devices, roles, or changing conditions. |
@@ -360,6 +407,21 @@ AI for key business decisions
       has less history), with the current forecast and recent actual order counts
       shown to authorized admins. It is presented as a staffing baseline, not as
       a full machine-learning model.
+- [ ] **Semantic product search - NOT required for the Sept 30 deadline, an
+      optional stretch item.** Layers 1-3 above are the complete, demoable
+      emerging-tech deliverable on their own. Status as of 9/27: only 1 of 6
+      planned steps exists in code - a nullable, unused `Embedding` JSON
+      column on `Product` (migration
+      `2026_09_27_000001_add_embedding_to_product_table.php`). There is no
+      embedding-service class, no backfill command, no search endpoint, no
+      frontend wiring, and no `.env` variable for an embedding-provider key
+      - confirmed directly via `grep` across the codebase, not assumed.
+      (An earlier, more detailed version of this entry - including the
+      research findings behind choosing semantic search, and a step-by-step
+      checklist - was deleted from this file during an unrelated TODO
+      cleanup commit, apparently by accident; the research itself isn't
+      lost, it's summarized in this session's history if it's needed again.)
+      Don't assume more of this is built than what's listed here.
 
 ## Non-code / academic
 
