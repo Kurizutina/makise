@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Logo from '../../components/common/Logo/Logo';
 import '../../components/Auth/Auth.css';
@@ -11,11 +11,16 @@ const ForgotPassword = () => {
   const [message, setMessage] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  // Ref guard: state alone lets a rapid second click through before the first
+  // re-render disables the button, and a second send silently invalidates the
+  // link from the first - the user would click a link that is already dead.
+  const isSubmittingRef = useRef(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (isSubmittingRef.current || cooldown > 0) return;
     setMessage(null);
-    if (cooldown > 0) return;
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
@@ -25,7 +30,10 @@ const ForgotPassword = () => {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || result.error || 'Unable to send reset link.');
-      setMessage({ type: 'success', text: result.message });
+      setMessage({
+        type: 'success',
+        text: `${result.message} Only the most recent link works if you send another one.`
+      });
       setCooldown(60);
     } catch (error) {
       setMessage({
@@ -35,6 +43,7 @@ const ForgotPassword = () => {
           : error.message
       });
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };

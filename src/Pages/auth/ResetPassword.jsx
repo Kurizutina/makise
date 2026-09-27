@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Logo from '../../components/common/Logo/Logo';
 import '../../components/Auth/Auth.css';
@@ -13,6 +13,11 @@ const ResetPassword = () => {
   const [message, setMessage] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  // Ref guard, same reason as placeOrder's: state doesn't update before a
+  // second submit event in the same tick. A duplicate POST here would be
+  // rejected (the first one already spent the single-use token) and its error
+  // would overwrite the success message, making a completed reset look failed.
+  const isSubmittingRef = useRef(false);
   const token = searchParams.get('token') || '';
   const email = searchParams.get('email') || '';
   const passwordStrength = password.length >= 10 && /[A-Z]/.test(password) && /\d/.test(password)
@@ -25,6 +30,7 @@ const ResetPassword = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (isSubmittingRef.current) return;
     setMessage(null);
     if (password.length < 6) {
       setMessage({ type: 'error', text: 'Password must be at least 6 characters.' });
@@ -34,7 +40,9 @@ const ResetPassword = () => {
       setMessage({ type: 'error', text: 'Passwords do not match.' });
       return;
     }
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
+    let succeeded = false;
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
         method: 'POST',
@@ -43,6 +51,7 @@ const ResetPassword = () => {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Unable to reset password.');
+      succeeded = true;
       setMessage({ type: 'success', text: result.message });
       window.setTimeout(() => navigate('/login'), 1200);
     } catch (error) {
@@ -53,7 +62,12 @@ const ResetPassword = () => {
           : error.message
       });
     } finally {
-      setIsSubmitting(false);
+      // Keep the guard held after a success so a late duplicate submit can't
+      // replace the confirmation with the expected single-use-token error.
+      if (!succeeded) {
+        isSubmittingRef.current = false;
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -87,7 +101,7 @@ const ResetPassword = () => {
               </div>
             </div>
             <button className="action-btn" type="submit" disabled={isSubmitting}>
-              <i className="fas fa-key" /> {isSubmitting ? 'Saving...' : 'Reset password'}
+              <i className="fas fa-key" /> {message?.type === 'success' ? 'Done' : isSubmitting ? 'Saving...' : 'Reset password'}
             </button>
           </form>
         )}

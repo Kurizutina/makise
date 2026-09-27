@@ -93,19 +93,26 @@ class AuthController extends Controller
             $resetUrl = rtrim((string) config('otuzan.frontend_url'), '/')
                 .'/reset-password?token='.urlencode($token).'&email='.urlencode($email);
 
+            // Store the token BEFORE the email goes out. With the previous
+            // order (send, then insert) the link could reach the inbox while
+            // the row it is checked against did not exist yet, which rejects a
+            // freshly received link as "invalid or expired".
+            DB::table('password_reset_tokens')->updateOrInsert(
+                ['email' => $email],
+                ['token' => hash('sha256', $token), 'created_at' => now()]
+            );
+
             try {
                 Mail::to($email)->send(new PasswordResetMail($resetUrl));
             } catch (\Throwable $exception) {
+                // No email left the system, so don't leave a token behind that
+                // nothing in the inbox can ever match.
+                DB::table('password_reset_tokens')->where('email', $email)->delete();
                 report($exception);
                 return response()->json([
                     'error' => 'The password-reset email service is unavailable. Please try again later.',
                 ], 503);
             }
-
-            DB::table('password_reset_tokens')->updateOrInsert(
-                ['email' => $email],
-                ['token' => hash('sha256', $token), 'created_at' => now()]
-            );
         }
 
         return response()->json([
@@ -122,15 +129,31 @@ class AuthController extends Controller
         ]);
         $email = strtolower(trim($data['email']));
         $reset = DB::table('password_reset_tokens')->where('email', $email)->first();
+        $tokenMatches = $reset !== null && is_string($reset->token)
+            && hash_equals($reset->token, hash('sha256', $data['token']));
 
-        if (!$reset || now()->subMinutes((int) config('auth.passwords.users.expire', 60))->greaterThan($reset->created_at)
-            || !hash_equals($reset->token, hash('sha256', $data['token']))) {
-            return response()->json(['error' => 'This password reset link is invalid or expired.'], 422);
+        if (!$tokenMatches) {
+            // Covers three cases that used to be flattened into one dead-end
+            // message: no token was ever issued, the single-use link was
+            // already spent, and the link was superseded by a newer
+            // "forgot password" request (only the most recent link stays
+            // valid - requesting again silently kills the previous one).
+            return response()->json([
+                'error' => 'This password reset link is invalid or has already been used. '
+                    .'If you requested more than one link, only the newest email works - open that one, '
+                    .'or request a new link.',
+            ], 422);
+        }
+
+        if (now()->subMinutes((int) config('auth.passwords.users.expire', 60))->greaterThan($reset->created_at)) {
+            return response()->json([
+                'error' => 'This password reset link has expired. Please request a new one.',
+            ], 422);
         }
 
         $user = User::where('Email', $email)->first();
         if (!$user) {
-            return response()->json(['error' => 'This password reset link is invalid or expired.'], 422);
+            return response()->json(['error' => 'This password reset link is invalid. Please request a new link.'], 422);
         }
 
         $user->update(['PasswordHash' => Hash::make($data['password'])]);
