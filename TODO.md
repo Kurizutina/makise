@@ -11,6 +11,70 @@ flipping the box, to keep this split meaningful over time.
 
 ---
 
+## Audit Progress (9/27) - partial, budget-limited, NOT a complete ISO/IEC 25010 audit
+
+A full-system audit was requested against the 8 ISO/IEC 25010:2023 quality
+characteristics, structured around an End-User System Evaluation Form and a
+Client System Testing and Acceptance Form, under a tight, non-resetting
+weekly AI-usage budget close to the Sept 30 deadline. It was explicitly
+stopped partway through rather than rushed to a fake "complete" state. Three
+real bugs were found and fixed in a follow-up pass, then **that entire fix
+was reverted** (git history: `7fd94d9`, `0699b92`, `b0d4e07`, `e75e4f9` were
+committed, then reset back out - none of it was ever pushed) because a
+groupmate/Codex was reportedly working the same issues in parallel and the
+user wanted to avoid carrying conflicting changes. **As of this write-up,
+none of the three bugs below are fixed in the code - this section documents
+findings, not resolved work.**
+
+**Honest itemized status - 2 of 8 characteristics actually done, 2 nominally
+"partial" with little behind them, 4 completely untouched:**
+
+| Characteristic | Status | Basis |
+| --- | --- | --- |
+| 1. Functional Suitability | **Done** (live-verified) | Order placement, Pay Bills modal, admin login/dashboard, all 3 Data Analytics layers exercised live with real accounts through the running app. The `DeliveryAddress` bug (below) was found this way, not by reading code. |
+| 2. Performance Efficiency | **Not started** | No response-time or load-behavior testing at all. |
+| 3. Compatibility | **Not started** | No cross-browser/cross-device testing. No external-API data exchange exists yet to test (semantic search has no code beyond an unused DB column - see Data Analytics section below). |
+| 4. Interaction Capability | **Partial, coincidentally** | Only the already-known, already-parked footer visual-separation issue is documented, and that predates this audit. No deliberate usability pass, error-messaging audit, or UI-organization review was actually done as part of this audit. |
+| 5. Reliability | **Partial** | Only the semantic-search fallback path was considered, and it turned out moot (no search code exists to fail). General reliability - error/interruption handling, data-loss scenarios - untested. |
+| 6. Security | **Done** (live-verified) | `MustChangePassword` regression traced through full git history and reproduced live (see below). RBAC/session-expiry/SQLi verified via the passing automated `SecurityApiTest` suite. |
+| 7. Flexibility | **Not started** | No testing across screen sizes, devices, roles, or changing conditions. |
+| 8. Safety | **Not started** | No review of confirmation/warning prompts before risky or irreversible actions. |
+
+**Discrepancy that needs resolving, not just two opinions - read this before
+trusting either side's status claims at face value:**
+
+Two of the three issues below were **re-confirmed live and reproducible on
+the current `origin/kurizu` code** in this same session, after the fix was
+reverted specifically to check whether a groupmate/Codex had already
+resolved them independently. They had not, as of this check:
+
+- **Issue #1 - `MustChangePassword` hardcoded `false`**
+  (`AccountManagementController.php:40`). Live-reproduced: created a real
+  admin account, used it to create a real rider with a temporary password
+  through the actual API, logged in as that rider - response was
+  `"mustChangePassword":false`. Source still shows the hardcoded `false`.
+- **Issue #2 - orders store the wrong `DeliveryAddress`**
+  (`CustomerActivityContext.jsx:463` and `:517`, passes
+  `customer.customerAddress` instead of `order.deliveryLocationName`).
+  Live-reproduced: placed a real order through the actual UI with a
+  delivery zone selected - backend stored `"DeliveryAddress":"Not
+  provided"`.
+- **Issue #3 - Forgot Password 503** currently does *not* reproduce, but
+  only because of a local, gitignored `.env` credential fix made earlier
+  this session - nothing in the tracked codebase changed for this. Anyone
+  else pulling this repo with a blank/default `.env` will still hit the
+  503 unless they also configure real SMTP credentials locally.
+
+If "Codex found no bugs" or a similar claim is circulating, **that claim
+directly contradicts the live evidence above** for issues #1 and #2 as of
+this session. This is a real discrepancy between what was claimed and what
+is actually reproducible in the code right now - not a difference of
+opinion or interpretation. Resolve by having whoever makes that claim
+reproduce it live (create a real account, hit the real endpoint) rather than
+by trusting either side's report unchecked.
+
+---
+
 # Outstanding Work
 
 ## High Priority
