@@ -37,4 +37,27 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (\Illuminate\Auth\AuthenticationException $error, \Illuminate\Http\Request $request) {
             if ($request->is('api/*')) return response()->json(['error' => 'authentication required'], 401);
         });
+        $exceptions->render(function (\Illuminate\Database\Eloquent\ModelNotFoundException $error, \Illuminate\Http\Request $request) {
+            if ($request->is('api/*')) return response()->json(['error' => 'Resource not found.'], 404);
+        });
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $error, \Illuminate\Http\Request $request) {
+            if ($request->is('api/*')) return response()->json(['error' => 'Endpoint or resource not found.'], 404);
+        });
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $error, \Illuminate\Http\Request $request) {
+            if ($request->is('api/*')) {
+                $status = $error->getStatusCode();
+                $msg = $error->getMessage() ?: match ($status) {
+                    403 => 'Forbidden.',
+                    404 => 'Resource not found.',
+                    default => 'An error occurred.',
+                };
+                return response()->json(['error' => $msg], $status);
+            }
+        });
+        $exceptions->render(function (\Throwable $error, \Illuminate\Http\Request $request) {
+            if ($request->is('api/*')) {
+                $msg = config('app.debug') ? $error->getMessage() : 'Internal server error.';
+                return response()->json(['error' => $msg], 500);
+            }
+        });
     })->create();

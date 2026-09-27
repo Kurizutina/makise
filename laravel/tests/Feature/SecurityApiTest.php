@@ -90,4 +90,31 @@ class SecurityApiTest extends TestCase
         // exists; the order itself is the only record created by this request.
         $this->assertSame(1, Order::query()->count());
     }
+
+    public function test_all_api_errors_return_consistent_json_shape(): void
+    {
+        $customer = $this->user('customer', 'err-customer@example.com');
+        $token = $customer->createToken('err-test')->plainTextToken;
+
+        // 404 Model / Endpoint Not Found returns uniform {"error": "..."}
+        $response = $this->withToken($token)->patchJson('/api/orders/999999/status', ['status' => 'delivered']);
+        $response->assertNotFound();
+        $response->assertJsonStructure(['error']);
+        $this->assertFalse(array_key_exists('trace', $response->json()));
+
+        $this->app['auth']->forgetGuards();
+
+        // 403 Forbidden returns uniform {"error": "..."}
+        $response403 = $this->withToken($token)->getJson('/api/admin/orders');
+        $response403->assertForbidden();
+        $response403->assertJsonStructure(['error']);
+
+        $this->app['auth']->forgetGuards();
+
+        // 401 Unauthenticated returns uniform {"error": "..."}
+        $response401 = $this->withHeaders(['Authorization' => 'Bearer invalid-token'])->getJson('/api/auth/me');
+        $response401->assertUnauthorized();
+        $response401->assertJsonStructure(['error']);
+    }
 }
+
