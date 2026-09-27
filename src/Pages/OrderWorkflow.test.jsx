@@ -222,6 +222,23 @@ test('status actions preserve a just-written assignment and reject another rider
   expect(saved().orders[0].status).toBe('out_for_delivery');
 });
 
+test('a failed rider progress request releases the updating button', async () => {
+  signIn(7, 'driver');
+  localStorage.setItem('otuzanCustomerActivity', JSON.stringify({
+    orders: [{ ...order, backendOrderId: 99, assignedRider: { id: 7, name: 'Rider Seven' } }], cart: [], notifications: []
+  }));
+  global.fetch.mockRejectedValue(new Error('offline'));
+  render(<CustomerActivityProvider><RiderDashboard /></CustomerActivityProvider>);
+  fireEvent.click(await screen.findByRole('button', { name: /View Order/ }));
+  const dialog = screen.getByRole('dialog');
+  await act(async () => {
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm Order' }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(within(dialog).getByRole('button', { name: 'Confirm Order' })).toBeEnabled();
+  expect(screen.getByRole('alert')).toHaveTextContent('Unable to update this order');
+});
+
 test('backend rider lookup failure prevents assigning an unavailable rider', async () => {
   signIn(1, 'admin');
   global.fetch.mockRejectedValue(new Error('offline'));

@@ -88,6 +88,7 @@ const RiderDashboard = () => {
   // the next network poll returns.
   const [optimisticStatuses, setOptimisticStatuses] = useState({});
   const [updatingOrderIds, setUpdatingOrderIds] = useState({});
+  const [progressError, setProgressError] = useState('');
   const [zoomedImage, setZoomedImage] = useState(null);
   const [now, setNow] = useState(Date.now());
   // Keep completed work visible until the Manila business day ends, rather
@@ -116,18 +117,27 @@ const RiderDashboard = () => {
   const updateProgress = async (order, status) => {
     if (updatingOrderIds[order.id]) return;
     const previousStatus = order.status;
+    setProgressError('');
     setOptimisticStatuses((current) => ({ ...current, [order.id]: status }));
     setUpdatingOrderIds((current) => ({ ...current, [order.id]: true }));
-    const saved = await updateOrderStatus(order, status);
-    if (!isMountedRef.current) return;
-    if (!saved) {
-      setOptimisticStatuses((current) => ({ ...current, [order.id]: previousStatus }));
+    let saved = false;
+    try {
+      saved = await updateOrderStatus(order, status);
+    } catch {
+      // A rejected request follows the same rollback path as a rejected
+      // status transition. The cleanup below always re-enables the button.
+    } finally {
+      if (!isMountedRef.current) return;
+      if (!saved) {
+        setOptimisticStatuses((current) => ({ ...current, [order.id]: previousStatus }));
+        setProgressError('Unable to update this order. Please try again.');
+      }
+      setUpdatingOrderIds((current) => {
+        const next = { ...current };
+        delete next[order.id];
+        return next;
+      });
     }
-    setUpdatingOrderIds((current) => {
-      const next = { ...current };
-      delete next[order.id];
-      return next;
-    });
   };
 
   useEffect(() => {
@@ -217,6 +227,7 @@ const RiderDashboard = () => {
               {nextStatuses[order.status] && <button type="button" className="rider-advance" disabled={isUpdating} onClick={() => updateProgress(order, nextStatuses[order.status][0])}>{isUpdating ? 'Updating…' : nextStatuses[order.status][1]}</button>}
               {['delivered', 'cancelled'].includes(order.status) && <button type="button" className="rider-close-order" onClick={() => setSelectedOrderId(null)}>Close</button>}
             </div>
+            {progressError && <p className="rider-progress-error" role="alert">{progressError}</p>}
           </section>
         </div>
         );

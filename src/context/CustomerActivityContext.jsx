@@ -111,8 +111,13 @@ const syncOrderToBackend = (localOrderId, order, deliveryAddress, serviceFee = 0
 const syncStatusToBackend = (backendOrderId, status) => {
   const headers = authHeaders();
   if (!backendOrderId || !headers) return Promise.resolve(false);
+  // A mobile network request can remain pending after a connection change.
+  // The rider UI waits on this promise before it re-enables its action, so
+  // bound it instead of allowing an order to remain stuck in "Updating".
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 12000);
   return fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/status`, {
-    method: 'PATCH', headers, body: JSON.stringify({ status })
+    method: 'PATCH', headers, body: JSON.stringify({ status }), signal: controller.signal
   })
     .then((response) => {
       if (!response.ok) console.warn(`Status update to "${status}" was rejected (order may have already been finalized elsewhere).`);
@@ -123,7 +128,8 @@ const syncStatusToBackend = (backendOrderId, status) => {
       broadcastOrderProgressChanged();
       return response.ok;
     })
-    .catch(() => false);
+    .catch(() => false)
+    .finally(() => window.clearTimeout(timeout));
 };
 
 const syncAssignmentToBackend = (backendOrderId, riderId) => {
