@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Mail\PasswordResetMail;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class AuthApiTest extends TestCase
@@ -91,12 +93,38 @@ class AuthApiTest extends TestCase
     public function test_password_reset_request_sends_a_generic_reset_message(): void
     {
         $user = $this->account();
+        Mail::fake();
 
         $this->postJson('/api/auth/forgot-password', ['email' => $user->Email])
             ->assertOk()
             ->assertJsonPath('message', 'If an account exists for that email, a password reset link has been sent.');
 
         $this->assertDatabaseHas('password_reset_tokens', ['email' => $user->Email]);
+        Mail::assertSent(PasswordResetMail::class, fn (PasswordResetMail $mail) => $mail->hasTo($user->Email));
+    }
+
+    public function test_password_reset_changes_the_password_and_revokes_the_link(): void
+    {
+        $user = $this->account();
+        Mail::fake();
+
+        $this->postJson('/api/auth/forgot-password', ['email' => $user->Email])->assertOk();
+
+        $resetUrl = '';
+        Mail::assertSent(PasswordResetMail::class, function (PasswordResetMail $mail) use (&$resetUrl): bool {
+            $resetUrl = $mail->resetUrl;
+            return true;
+        });
+        parse_str((string) parse_url($resetUrl, PHP_URL_QUERY), $parameters);
+
+        $this->postJson('/api/auth/reset-password', [
+            'email' => $parameters['email'], 'token' => $parameters['token'], 'password' => 'new-secret123',
+        ])->assertOk();
+
+        $this->postJson('/api/auth/login', ['email' => $user->Email, 'password' => 'new-secret123'])->assertOk();
+        $this->postJson('/api/auth/reset-password', [
+            'email' => $parameters['email'], 'token' => $parameters['token'], 'password' => 'another-secret123',
+        ])->assertUnprocessable();
     }
 
     public function test_only_admin_can_list_registered_drivers(): void

@@ -90,16 +90,22 @@ class AuthController extends Controller
 
         if ($user) {
             $token = Str::random(64);
-            DB::table('password_reset_tokens')->where('email', $email)->delete();
-            DB::table('password_reset_tokens')->insert([
-                'email' => $email,
-                'token' => hash('sha256', $token),
-                'created_at' => now(),
-            ]);
-
             $resetUrl = rtrim((string) config('otuzan.frontend_url'), '/')
                 .'/reset-password?token='.urlencode($token).'&email='.urlencode($email);
-            Mail::to($email)->send(new PasswordResetMail($resetUrl));
+
+            try {
+                Mail::to($email)->send(new PasswordResetMail($resetUrl));
+            } catch (\Throwable $exception) {
+                report($exception);
+                return response()->json([
+                    'error' => 'The password-reset email service is unavailable. Please try again later.',
+                ], 503);
+            }
+
+            DB::table('password_reset_tokens')->updateOrInsert(
+                ['email' => $email],
+                ['token' => hash('sha256', $token), 'created_at' => now()]
+            );
         }
 
         return response()->json([
@@ -117,7 +123,7 @@ class AuthController extends Controller
         $email = strtolower(trim($data['email']));
         $reset = DB::table('password_reset_tokens')->where('email', $email)->first();
 
-        if (!$reset || now()->subMinutes(60)->greaterThan($reset->created_at)
+        if (!$reset || now()->subMinutes((int) config('auth.passwords.users.expire', 60))->greaterThan($reset->created_at)
             || !hash_equals($reset->token, hash('sha256', $data['token']))) {
             return response()->json(['error' => 'This password reset link is invalid or expired.'], 422);
         }
