@@ -10,6 +10,51 @@
   align-items: center;
 }
 
+/* Login is one task, so keep its greeting and fields in one card. These
+   rules are scoped to .login-page: registration retains its existing layout
+   and all form markup and handlers stay exactly the same. */
+.login-page .auth-layout {
+  width: min(100%, 900px);
+  min-height: 520px;
+  flex-direction: row;
+  gap: 0;
+  overflow: hidden;
+  border: 2px solid #f0f0f0;
+  border-radius: 2rem;
+  background: #fff;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+.login-page .auth-left, .login-page .auth-right { width: 50%; flex: 1; }
+.login-page .logo-section, .login-page .form-card { width: 100%; border: 0; border-radius: 0; box-shadow: none; }
+.login-page .logo-section { min-height: 100%; padding: 3rem 2rem; background: linear-gradient(145deg, #fff8fa, #fff); }
+.login-page .logo-section:hover, .login-page .hover-animate:hover { transform: none; box-shadow: none; }
+.login-page .logo-container { margin-bottom: 0.7rem; }
+.login-page .logo-placeholder { width: 72px; height: 72px; border-radius: 20px; }
+.login-page .logo-text { font-size: 1.8rem; }
+.login-page .welcome-message { margin-top: 0; }
+.login-page .welcome-title { margin-bottom: 0.35rem; font-size: 1.45rem; }
+.login-page .welcome-subtitle { margin: 0; font-size: 0.88rem; line-height: 1.45; }
+.login-page .decorative-elements { opacity: 0.55; }
+.login-page .form-card { padding: 1.5rem 2rem 2rem; }
+
+/* Registration uses the same single-card surface, while preserving the
+   welcome message on the left of the form at desktop widths. */
+.register-page .auth-layout {
+  max-width: 1000px;
+  min-height: 600px;
+  gap: 0;
+  overflow: hidden;
+  border: 2px solid #f0f0f0;
+  border-radius: 2rem;
+  background: #fff;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+.register-page .auth-left, .register-page .auth-right { min-width: 0; }
+.register-page .logo-section, .register-page .form-card { width: 100%; border: 0; border-radius: 0; box-shadow: none; }
+.register-page .logo-section { min-height: 100%; padding: 3rem 2.5rem; background: linear-gradient(145deg, #fff8fa, #fff); }
+.register-page .logo-section:hover, .register-page .hover-animate:hover { transform: none; box-shadow: none; }
+.register-page .form-card { padding: 2.5rem; }
+
 /* Left Side - Logo and Message */
 .auth-left {
   flex: 1;
@@ -586,6 +631,19 @@ select.input-field {
     order: -1;
   }
 
+  /* In the unified login card the greeting remains first. */
+  .login-page .auth-layout { width: min(100%, 470px); min-height: 0; flex-direction: column; }
+  .login-page .auth-left, .login-page .auth-right { width: 100%; flex: none; }
+  .login-page .auth-right { order: initial; }
+
+  .register-page .auth-right { order: initial; }
+
+  .register-page .auth-layout { gap: 0; }
+
+  .register-page .logo-section { min-height: 0; padding: 1.75rem 1.5rem 1rem; }
+
+  .register-page .form-card { padding: 1.5rem; }
+
   .logo-section {
     padding: 2rem 1.5rem;
   }
@@ -593,6 +651,9 @@ select.input-field {
   .form-card {
     padding: 2rem 1.5rem;
   }
+
+  .login-page .logo-section { min-height: 0; padding: 1.5rem 1.5rem 1rem; }
+  .login-page .form-card { padding: 1.25rem 1.5rem 1.5rem; }
 
   .welcome-title {
     font-size: 1.5rem;

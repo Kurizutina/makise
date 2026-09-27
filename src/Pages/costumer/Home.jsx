@@ -249,9 +249,10 @@ const Home = () => {
           allowPickup={customOrderBrand.type === 'item' && customOrderBrand.name === 'Others'}
           onCancel={() => setCustomOrderBrand(null)}
           onAddToCart={(order) => {
+            const establishment = order.establishment || customOrderBrand.name;
             addToCart({
               id: `custom-${Date.now()}`,
-              source: customOrderBrand.name,
+              source: establishment,
               name: `Custom order (${order.items.length} item${order.items.length === 1 ? '' : 's'})`,
               quantity: 1,
               details: order
@@ -259,9 +260,10 @@ const Home = () => {
             setCustomOrderBrand(null);
           }}
           onSubmit={(order) => {
+            const establishment = order.establishment || customOrderBrand.name;
             placeOrder({
-              source: customOrderBrand.name,
-              label: `${customOrderBrand.name} custom order`,
+              source: establishment,
+              label: `${establishment} custom order`,
               items: order.items,
               details: order,
               section: customOrderBrand.type,
