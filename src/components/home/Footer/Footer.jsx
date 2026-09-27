@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { FaFacebook } from 'react-icons/fa';
 import './Footer.css';
 
@@ -15,7 +15,7 @@ const Footer = () => {
   const navigate = useNavigate();
   const goToService = (serviceType) => (event) => {
     event.preventDefault();
-    navigate('/home', serviceType ? { state: { selectedServiceType: serviceType } } : undefined);
+    navigate('/home', { state: serviceType ? { selectedServiceType: serviceType } : { showHome: true } });
   };
 
   return (
@@ -34,7 +34,16 @@ const Footer = () => {
             <li><a href="/home" onClick={goToService('food')}>Food Delivery</a></li>
             <li><a href="/home" onClick={goToService('item')}>Item Delivery</a></li>
             <li><a href="/home" onClick={goToService('bills')}>Pay Bills</a></li>
-            <li><Link to="/faq">FAQ</Link></li>
+            {/* Plain "/home" href, not "/home#faq" - the real navigation
+                always goes through the onClick below (React Router state,
+                not a hash), and a literal #faq href left a genuine
+                deep-linkable /home#faq URL in history if it were ever
+                actually followed (e.g. a slow click before the handler
+                attached) - confirmed live (9/25) that visiting that URL
+                directly does jump straight to the FAQ section, which is
+                exactly what a customer reported landing on unexpectedly
+                after pressing back from a brand's menu. */}
+            <li><a href="/home" onClick={(event) => { event.preventDefault(); navigate('/home', { state: { scrollToFaq: true } }); }}>FAQ</a></li>
           </ul>
         </nav>
 

@@ -11,11 +11,11 @@ test('students receive regular rates through 8:00 PM and a 50% surcharge after',
   });
 });
 
-test('non-students receive regular rates through 6:30 PM and a 50% surcharge after', () => {
-  expect(calculateDeliveryFee(villaJavier, 'non_student', new Date(2026, 8, 17, 18, 30))).toMatchObject({
+test('non-students receive regular rates through 6:00 PM and a 50% surcharge after', () => {
+  expect(calculateDeliveryFee(villaJavier, 'non_student', new Date(2026, 8, 17, 18, 0))).toMatchObject({
     serviceFee: 75, surchargeApplied: false
   });
-  expect(calculateDeliveryFee(villaJavier, 'non_student', new Date(2026, 8, 17, 18, 31))).toMatchObject({
+  expect(calculateDeliveryFee(villaJavier, 'non_student', new Date(2026, 8, 17, 18, 1))).toMatchObject({
     baseFee: 75, surcharge: 37.5, serviceFee: 112.5, surchargeApplied: true
   });
 });

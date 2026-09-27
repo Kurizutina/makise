@@ -3,14 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useCustomerActivity } from '../../context/CustomerActivityContext';
 import './DeliveryAdminDashboard.css';
 import OrderCustomerDetails from '../../components/common/OrderCustomerDetails/OrderCustomerDetails';
-import { catalogImageUrl } from '../../utils/catalog';
+import { apiAssetUrl, broadcastCatalogChanged, catalogImageUrl } from '../../utils/catalog';
 import { clearSession } from '../../utils/session';
-import { applyBackendTruth, useBackendOrders } from '../../hooks/useBackendOrders';
+import { applyBackendTruth, toLocalOrderShape, useBackendOrders } from '../../hooks/useBackendOrders';
 
 const SERVICE_META = {
-  food: { label: 'Food Delivery', icon: 'fa-utensils', color: '#f9c12f' },
-  item: { label: 'Item Delivery', icon: 'fa-box', color: '#ff9846' },
-  bills: { label: 'Pay Bills', icon: 'fa-file-invoice-dollar', color: '#da1c5c' }
+  food: { label: 'Food Delivery', icon: 'fa-utensils', color: 'var(--color-warning)' },
+  item: { label: 'Item Delivery', icon: 'fa-box', color: 'var(--color-primary-dark)' },
+  bills: { label: 'Pay Bills', icon: 'fa-file-invoice-dollar', color: 'var(--color-primary)' }
 };
 
 const STATUS_LABELS = {
@@ -31,11 +31,19 @@ const NAV_ITEMS = [
 
 const ACTIVE_STATUSES = ['confirmed', 'preparing', 'out_for_delivery'];
 const FINAL_STATUSES = ['delivered', 'cancelled'];
-const PENDING_ASSIGNMENT_STATUSES = ['pending_rider', 'pending', 'to_be_assigned', 'to_be_assign', 'unassigned'];
 const hasAssignedRider = (order) => Boolean(order.assignedRider?.id);
-const needsRiderAssignment = (order) => (
-  !FINAL_STATUSES.includes(order.status)
-  && (PENDING_ASSIGNMENT_STATUSES.includes(order.status) || !hasAssignedRider(order))
+// An order needs an admin to pick a rider only until one is actually
+// assigned - assigning no longer flips the order's own status (see
+// OrderController::assign: "reserves the order for a rider, but is not
+// acceptance"), so `order.status` alone can't tell "still needs a rider"
+// apart from "assigned, waiting on the rider to accept." Checking
+// hasAssignedRider directly is what actually distinguishes them. Before
+// this, a successfully-assigned order stayed stuck showing as "Pending"
+// with no visible change - which is exactly what read as "I can't assign
+// a rider" (reported live, 9/25) even though the assignment itself worked.
+const needsRiderAssignment = (order) => !FINAL_STATUSES.includes(order.status) && !hasAssignedRider(order);
+const isAwaitingRiderResponse = (order) => (
+  !FINAL_STATUSES.includes(order.status) && hasAssignedRider(order) && !ACTIVE_STATUSES.includes(order.status)
 );
 
 const inferService = (order) => {
@@ -99,7 +107,7 @@ const OrderCard = ({ order, onAssign, onStatus, riders }) => {
         </label>
       )}
 
-      <p className="admin-order-status">{STATUS_LABELS[order.status] || 'Pending assignment'}</p>
+      <p className="admin-order-status">{isAwaitingRiderResponse(order) ? 'Awaiting rider response' : (STATUS_LABELS[order.status] || 'Pending assignment')}</p>
       {canAssign && order.assignedRider && riders.some((rider) => String(rider.id) === assignedRiderId) && <p role="status">Assigned to {order.assignedRider.name}</p>}
       <div className="admin-order-actions">
         {order.status === 'pending_rider' && <button type="button" onClick={() => onStatus(order, 'cancelled')}>Decline</button>}
@@ -114,7 +122,8 @@ const OrderCard = ({ order, onAssign, onStatus, riders }) => {
 const LiveOrdersTab = ({ orders, onAssign, onStatus, riders }) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const columns = [
-    { key: 'pending', label: 'Pending', color: '#f9c12f', matches: needsRiderAssignment },
+    { key: 'pending', label: 'Pending', color: 'var(--color-warning)', matches: needsRiderAssignment },
+    { key: 'awaiting', label: 'Awaiting Rider Response', color: '#3d9be9', matches: isAwaitingRiderResponse },
     { key: 'ongoing', label: 'Ongoing', color: '#34b875', matches: (order) => ACTIVE_STATUSES.includes(order.status) && hasAssignedRider(order) },
     { key: 'cancelled', label: 'Cancelled', color: '#f15a29', matches: (order) => order.status === 'cancelled' }
   ];
@@ -126,8 +135,9 @@ const LiveOrdersTab = ({ orders, onAssign, onStatus, riders }) => {
         <span>Filter orders</span>
         <select aria-label="Filter live orders by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
           <option value="all">All Orders</option>
-          <option value="ongoing">Ongoing Orders</option>
           <option value="pending">Pending Orders</option>
+          <option value="awaiting">Awaiting Rider Response</option>
+          <option value="ongoing">Ongoing Orders</option>
           <option value="cancelled">Cancelled Orders</option>
         </select>
       </label>
@@ -145,13 +155,94 @@ const LiveOrdersTab = ({ orders, onAssign, onStatus, riders }) => {
   </section>;
 };
 
-const HistoryTab = ({ orders }) => {
-  const [filter, setFilter] = useState('all');
-  const rows = orders.filter((order) => ['delivered', 'cancelled'].includes(order.status))
-    .filter((order) => filter === 'all' || inferService(order) === filter);
+// Business calendar date (Asia/Manila), not the browser's own local
+// timezone - matches the convention OrderController::revenue already uses
+// server-side, so "today" means the same day here as it does on the admin's
+// Revenue tab, regardless of what timezone the admin's own machine is set
+// to. en-CA formats as YYYY-MM-DD, which sorts/compares correctly as a
+// plain string.
+const manilaDateString = (value) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date(value));
+
+// One shared date-filter control for History and Revenue, per the request
+// that both use "one consistent date-filter UI pattern" rather than two
+// different pickers. `value` is '' (all dates), 'today', or an exact
+// Y-m-d string typed/picked in the date input - all three are sent to the
+// backend as a real query param (`date=...`) rather than filtered
+// client-side, so results aren't limited to whatever page is already loaded.
+const DateFilter = ({ value, onChange, today }) => (
+  <div className="admin-filter-row admin-date-filter">
+    <button type="button" className={value === '' ? 'active' : ''} onClick={() => onChange('')}>All dates</button>
+    <button type="button" className={value === today ? 'active' : ''} onClick={() => onChange(today)}>Today</button>
+    <input
+      type="date"
+      aria-label="Pick an exact date"
+      value={value && value !== today ? value : ''}
+      max={today}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  </div>
+);
+
+const HISTORY_PAGE_SIZE = 20;
+
+// History used to read from the same 50-order-capped fetch Live Orders and
+// Payments use (useBackendOrders + applyBackendTruth), which is fine for
+// those - a bounded "what's active right now" working set - but wrong for
+// History, which only grows over the business's lifetime. A client-side
+// filter over that capped list would silently lose anything older than the
+// most recent 50 orders (the exact bug the Revenue tab had, found 9/23).
+// History now does its own fetch straight against indexAll's real server-
+// side pagination (already implemented, just never exposed in the UI) so
+// every order is actually reachable, just a page away rather than gone.
+const HistoryTab = () => {
+  const [serviceFilter, setServiceFilter] = useState('all');
+  // '' (all dates) is the default rather than 'today' - defaulting to today
+  // would silently hide every past order the moment nothing has happened
+  // yet today, which is a real behavior change on top of just adding the
+  // option (an admin's first instinct on an empty-looking History tab
+  // shouldn't be "is something broken"). An exact date is an explicit pick.
+  // Sent to the backend as a real `date` query param (OrderController::
+  // indexAll) rather than filtered client-side, so picking a date reaches
+  // every matching order, not just whatever's on the current page.
+  const [dateFilter, setDateFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+  const today = useMemo(() => manilaDateString(Date.now()), []);
+
+  useEffect(() => { setPage(1); }, [dateFilter]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const api = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    const params = new URLSearchParams({ status: 'delivered,cancelled', per_page: String(HISTORY_PAGE_SIZE), page: String(page) });
+    if (dateFilter) params.set('date', dateFilter);
+    fetch(`${api}/api/admin/orders?${params}`, {
+      headers: { Authorization: `Bearer ${sessionStorage.getItem('otuzanAuthenticated')}` },
+      signal: controller.signal
+    })
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then(setResult)
+      .catch(() => { if (!controller.signal.aborted) setError('Unable to load history right now. Try again shortly.'); });
+    return () => controller.abort();
+  }, [page, dateFilter]);
+
+  if (error) return <section><div className="admin-table-empty">{error}</div></section>;
+  if (!result) return <section><div className="admin-table-empty">Loading history…</div></section>;
+
+  const orders = result.data.map(toLocalOrderShape);
+  const rows = orders.filter((order) => serviceFilter === 'all' || inferService(order) === serviceFilter);
   return <section>
-    <div className="admin-filter-row">{['all', 'food', 'item', 'bills'].map((key) => <button className={filter === key ? 'active' : ''} type="button" onClick={() => setFilter(key)} key={key}>{key === 'all' ? 'All services' : SERVICE_META[key].label}</button>)}</div>
-    <div className="admin-table-wrap"><table><thead><tr><th>Order ID</th><th>Service</th><th>Customer</th><th>Date</th><th>Total</th><th>Rider</th><th>Status</th></tr></thead><tbody>{rows.map((order) => <tr key={order.id}><td>{order.id}</td><td><ServiceBadge service={inferService(order)} /></td><td><OrderCustomerDetails order={order} /></td><td>{new Date(order.createdAt).toLocaleString()}</td><td>{formatCurrency(getOrderTotal(order))}</td><td>{order.assignedRider?.name || '—'}</td><td><span className={`admin-history-status ${order.status}`}>{order.status}</span></td></tr>)}</tbody></table>{!rows.length && <div className="admin-table-empty">No completed transactions yet.</div>}</div>
+    <DateFilter value={dateFilter} onChange={setDateFilter} today={today} />
+    <div className="admin-filter-row">{['all', 'food', 'item', 'bills'].map((key) => <button className={serviceFilter === key ? 'active' : ''} type="button" onClick={() => setServiceFilter(key)} key={key}>{key === 'all' ? 'All services' : SERVICE_META[key].label}</button>)}</div>
+    <div className="admin-table-wrap"><table><thead><tr><th>Order ID</th><th>Service</th><th>Customer</th><th>Date</th><th>Total</th><th>Rider</th><th>Status</th></tr></thead><tbody>{rows.map((order) => <tr key={order.id}><td>{order.id}</td><td><ServiceBadge service={inferService(order)} /></td><td><OrderCustomerDetails order={order} /></td><td>{new Date(order.createdAt).toLocaleString()}</td><td>{formatCurrency(getOrderTotal(order))}</td><td>{order.assignedRider?.name || '—'}</td><td><span className={`admin-history-status ${order.status}`}>{order.status}</span></td></tr>)}</tbody></table>{!rows.length && <div className="admin-table-empty">{dateFilter ? 'No completed transactions on that date.' : 'No completed transactions on this page.'}</div>}</div>
+    {result.last_page > 1 && (
+      <div className="admin-pagination">
+        <button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>← Previous</button>
+        <span>Page {result.current_page} of {result.last_page} ({result.total} total)</span>
+        <button type="button" disabled={page >= result.last_page} onClick={() => setPage((current) => current + 1)}>Next →</button>
+      </div>
+    )}
   </section>;
 };
 
@@ -162,12 +253,20 @@ const HistoryTab = ({ orders }) => {
 // (OrderController::revenue) that aggregates over every non-cancelled order
 // in the table, not just the ones currently in view.
 const RevenueTab = () => {
+  // '' (all dates) is the default - matches the pre-existing "all-time
+  // total" behavior exactly, an exact date narrows the stat cards below to
+  // just that day via OrderController::revenue's `date` param. The `daily`
+  // series behind the line graph is always all-time regardless of this
+  // filter - see the backend's own comment for why.
+  const [dateFilter, setDateFilter] = useState('');
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
+  const today = useMemo(() => manilaDateString(Date.now()), []);
   useEffect(() => {
     const controller = new AbortController();
     const api = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-    fetch(`${api}/api/admin/revenue`, {
+    const params = new URLSearchParams(dateFilter ? { date: dateFilter } : {});
+    fetch(`${api}/api/admin/revenue?${params}`, {
       headers: { Authorization: `Bearer ${sessionStorage.getItem('otuzanAuthenticated')}` },
       signal: controller.signal
     })
@@ -175,7 +274,7 @@ const RevenueTab = () => {
       .then(setData)
       .catch(() => { if (!controller.signal.aborted) setError('Unable to load revenue right now. Try again shortly.'); });
     return () => controller.abort();
-  }, []);
+  }, [dateFilter]);
 
   if (error) return <section><div className="admin-table-empty">{error}</div></section>;
   if (!data) return <section><div className="admin-table-empty">Loading revenue…</div></section>;
@@ -183,10 +282,244 @@ const RevenueTab = () => {
   const totals = data.byService || {};
   const grandTotal = data.total || 0;
   const maximum = Math.max(...Object.values(totals), 1);
+
+  // Trend arrow compares today's revenue-so-far against yesterday's - both
+  // read straight from the same `daily` breakdown the line-graph data would
+  // use, bucketed by Asia/Manila calendar day (matches the History filter's
+  // convention). A day with no orders at all just isn't in `daily`, so a
+  // missing entry means 0, not "no data" - a day that earned nothing really
+  // did earn less than a day that earned something.
+  const dailyByDate = Object.fromEntries((data.daily || []).map((day) => [day.date, day.revenue]));
+  const todayKey = manilaDateString(Date.now());
+  const yesterdayKey = manilaDateString(Date.now() - 24 * 60 * 60 * 1000);
+  const todayRevenue = dailyByDate[todayKey] || 0;
+  const yesterdayRevenue = dailyByDate[yesterdayKey] || 0;
+  const trend = todayRevenue > yesterdayRevenue ? 'up' : todayRevenue < yesterdayRevenue ? 'down' : 'flat';
+  const trendIcon = { up: 'fa-arrow-trend-up', down: 'fa-arrow-trend-down', flat: 'fa-minus' }[trend];
+  const trendLabel = {
+    up: `Up from ${formatCurrency(yesterdayRevenue)} yesterday`,
+    down: `Down from ${formatCurrency(yesterdayRevenue)} yesterday`,
+    flat: `Same as yesterday (${formatCurrency(yesterdayRevenue)})`
+  }[trend];
+
   return <section>
-    <div className="admin-stat-grid"><div className="admin-stat-card featured"><span>Total recorded revenue</span><strong>{formatCurrency(grandTotal)}</strong></div>{Object.entries(SERVICE_META).map(([key, meta]) => <div className="admin-stat-card" key={key}><span>{meta.label}</span><strong style={{ color: meta.color }}>{formatCurrency(totals[key] || 0)}</strong></div>)}</div>
-    <div className="admin-analytics-card"><h2>Revenue by service</h2><p>Calculated from the delivery or service fee on every non-cancelled order on record, not just what's currently loaded.</p><div className="admin-revenue-bars">{Object.entries(SERVICE_META).map(([key, meta]) => <div key={key}><span>{meta.label}</span><div><i style={{ width: `${((totals[key] || 0) / maximum) * 100}%`, background: meta.color }} /></div><strong>{formatCurrency(totals[key] || 0)}</strong></div>)}</div></div>
+    <DateFilter value={dateFilter} onChange={setDateFilter} today={today} />
+    <div className="admin-stat-grid">
+      <div className="admin-stat-card featured">
+        <span>{dateFilter ? `Revenue on ${dateFilter}` : 'Total recorded revenue'}</span>
+        <strong>{formatCurrency(grandTotal)}</strong>
+        {!dateFilter && <span className={`admin-revenue-trend admin-revenue-trend-${trend}`} title={trendLabel}>
+          <i className={`fa-solid ${trendIcon}`} aria-hidden="true" /> {trendLabel}
+        </span>}
+      </div>
+      {Object.entries(SERVICE_META).map(([key, meta]) => <div className="admin-stat-card" key={key}><span>{meta.label}</span><strong style={{ color: meta.color }}>{formatCurrency(totals[key] || 0)}</strong></div>)}
+    </div>
+    <div className="admin-analytics-card"><h2>Revenue over time</h2><p>Daily total across every day on record - unaffected by the date filter above, so the trend stays visible while you drill into a single day's numbers.</p><RevenueBarGraph daily={data.daily || []} /></div>
+    <div className="admin-analytics-card"><h2>Revenue by service</h2><p>Calculated from the delivery or service fee on every non-cancelled order{dateFilter ? ' on the selected date' : ' on record, not just what\'s currently loaded'}.</p><div className="admin-revenue-bars">{Object.entries(SERVICE_META).map(([key, meta]) => <div key={key}><span>{meta.label}</span><div><i style={{ width: `${((totals[key] || 0) / maximum) * 100}%`, background: meta.color }} /></div><strong>{formatCurrency(totals[key] || 0)}</strong></div>)}</div></div>
+    <PeakOrderingTimeCard data={data} />
+    <CustomerSegmentsCard />
+    <DemandForecastCard />
   </section>;
+};
+
+// Data Analytics Layer 1 (descriptive) - when orders actually come in, so
+// staffing/rider availability can be planned around real demand instead of
+// a guess. Always all-time (same reasoning as the daily revenue series
+// above - a single filtered day can't show a meaningful day-of-week
+// pattern), computed server-side from the same non-cancelled order set
+// OrderController::revenue already fetches - no extra request.
+const HOUR_LABELS = Array.from({ length: 24 }, (_, hour) => {
+  const period = hour < 12 ? 'AM' : 'PM';
+  const display = hour % 12 === 0 ? 12 : hour % 12;
+  return `${display}${period}`;
+});
+const DAY_ABBREVIATIONS = { Sunday: 'Sun', Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat' };
+
+const MiniBarRow = ({ items, labelFor, valueFor, titleFor }) => {
+  const maxValue = Math.max(...items.map(valueFor), 1);
+  return <div className="admin-peak-bars">
+    {items.map((item, index) => (
+      <div className="admin-peak-bar" key={index} title={titleFor(item)}>
+        <i style={{ height: `${(valueFor(item) / maxValue) * 100}%` }} />
+        <span>{labelFor(item, index)}</span>
+      </div>
+    ))}
+  </div>;
+};
+
+const PeakOrderingTimeCard = ({ data }) => {
+  const peakHours = data.peakHours || [];
+  const peakDays = data.peakDays || [];
+  const hasOrders = peakHours.some((h) => h.orders > 0);
+
+  return <div className="admin-analytics-card">
+    <h2>Peak ordering time</h2>
+    <p>
+      {hasOrders && data.peakHour != null
+        ? `Orders peak around ${HOUR_LABELS[data.peakHour]} on ${data.peakDay}s - all-time, unaffected by the date filter above.`
+        : 'Not enough order history yet to identify a pattern.'}
+    </p>
+    {hasOrders && <>
+      <h3 className="admin-peak-subheading">By hour of day</h3>
+      <MiniBarRow
+        items={peakHours}
+        valueFor={(h) => h.orders}
+        labelFor={(h, index) => (index % 3 === 0 ? HOUR_LABELS[h.hour] : '')}
+        titleFor={(h) => `${HOUR_LABELS[h.hour]}: ${h.orders} order${h.orders === 1 ? '' : 's'}`}
+      />
+      <h3 className="admin-peak-subheading">By day of week</h3>
+      <MiniBarRow
+        items={peakDays}
+        valueFor={(d) => d.orders}
+        labelFor={(d) => DAY_ABBREVIATIONS[d.day]}
+        titleFor={(d) => `${d.day}: ${d.orders} order${d.orders === 1 ? '' : 's'}`}
+      />
+    </>}
+  </div>;
+};
+
+// Data Analytics Layer 2 (diagnostic) - RFM customer segmentation. A
+// separate fetch from the revenue data above (different endpoint,
+// different shape - customers, not orders), so it loads and errors
+// independently rather than blocking the revenue cards above it.
+const SEGMENT_META = {
+  Champions: { color: '#34b875', description: 'Recent, frequent, high-spending - your best customers.' },
+  Loyal: { color: '#3d9be9', description: 'Order often and recently, not yet top spenders.' },
+  'At Risk': { color: '#f9c12f', description: "Used to order often, haven't in a while - worth a nudge." },
+  New: { color: '#da1c5c', description: 'Just started ordering - too early to tell how often they will return.' },
+  'Needs Attention': { color: '#b285a3', description: "Middling on every measure - not a clear segment either way." },
+  Lost: { color: '#8b8b8b', description: "Infrequent and long inactive - least likely to come back on their own." }
+};
+
+const CustomerSegmentsCard = () => {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const api = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    fetch(`${api}/api/admin/customer-segments`, {
+      headers: { Authorization: `Bearer ${sessionStorage.getItem('otuzanAuthenticated')}` },
+      signal: controller.signal
+    })
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then(setData)
+      .catch(() => { if (!controller.signal.aborted) setError('Unable to load customer segments right now. Try again shortly.'); });
+    return () => controller.abort();
+  }, []);
+
+  if (error) return <div className="admin-analytics-card"><h2>Customer segments</h2><div className="admin-table-empty">{error}</div></div>;
+  if (!data) return <div className="admin-analytics-card"><h2>Customer segments</h2><div className="admin-table-empty">Loading…</div></div>;
+
+  if (!data.totalCustomers) {
+    return <div className="admin-analytics-card">
+      <h2>Customer segments</h2>
+      <p>RFM (Recency, Frequency, Monetary) segmentation - not enough order history yet to group customers.</p>
+    </div>;
+  }
+
+  const maximum = Math.max(...data.segments.map((s) => s.count), 1);
+
+  return <div className="admin-analytics-card">
+    <h2>Customer segments</h2>
+    <p>RFM (Recency, Frequency, Monetary) segmentation across {data.totalCustomers} customer{data.totalCustomers === 1 ? '' : 's'} with at least one order - each scored on how recently, how often, and how much they've spent, relative to every other customer.</p>
+    <div className="admin-revenue-bars">
+      {data.segments.map(({ segment, count }) => {
+        const meta = SEGMENT_META[segment] || {};
+        return <div key={segment} title={meta.description}>
+          <span>{segment}</span>
+          <div><i style={{ width: `${(count / maximum) * 100}%`, background: meta.color || 'var(--admin-pink)' }} /></div>
+          <strong>{count}</strong>
+        </div>;
+      })}
+    </div>
+  </div>;
+};
+
+// Data Analytics Layer 3 (predictive) - plain 7-day moving average, no
+// seasonality or tuning (see the backend's own comment for why - this is
+// the deliberately simplest viable version). Shows the last 14 days of
+// actual order counts for context plus the single forecast number.
+const DemandForecastCard = () => {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const api = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    fetch(`${api}/api/admin/demand-forecast`, {
+      headers: { Authorization: `Bearer ${sessionStorage.getItem('otuzanAuthenticated')}` },
+      signal: controller.signal
+    })
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then(setData)
+      .catch(() => { if (!controller.signal.aborted) setError('Unable to load the demand forecast right now. Try again shortly.'); });
+    return () => controller.abort();
+  }, []);
+
+  if (error) return <div className="admin-analytics-card"><h2>Demand forecast</h2><div className="admin-table-empty">{error}</div></div>;
+  if (!data) return <div className="admin-analytics-card"><h2>Demand forecast</h2><div className="admin-table-empty">Loading…</div></div>;
+
+  const recentDays = (data.daily || []).slice(-14);
+
+  return <div className="admin-analytics-card">
+    <h2>Demand forecast</h2>
+    <p>Simple {data.windowSize}-day moving average of daily order volume - a plain baseline, not a full predictive model, to give a rough sense of expected load for staffing.</p>
+    <div className="admin-stat-card featured" style={{ marginBottom: 18 }}>
+      <span>Expected orders tomorrow</span>
+      <strong>{data.forecastNextDay}</strong>
+    </div>
+    {recentDays.length > 0 && <>
+      <h3 className="admin-peak-subheading">Last {recentDays.length} days</h3>
+      <MiniBarRow
+        items={recentDays}
+        valueFor={(d) => d.orders}
+        labelFor={(d) => d.date.slice(5)}
+        titleFor={(d) => `${d.date}: ${d.orders} order${d.orders === 1 ? '' : 's'}`}
+      />
+    </>}
+  </div>;
+};
+
+// Plain inline SVG bar chart - the `daily` breakdown OrderController::
+// revenue already returns is exactly the series this needs, so no new
+// backend work, no charting library. Renders nothing (rather than an empty/
+// broken chart) with no days at all; a single day still draws one bar fine,
+// unlike the line chart this replaced which needed at least two points.
+const RevenueBarGraph = ({ daily }) => {
+  const width = 640;
+  const height = 180;
+  const padding = 28;
+  if (!daily.length) {
+    return <div className="admin-table-empty">Not enough daily history yet to plot a trend.</div>;
+  }
+  const maxRevenue = Math.max(...daily.map((day) => day.revenue), 1);
+  const plotWidth = width - padding * 2;
+  const plotHeight = height - padding * 2;
+  const gap = 6;
+  const barWidth = Math.max((plotWidth - gap * (daily.length - 1)) / daily.length, 1);
+  const bars = daily.map((day, index) => {
+    const barHeight = (day.revenue / maxRevenue) * plotHeight;
+    const x = padding + index * (barWidth + gap);
+    const y = height - padding - barHeight;
+    return { x, y, barHeight, day };
+  });
+  const labelEvery = Math.ceil(daily.length / 6);
+
+  return <svg className="admin-revenue-graph" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Daily revenue trend">
+    <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} className="admin-revenue-graph-axis" />
+    {bars.map((bar) => <rect
+      x={bar.x} y={bar.y} width={barWidth} height={bar.barHeight}
+      rx="3" className="admin-revenue-graph-bar" key={bar.day.date}
+    >
+      <title>{`${bar.day.date}: ${formatCurrency(bar.day.revenue)}`}</title>
+    </rect>)}
+    {bars.filter((_, index) => index % labelEvery === 0 || index === bars.length - 1).map((bar) => (
+      <text x={bar.x + barWidth / 2} y={height - padding + 16} className="admin-revenue-graph-label" textAnchor="middle" key={bar.day.date}>
+        {bar.day.date.slice(5)}
+      </text>
+    ))}
+  </svg>;
 };
 
 const PaymentsTab = ({ orders, onPaymentStatus }) => {
@@ -201,7 +534,7 @@ const PaymentsTab = ({ orders, onPaymentStatus }) => {
   return <>
     <div className="admin-payment-list">{payments.map((order) => <article className="admin-payment-card" key={order.id}>
       <div><small>{order.id}</small><OrderCustomerDetails order={order} /><span>{order.source}</span></div>
-      <div><small>Uploaded bill</small><strong>{order.details?.billReceiptName || 'No receipt uploaded'}</strong><span>{order.details?.transferProofName || 'No transfer proof'}</span><div className="admin-payment-documents">{order.details?.billReceiptUrl && <button type="button" className="admin-payment-thumb" onClick={() => setZoomedImage({ url: order.details.billReceiptUrl, alt: 'Uploaded bill receipt' })}><img src={order.details.billReceiptUrl} alt="Uploaded bill receipt" /><span>View receipt</span></button>}{order.details?.transferProofUrl && <button type="button" className="admin-payment-thumb" onClick={() => setZoomedImage({ url: order.details.transferProofUrl, alt: 'Uploaded proof of payment' })}><img src={order.details.transferProofUrl} alt="Uploaded proof of payment" /><span>View proof</span></button>}</div></div>
+      <div><small>Uploaded bill</small><strong>{order.details?.billReceiptName || 'No receipt uploaded'}</strong><span>{order.details?.transferProofName || 'No transfer proof'}</span><div className="admin-payment-documents">{order.details?.billReceiptUrl && <button type="button" className="admin-payment-thumb" onClick={() => setZoomedImage({ url: apiAssetUrl(order.details.billReceiptUrl), alt: 'Uploaded bill receipt' })}><img src={apiAssetUrl(order.details.billReceiptUrl)} alt="Uploaded bill receipt" /><span>View receipt</span></button>}{order.details?.transferProofUrl && <button type="button" className="admin-payment-thumb" onClick={() => setZoomedImage({ url: apiAssetUrl(order.details.transferProofUrl), alt: 'Uploaded proof of payment' })}><img src={apiAssetUrl(order.details.transferProofUrl)} alt="Uploaded proof of payment" /><span>View proof</span></button>}</div></div>
       <span className={`admin-payment-status ${order.details?.paymentStatus || 'pending'}`}>{order.details?.paymentStatus || 'pending'}</span>
       {(order.details?.paymentStatus || 'pending') === 'pending' && <div className="admin-payment-actions"><button className="primary" type="button" onClick={() => onPaymentStatus(order, 'verified')}>Verify</button><button type="button" onClick={() => onPaymentStatus(order, 'rejected')}>Reject</button></div>}
     </article>)}{!payments.length && <div className="admin-page-empty"><i className="fa-solid fa-file-invoice" /><h2>No payment requests</h2><p>Customer bill-payment submissions will appear here.</p></div>}</div>
@@ -229,6 +562,12 @@ const CatalogTab = () => {
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  // Distinguishes "still fetching" from "genuinely empty" - confirmed live
+  // (9/22 QA pass) that without this, the Brands tab flashed "No brands
+  // found." on a real page load with 16 real brands in the database, since
+  // `items` starts as [] and looked identical to an actually-empty result
+  // until the fetch resolved.
+  const [loading, setLoading] = useState(true);
   const activeModule = useRef(module);
   const latestCatalogRequest = useRef(0);
   const blank = useCallback(() => module === 'services' ? { ServiceName: '', ServiceType: 'item', Description: '', IsActive: true } : module === 'brands' ? { BrandName: '', ServiceID: '', Description: '', IsActive: true } : { ProductName: '', BrandID: '', ProductPrice: '', Description: '', IsActive: true }, [module]);
@@ -251,6 +590,7 @@ const CatalogTab = () => {
   const load = useCallback(async () => {
     const requestedModule = module;
     const requestId = ++latestCatalogRequest.current;
+    setLoading(true);
     try {
       setError('');
       const params = new URLSearchParams({ page, per_page: 10 });
@@ -262,6 +602,7 @@ const CatalogTab = () => {
       if (activeModule.current !== requestedModule || requestId !== latestCatalogRequest.current) return;
       setItems(data.data); setMeta(data);
     } catch (e) { if (activeModule.current === requestedModule && requestId === latestCatalogRequest.current) setError(e.message); }
+    finally { if (activeModule.current === requestedModule && requestId === latestCatalogRequest.current) setLoading(false); }
   }, [filter, module, page, request, search]);
   useEffect(() => { loadOptions(); }, [loadOptions]);
   useEffect(() => {
@@ -272,7 +613,7 @@ const CatalogTab = () => {
     }).catch(() => { if (active) setCategories([]); });
     return () => { active = false; };
   }, [form.BrandID, module, request]);
-  useEffect(() => { setPage(1); setItems([]); setEditing(null); setLogoFile(null); setProductImageFile(null); setForm(blank()); }, [blank, module]);
+  useEffect(() => { setPage(1); setItems([]); setLoading(true); setEditing(null); setLogoFile(null); setProductImageFile(null); setForm(blank()); }, [blank, module]);
   useEffect(() => { load(); }, [load]);
   const key = module === 'services' ? 'ServiceID' : module === 'brands' ? 'BrandID' : 'ProductID';
   const nameKey = module === 'services' ? 'ServiceName' : module === 'brands' ? 'BrandName' : 'ProductName';
@@ -283,12 +624,13 @@ const CatalogTab = () => {
       const hasUpload = module === 'brands' || module === 'products';
       const body = hasUpload ? (() => { const data = new FormData(); const fields = module === 'brands' ? ['BrandName', 'ServiceID', 'Description', 'IsActive'] : ['ProductName', 'BrandID', 'ProductPrice', 'Description', 'IsActive']; fields.forEach((name) => data.append(name, payload[name] ?? '')); if (module === 'brands' && logoFile) data.append('Logo', logoFile); if (module === 'products' && productImageFile) data.append('Image', productImageFile); if (editing?.[key]) data.append('_method', 'PUT'); return data; })() : JSON.stringify(payload);
       await request(editing?.[key] ? `${module}/${editing[key]}` : module, { method: hasUpload ? 'POST' : editing?.[key] ? 'PUT' : 'POST', body });
+      broadcastCatalogChanged();
       setEditing(null); setLogoFile(null); setProductImageFile(null); setForm(blank()); await loadOptions(); if (page !== 1) setPage(1); else await load();
     } catch (e) { setError(e.message); } finally { setSaving(false); }
   };
   const remove = async (item) => {
     if (!window.confirm(`Delete ${item[nameKey]}? This cannot be undone.`)) return;
-    try { await request(`${module}/${item[key]}`, { method: 'DELETE' }); await loadOptions(); if (page > 1 && items.length === 1) setPage(page - 1); else await load(); } catch (e) { setError(e.message); }
+    try { await request(`${module}/${item[key]}`, { method: 'DELETE' }); broadcastCatalogChanged(); await loadOptions(); if (page > 1 && items.length === 1) setPage(page - 1); else await load(); } catch (e) { setError(e.message); }
   };
   const beginEdit = (item) => { setEditing(item); setLogoFile(null); setProductImageFile(null); setForm({ ...blank(), ...item, ServiceID: item.ServiceID || '', BrandID: item.BrandID || '' }); };
   const filterOptions = module === 'products' ? brands : services;
@@ -297,7 +639,7 @@ const CatalogTab = () => {
   return <section className="admin-catalog-manager"><div className="admin-catalog-tabs">{[['brands', 'Brands'], ['services', 'Services'], ['products', 'Products']].map(([value, label]) => <button type="button" className={module === value ? 'active' : ''} onClick={() => switchModule(value)} key={value}>{label}</button>)}</div>
     <div className="admin-catalog-toolbar"><input aria-label="Search catalog" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${module}...`} />{module !== 'services' && <select aria-label="Filter catalog" value={filter} onChange={(e) => { setFilter(e.target.value); setPage(1); }}><option value="">All {module === 'products' ? 'brands' : 'services'}</option>{filterOptions.map((item) => <option key={item[module === 'products' ? 'BrandID' : 'ServiceID']} value={item[module === 'products' ? 'BrandID' : 'ServiceID']}>{item[module === 'products' ? 'BrandName' : 'ServiceName']}</option>)}</select>}<button type="button" className="primary" onClick={() => { setEditing({}); setLogoFile(null); setProductImageFile(null); setForm(blank()); }}>+ Add {module.slice(0, -1)}</button></div>
     {error && <p className="admin-catalog-error" role="alert">{error}</p>}
-    <div className="admin-catalog-layout"><div className="admin-table-wrap"><table><thead><tr><th>{module === 'products' ? 'Product' : module.slice(0, -1)}</th>{module === 'products' && <><th>Brand</th><th>Price</th></>}{module === 'brands' && <th>Service</th>}<th>Status</th><th>Actions</th></tr></thead><tbody>{items.map((item) => <tr key={item[key]}><td><div className="admin-catalog-name">{module !== 'services' && item.ImagePath && <img src={catalogImageUrl(item.ImagePath)} alt="" loading="lazy" />}<strong>{item[nameKey]}</strong></div>{item.Description && <small className="admin-description">{item.Description}</small>}</td>{module === 'products' && <><td>{item.brand?.BrandName || 'Unassigned legacy item'}</td><td>{formatCurrency(item.ProductPrice)}</td></>}{module === 'brands' && <td>{item.service?.ServiceName || 'No service'}</td>}<td>{item.IsActive ? 'Active' : 'Hidden'}</td><td><button className="admin-edit-link" type="button" onClick={() => beginEdit(item)}>Edit</button><button className="admin-delete-link" type="button" onClick={() => remove(item)}>Delete</button></td></tr>)}</tbody></table>{!items.length && <div className="admin-table-empty">No {module} found.</div>}<div className="admin-pagination"><span>{meta.total} total</span><button disabled={page <= 1} type="button" onClick={() => setPage(page - 1)}>Previous</button><span>Page {meta.current_page} of {meta.last_page}</span><button disabled={page >= meta.last_page} type="button" onClick={() => setPage(page + 1)}>Next</button></div></div>
+    <div className="admin-catalog-layout"><div className="admin-table-wrap"><table><thead><tr><th>{module === 'products' ? 'Product' : module.slice(0, -1)}</th>{module === 'products' && <><th>Brand</th><th>Price</th></>}{module === 'brands' && <th>Service</th>}<th>Status</th><th>Actions</th></tr></thead><tbody>{items.map((item) => <tr key={item[key]}><td><div className="admin-catalog-name">{module !== 'services' && item.ImagePath && <img src={catalogImageUrl(item.ImagePath)} alt="" loading="lazy" />}<strong>{item[nameKey]}</strong></div>{item.Description && <small className="admin-description">{item.Description}</small>}</td>{module === 'products' && <><td>{item.brand?.BrandName || 'Unassigned legacy item'}</td><td>{formatCurrency(item.ProductPrice)}</td></>}{module === 'brands' && <td>{item.service?.ServiceName || 'No service'}</td>}<td>{item.IsActive ? 'Active' : 'Hidden'}</td><td><button className="admin-edit-link" type="button" onClick={() => beginEdit(item)}>Edit</button><button className="admin-delete-link" type="button" onClick={() => remove(item)}>Delete</button></td></tr>)}</tbody></table>{loading ? <div className="admin-table-empty">Loading {module}…</div> : !items.length && <div className="admin-page-empty"><i className="fa-solid fa-box-open" /><h2>No {module} found</h2><p>{search || filter ? 'Nothing matches the current search or filter.' : `${module === 'products' ? 'Products' : module === 'brands' ? 'Brands' : 'Services'} you add will show up here.`}</p></div>}<div className="admin-pagination"><span>{meta.total} total</span><button disabled={page <= 1} type="button" onClick={() => setPage(page - 1)}>Previous</button><span>Page {meta.current_page} of {meta.last_page}</span><button disabled={page >= meta.last_page} type="button" onClick={() => setPage(page + 1)}>Next</button></div></div>
       <form className="admin-catalog-form" onSubmit={save}><div className="admin-form-heading"><div><span>{module.slice(0, -1)} management</span><h2>{editing ? `${editing[key] ? 'Edit' : 'Add'} ${module.slice(0, -1)}` : 'Catalog editor'}</h2></div></div>{editing ? <><label>Name<input required maxLength="150" value={form[nameKey]} onChange={(e) => setForm({ ...form, [nameKey]: e.target.value })} /></label>{module === 'services' && <label>Service category<select value={form.ServiceType || 'item'} onChange={(e) => setForm({ ...form, ServiceType: e.target.value })}><option value="food">Food delivery</option><option value="item">Item delivery</option><option value="bills">Bill payment</option></select></label>}{module === 'brands' && <><label>Service<select required value={form.ServiceID} onChange={(e) => setForm({ ...form, ServiceID: e.target.value })}><option value="">Choose service</option>{services.map((item) => <option value={item.ServiceID} key={item.ServiceID}>{item.ServiceName}</option>)}</select></label><label>Brand logo<input accept="image/png,image/jpeg,image/webp,image/gif" type="file" onChange={(e) => setLogoFile(e.target.files?.[0] || null)} />{logoFile ? <small className="admin-upload-note">Selected: {logoFile.name}</small> : form.ImagePath ? <small className="admin-upload-note">Current logo is kept until you select a replacement.</small> : <small className="admin-upload-note">PNG, JPG, WebP, or GIF — up to 20 MB.</small>}</label></>}{module === 'products' && <><label>Brand<select required value={form.BrandID} onChange={(e) => setForm({ ...form, BrandID: e.target.value })}><option value="">Choose a brand</option>{brands.map((item) => <option value={item.BrandID} key={item.BrandID}>{item.BrandName}</option>)}</select></label><label>Price<input required min="0" step="0.01" type="number" value={form.ProductPrice} onChange={(e) => setForm({ ...form, ProductPrice: e.target.value })} /></label><label>Product image<input accept="image/png,image/jpeg,image/webp,image/gif" type="file" onChange={(e) => setProductImageFile(e.target.files?.[0] || null)} />{productImageFile ? <small className="admin-upload-note">Selected: {productImageFile.name}</small> : form.ImagePath ? <small className="admin-upload-note">Current image is kept until you select a replacement.</small> : <small className="admin-upload-note">PNG, JPG, WebP, or GIF — up to 20 MB.</small>}</label></>}<label>{module === 'products' ? 'Category' : 'Description'}{module === 'products' ? <><input list="admin-category-options" maxLength="500" placeholder="Pick an existing category or type a new one" value={form.Description || ''} onChange={(e) => setForm({ ...form, Description: e.target.value })} /><datalist id="admin-category-options">{categoryOptions.map((option) => <option value={option} key={option} />)}</datalist><small className="admin-upload-note">Groups this product under a category on the customer menu (also drives the category chips there) - pick an existing one to avoid near-duplicates.</small></> : <textarea maxLength="500" value={form.Description || ''} onChange={(e) => setForm({ ...form, Description: e.target.value })} />}</label><label className="admin-toggle"><input type="checkbox" checked={Boolean(form.IsActive)} onChange={(e) => setForm({ ...form, IsActive: e.target.checked })} /> Visible to customers</label><div className="admin-form-actions"><button className="primary" disabled={saving} type="submit">{saving ? 'Saving...' : 'Save'}</button><button type="button" onClick={() => { setEditing(null); setLogoFile(null); setProductImageFile(null); }}>Cancel</button></div></> : <p>Create and maintain the services, brands, and products shown in your customer catalog.</p>}</form>
     </div></section>;
 };
@@ -313,6 +655,9 @@ const AccountManagementTab = ({ role, onAccountsChanged }) => {
   const [form, setForm] = useState({ UserName: '', Email: '', Contact: '', Address: '', password: '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  // Same "still fetching" vs. "genuinely empty" distinction as CatalogTab -
+  // this table had the identical gap (no loading state at all).
+  const [loading, setLoading] = useState(true);
   const request = useCallback(async (path, options = {}) => {
     const token = sessionStorage.getItem('otuzanAuthenticated');
     if (!token) throw new Error('Your admin session has expired. Sign in again.');
@@ -332,6 +677,7 @@ const AccountManagementTab = ({ role, onAccountsChanged }) => {
     return body;
   }, [api]);
   const load = useCallback(async () => {
+    setLoading(true);
     try {
       setError('');
       const params = new URLSearchParams({ page, per_page: 10 });
@@ -339,6 +685,7 @@ const AccountManagementTab = ({ role, onAccountsChanged }) => {
       const data = await request(`${role}?${params}`);
       setItems(data.data); setMeta(data);
     } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
   }, [page, request, role, search]);
   useEffect(() => { load(); }, [load]);
   const resetForm = () => { setEditing(null); setForm({ UserName: '', Email: '', Contact: '', Address: '', password: '' }); };
@@ -364,7 +711,7 @@ const AccountManagementTab = ({ role, onAccountsChanged }) => {
   return <section className="admin-catalog-manager">
     <div className="admin-catalog-toolbar"><input aria-label={`Search ${label.toLowerCase()}s`} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={`Search ${label.toLowerCase()}s...`} /><button type="button" className="primary" onClick={() => { resetForm(); setEditing({}); }}>+ Add {label}</button></div>
     {error && <p className="admin-catalog-error" role="alert">{error}</p>}
-    <div className="admin-catalog-layout"><div className="admin-table-wrap"><table><thead><tr><th>{label}</th><th>Email</th><th>Contact</th><th>Address</th><th>Actions</th></tr></thead><tbody>{items.map((account) => <tr key={account.UserID}><td><strong>{account.UserName}</strong></td><td>{account.Email}</td><td>{account.Contact || '—'}</td><td><small className="admin-description">{account.Address || '—'}</small></td><td><button className="admin-edit-link" type="button" onClick={() => beginEdit(account)}>Edit</button><button className="admin-delete-link" type="button" onClick={() => remove(account)}>Delete</button></td></tr>)}</tbody></table>{!items.length && <div className="admin-table-empty">No {label.toLowerCase()}s found.</div>}<div className="admin-pagination"><span>{meta.total} total</span><button disabled={page <= 1} type="button" onClick={() => setPage(page - 1)}>Previous</button><span>Page {meta.current_page} of {meta.last_page}</span><button disabled={page >= meta.last_page} type="button" onClick={() => setPage(page + 1)}>Next</button></div></div>
+    <div className="admin-catalog-layout"><div className="admin-table-wrap"><table><thead><tr><th>{label}</th><th>Email</th><th>Contact</th><th>Address</th><th>Actions</th></tr></thead><tbody>{items.map((account) => <tr key={account.UserID}><td><strong>{account.UserName}</strong></td><td>{account.Email}</td><td>{account.Contact || '—'}</td><td><small className="admin-description">{account.Address || '—'}</small></td><td><button className="admin-edit-link" type="button" onClick={() => beginEdit(account)}>Edit</button><button className="admin-delete-link" type="button" onClick={() => remove(account)}>Delete</button></td></tr>)}</tbody></table>{loading ? <div className="admin-table-empty">Loading {label.toLowerCase()}s…</div> : !items.length && <div className="admin-page-empty"><i className="fa-solid fa-users" /><h2>No {label.toLowerCase()}s found</h2><p>{search ? 'Nothing matches the current search.' : `${label} accounts will show up here.`}</p></div>}<div className="admin-pagination"><span>{meta.total} total</span><button disabled={page <= 1} type="button" onClick={() => setPage(page - 1)}>Previous</button><span>Page {meta.current_page} of {meta.last_page}</span><button disabled={page >= meta.last_page} type="button" onClick={() => setPage(page + 1)}>Next</button></div></div>
       <form className="admin-catalog-form" onSubmit={save}><div className="admin-form-heading"><div><span>{label} management</span><h2>{editing ? `${editing.UserID ? 'Edit' : 'Add'} ${label}` : `${label} accounts`}</h2></div></div>{editing ? <><label>Full name<input required maxLength="100" value={form.UserName} onChange={(e) => setForm({ ...form, UserName: e.target.value })} /></label><label>Email<input required type="email" maxLength="255" value={form.Email} onChange={(e) => setForm({ ...form, Email: e.target.value })} /></label><label>Contact number<input required maxLength="50" value={form.Contact} onChange={(e) => setForm({ ...form, Contact: e.target.value })} /></label><label>Address<textarea maxLength="2000" value={form.Address} onChange={(e) => setForm({ ...form, Address: e.target.value })} /></label><label>{editing.UserID ? 'New password (optional)' : 'Password'}<input required={!editing.UserID} minLength="6" maxLength="72" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label><div className="admin-form-actions"><button className="primary" disabled={saving} type="submit">{saving ? 'Saving...' : 'Save'}</button><button type="button" onClick={resetForm}>Cancel</button></div></> : <p>Create, update, search, and remove {label.toLowerCase()} accounts.</p>}</form>
     </div>
   </section>;
@@ -409,17 +756,20 @@ const DeliveryAdminDashboard = () => {
 
   return <main className="admin-dashboard-page">
     <aside className={`admin-sidebar ${isMobileMenuOpen ? 'menu-open' : ''}`}>
-      <div className="admin-brand"><img src="/images/otu-zan-logo.jpg" alt="Otu-Zan" /><div><strong>Otu-Zan</strong><span>Admin Console</span></div></div>
-      <button
-        className="admin-menu-toggle"
-        type="button"
-        aria-label={isMobileMenuOpen ? 'Close admin navigation' : 'Open admin navigation'}
-        aria-controls="admin-navigation"
-        aria-expanded={isMobileMenuOpen}
-        onClick={() => setIsMobileMenuOpen((open) => !open)}
-      >
-        <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars'}`} />
-      </button>
+      <div className="admin-brand">
+        <img src="/images/otu-zan-logo.jpg" alt="Otu-Zan" />
+        <div><strong>Otu-Zan</strong><span>Admin Console</span></div>
+        <button
+          className="admin-menu-toggle"
+          type="button"
+          aria-label={isMobileMenuOpen ? 'Close admin navigation' : 'Open admin navigation'}
+          aria-controls="admin-navigation"
+          aria-expanded={isMobileMenuOpen}
+          onClick={() => setIsMobileMenuOpen((open) => !open)}
+        >
+          <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars'}`} />
+        </button>
+      </div>
       <div className="admin-sidebar-menu" id="admin-navigation">
         <nav>{NAV_ITEMS.map((item) => <button className={activeTab === item.key ? 'active' : ''} type="button" onClick={() => handleTabChange(item.key)} key={item.key}><i className={`fa-solid ${item.icon}`} /><span>{item.label}</span>{item.key === 'live' && pendingCount > 0 && <b>{pendingCount}</b>}</button>)}</nav>
         <div className="admin-account"><span>OA</span><div><strong>Operations Admin</strong><small>Otu-Zan management</small></div></div>
@@ -431,7 +781,7 @@ const DeliveryAdminDashboard = () => {
       <header className="admin-page-header"><div><span>Otu-Zan Management</span><h1>{activeNav.title}</h1><p>{new Date().toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p></div>{activeTab === 'live' && <div className="admin-header-services">{Object.keys(SERVICE_META).map((service) => <ServiceBadge service={service} key={service} />)}</div>}</header>
       {riderError && <p role="alert">{riderError}</p>}
       {activeTab === 'live' && <LiveOrdersTab orders={orders} onAssign={assignOrderToRider} onStatus={updateOrderStatus} riders={riders} />}
-      {activeTab === 'history' && <HistoryTab orders={orders} />}
+      {activeTab === 'history' && <HistoryTab />}
       {activeTab === 'revenue' && <RevenueTab />}
       {activeTab === 'payments' && <PaymentsTab orders={orders} onPaymentStatus={updatePaymentStatus} />}
       {activeTab === 'catalog' && <CatalogTab />}

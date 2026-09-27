@@ -17,8 +17,8 @@
   margin: 0;
   padding: 4px 8px;
 
-  background: rgba(176, 23, 72, 0.38);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #fff5f8;
+  border: 1px solid #f6dbe4;
   border-radius: 12px;
 }
 
@@ -34,7 +34,7 @@
   cursor: pointer;
 
   background: transparent;
-  color: white;
+  color: #7a636c;
 
   font-family: inherit;
 
@@ -67,8 +67,8 @@
    ========================================== */
 
 .service-tab:hover {
-  background-color: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.18);
+  background-color: #ffe9f0;
+  border-color: #f6cddd;
 }
 
 
@@ -77,18 +77,20 @@
    ========================================== */
 
 .service-tab.active {
-  background-color: white;
-  color: #DA1C5C;
-  border-color: rgba(255, 255, 255, 0.9);
+  background-color: var(--color-primary, var(--color-primary));
+  color: #fff;
+  border-color: var(--color-primary, var(--color-primary));
   box-shadow: 0 3px 10px rgba(111, 10, 45, 0.18);
 }
+
+.service-home-tab { min-width: 92px; }
 
 .service-tab:active {
   transform: scale(0.98);
 }
 
 .service-tab:focus-visible {
-  outline: 3px solid rgba(255, 255, 255, 0.7);
+  outline: 3px solid var(--color-primary, var(--color-primary));
   outline-offset: 2px;
 }
 

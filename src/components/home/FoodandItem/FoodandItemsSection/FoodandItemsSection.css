@@ -5,13 +5,17 @@
 .food-items-section {
   width: 100%;
 
-  max-width: 1400px;
+  max-width: 1240px;
 
   margin: 0 auto;
 
-  padding: 32px clamp(20px, 4vw, 56px) 25px;
+  padding: 48px clamp(20px, 4vw, 56px);
 
   box-sizing: border-box;
+
+  /* Lets HomeHero's "Browse brands" anchor land below the sticky header
+     instead of tucked underneath it. */
+  scroll-margin-top: 90px;
 }
 
 
@@ -34,7 +38,7 @@
   font-size: 22px;
   font-weight: 700;
 
-  color: #333333;
+  color: var(--color-text);
 }
 
 
@@ -47,7 +51,7 @@
 
   background: transparent;
 
-  color: #DA1C5C;
+  color: var(--color-primary);
 
   font-family: inherit;
 
@@ -66,12 +70,17 @@
   width: 100%;
 
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(96px, 100%), 108px));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 
-  gap: 18px 14px;
+  gap: 16px;
 
   padding-bottom: 8px;
   justify-content: start;
+}
+
+.brand-list-empty {
+  margin: 8px 0 0;
+  color: var(--color-text-muted, #6f6670);
 }
 
 
@@ -100,7 +109,7 @@
   .brand-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     justify-content: stretch;
-    gap: 16px 12px;
+    gap: 12px;
   }
 
 }

@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { CustomerActivityProvider, useCustomerActivity } from '../context/CustomerActivityContext';
+import { CustomerActivityProvider, STATUS_SYNC_TIMEOUT_MS, useCustomerActivity } from '../context/CustomerActivityContext';
 import DeliveryAdminDashboard from './admin/DeliveryAdminDashboard';
 import RiderDashboard from './rider/RiderDashboard';
 import { syncCustomerOrders } from '../utils/customerProfileSync';
+import { setSession } from '../utils/session';
 
 jest.mock('react-router-dom', () => ({ useNavigate: () => jest.fn() }));
 
@@ -63,13 +64,79 @@ test('a customer sees notifications only for orders linked to their account', ()
     orders: [ownOrder, otherOrder],
     cart: [],
     notifications: [
-      { id: 'OWN-NOTIFICATION', orderId: 'OWN-ORDER' },
-      { id: 'OTHER-NOTIFICATION', orderId: 'OTHER-ORDER' }
+      { id: 'OWN-NOTIFICATION', orderId: 'OWN-ORDER', customerId: 42 },
+      { id: 'OTHER-NOTIFICATION', orderId: 'OTHER-ORDER', customerId: 99 },
+      // Even an order-id collision cannot expose another customer's message.
+      { id: 'COLLIDING-NOTIFICATION', orderId: 'OWN-ORDER', customerId: 99 }
     ]
   }));
   render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
   expect(actions.orders).toEqual([ownOrder]);
-  expect(actions.notifications).toEqual([{ id: 'OWN-NOTIFICATION', orderId: 'OWN-ORDER' }]);
+  expect(actions.notifications).toEqual([{ id: 'OWN-NOTIFICATION', orderId: 'OWN-ORDER', customerId: 42 }]);
+});
+
+test('a cart belongs only to the customer who added its items', () => {
+  signIn(42, 'customer');
+  const firstCustomer = render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
+  act(() => actions.addToCart({ id: 'burger', source: 'Shop', name: 'Burger' }));
+  expect(actions.cart).toHaveLength(1);
+
+  // Another signed-in account using the same browser must not inherit the
+  // first account's browser-local cart.
+  firstCustomer.unmount();
+  sessionStorage.setItem('otuzanUser', JSON.stringify({ id: 99, role: 'customer' }));
+  const otherCustomer = render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
+  expect(actions.cart).toEqual([]);
+  otherCustomer.unmount();
+});
+
+test('switching accounts in the mounted app clears the previous customer cart', () => {
+  render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
+  act(() => setSession('first-token', { id: 42, role: 'customer' }));
+  act(() => actions.addToCart({ id: 'burger', source: 'Shop', name: 'Burger' }));
+  expect(actions.cart).toHaveLength(1);
+
+  act(() => setSession('second-token', { id: 99, role: 'customer' }));
+  expect(actions.cart).toEqual([]);
+  expect(saved().cart).toMatchObject([{ id: 'burger', cartOwner: 'customer:42' }]);
+});
+
+test('payment verification uses the backend payment ID carried by the admin order', async () => {
+  signIn(1, 'admin');
+  const billOrder = {
+    ...order, id: 'BILL-1', section: 'bills', backendOrderId: 50,
+    details: { paymentStatus: 'pending' }
+  };
+  localStorage.setItem('otuzanCustomerActivity', JSON.stringify({ orders: [billOrder], cart: [], notifications: [] }));
+  global.fetch.mockResolvedValue({ ok: true, json: async () => ({ data: [] }) });
+  render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
+  await act(async () => {
+    await actions.updatePaymentStatus({ ...billOrder, backendPaymentId: 75 }, 'verified');
+  });
+  expect(global.fetch).toHaveBeenCalledWith(
+    'http://localhost:5000/api/payments/75/status',
+    expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ status: 'verified' })
+    })
+  );
+  expect(saved().orders[0].details.paymentStatus).toBe('verified');
+});
+
+// Regression test for a real cross-user privacy leak (found live, 9/23):
+// otuzanCustomerActivity's localStorage blob isn't scoped per account, and
+// useCustomerActivity() used to have no explicit branch for "no session" -
+// it fell through to the same unfiltered `return context` used for admin.
+// A guest (or a customer who just logged out) on the same browser could see
+// whichever customer's orders/notifications were last synced there.
+test('a guest (no session) sees no orders or notifications, even when some are cached locally', () => {
+  const someonesOrder = { ...order, customerId: 42, id: 'SOMEONES-ORDER' };
+  localStorage.setItem('otuzanCustomerActivity', JSON.stringify({
+    orders: [someonesOrder],
+    cart: [],
+    notifications: [{ id: 'SOMEONES-NOTIFICATION', orderId: 'SOMEONES-ORDER' }]
+  }));
+  render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
+  expect(actions.orders).toEqual([]);
+  expect(actions.notifications).toEqual([]);
 });
 
 test('direct and cart orders retain the signed-in customer account ID', async () => {
@@ -166,20 +233,113 @@ test('missing rider identity reveals no orders', () => {
   expect(screen.queryByText('ORD-1')).not.toBeInTheDocument();
 });
 
-test('status actions preserve a just-written assignment and reject another rider', () => {
+// updateOrderStatus now returns a Promise (origin/kurizu's optimistic-update
+// architecture - RiderDashboard's updateProgress awaits it to roll back on
+// rejection). A sync act(() => ...) wrapping a thenable return leaves
+// React's act-scope open without ever being awaited closed, which doesn't
+// fail this test itself but corrupts the NEXT test's ability to render at
+// all - found live (9/26) chasing a mystifying failure in an unrelated,
+// later-running test with no thrown error and no stack trace to follow.
+test('status actions preserve a just-written assignment and reject another rider', async () => {
   signIn(1, 'admin');
   render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
-  act(() => {
+  await act(async () => {
     actions.assignOrderToRider('ORD-1', { id: 7, name: 'Seven' });
-    actions.updateOrderStatus('ORD-1', 'preparing');
+    await actions.updateOrderStatus('ORD-1', 'preparing');
   });
   expect(saved().orders[0]).toMatchObject({ status: 'preparing', assignedRider: { id: 7 } });
   signIn(8, 'driver');
-  act(() => actions.updateOrderStatus('ORD-1', 'delivered'));
+  await act(async () => actions.updateOrderStatus('ORD-1', 'delivered'));
   expect(saved().orders[0].status).toBe('preparing');
   signIn(7, 'driver');
-  act(() => actions.updateOrderStatus('ORD-1', 'out_for_delivery'));
+  await act(async () => actions.updateOrderStatus('ORD-1', 'out_for_delivery'));
   expect(saved().orders[0].status).toBe('out_for_delivery');
+});
+
+test('a failed rider progress request releases the updating button', async () => {
+  signIn(7, 'driver');
+  localStorage.setItem('otuzanCustomerActivity', JSON.stringify({
+    orders: [{ ...order, backendOrderId: 99, assignedRider: { id: 7, name: 'Rider Seven' } }], cart: [], notifications: []
+  }));
+  let failStatusRequest = true;
+  let statusRequestCount = 0;
+  global.fetch.mockImplementation((url, options = {}) => {
+    if (options.method === 'PATCH' && String(url).includes('/status')) {
+      statusRequestCount += 1;
+      return failStatusRequest ? Promise.reject(new Error('offline')) : Promise.resolve({ ok: true });
+    }
+    return Promise.resolve({ ok: true, json: async () => ({ data: [] }) });
+  });
+  render(<CustomerActivityProvider><RiderDashboard /></CustomerActivityProvider>);
+  fireEvent.click(await screen.findByRole('button', { name: /View Order/ }));
+  const dialog = screen.getByRole('dialog');
+  await act(async () => {
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm Order' }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(within(dialog).getByRole('button', { name: 'Confirm Order' })).toBeEnabled();
+  expect(screen.getByRole('alert')).toHaveTextContent('Unable to update this order');
+  expect(statusRequestCount).toBe(1);
+  failStatusRequest = false;
+  await act(async () => {
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm Order' }));
+    await Promise.resolve();
+  });
+  expect(statusRequestCount).toBe(2);
+  expect(within(dialog).getByRole('button', { name: 'Start Preparing' })).toBeEnabled();
+});
+
+test('a rider status change is immediate even while its request is pending', async () => {
+  jest.useFakeTimers();
+  try {
+    signIn(7, 'driver');
+    localStorage.setItem('otuzanCustomerActivity', JSON.stringify({
+      orders: [{ ...order, backendOrderId: 99, assignedRider: { id: 7, name: 'Rider Seven' } }], cart: [], notifications: []
+    }));
+    global.fetch.mockImplementation(() => new Promise(() => {}));
+    render(<CustomerActivityProvider><RiderDashboard /></CustomerActivityProvider>);
+    fireEvent.click(screen.getByRole('button', { name: /View Order/ }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm Order' }));
+    expect(within(dialog).getByRole('button', { name: 'Start Preparing' })).toBeEnabled();
+    await act(async () => {
+      jest.advanceTimersByTime(STATUS_SYNC_TIMEOUT_MS);
+      await Promise.resolve();
+    });
+    expect(within(dialog).getByRole('button', { name: 'Confirm Order' })).toBeEnabled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Unable to update this order');
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test('rapid rider status clicks are sent in order instead of being discarded', async () => {
+  signIn(7, 'driver');
+  localStorage.setItem('otuzanCustomerActivity', JSON.stringify({
+    orders: [{ ...order, backendOrderId: 99, assignedRider: { id: 7, name: 'Rider Seven' } }], cart: [], notifications: []
+  }));
+  const pendingStatusRequests = [];
+  global.fetch.mockImplementation((url, options = {}) => {
+    if (options.method === 'PATCH' && String(url).includes('/status')) return new Promise((resolve) => pendingStatusRequests.push(resolve));
+    return Promise.resolve({ ok: true, json: async () => ({ data: [] }) });
+  });
+  render(<CustomerActivityProvider><RiderDashboard /></CustomerActivityProvider>);
+  fireEvent.click(screen.getByRole('button', { name: /View Order/ }));
+  const dialog = screen.getByRole('dialog');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm Order' }));
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Start Preparing' }));
+  expect(pendingStatusRequests).toHaveLength(1);
+
+  await act(async () => {
+    pendingStatusRequests[0]({ ok: true });
+    await Promise.resolve();
+  });
+  expect(pendingStatusRequests).toHaveLength(2);
+  await act(async () => {
+    pendingStatusRequests[1]({ ok: true });
+    await Promise.resolve();
+  });
+  expect(within(dialog).getByRole('button', { name: 'Mark Out for Delivery' })).toBeEnabled();
 });
 
 test('backend rider lookup failure prevents assigning an unavailable rider', async () => {

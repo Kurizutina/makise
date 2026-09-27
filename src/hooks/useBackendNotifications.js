@@ -1,32 +1,96 @@
 import { useEffect, useState } from 'react';
 import { toUtcIso } from '../utils/backendTime';
+import { ORDERS_CHANGED_EVENT, ORDER_PROGRESS_CHANGED_STORAGE_KEY } from './useBackendOrders';
+import { SESSION_CHANGED_EVENT, getSessionUser } from '../utils/session';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const ACTIVE_NOTIFICATION_REFRESH_MS = 2000;
 
 // Polls the real backend notification API. Returns [] (safe no-op) if
 // there's no session or the request fails - same fallback philosophy as
 // useBackendOrders.js.
 export const useBackendNotifications = () => {
   const [backendNotifications, setBackendNotifications] = useState([]);
+  const [sessionVersion, setSessionVersion] = useState(0);
+
+  useEffect(() => {
+    const resetForSession = () => {
+      // Never retain the prior account's response while a new account's
+      // request is being made.
+      setBackendNotifications([]);
+      setSessionVersion((version) => version + 1);
+    };
+    window.addEventListener(SESSION_CHANGED_EVENT, resetForSession);
+    return () => window.removeEventListener(SESSION_CHANGED_EVENT, resetForSession);
+  }, []);
 
   useEffect(() => {
     const token = sessionStorage.getItem('otuzanAuthenticated');
-    if (!token) return undefined;
+    const userId = getSessionUser()?.id;
+    if (!token || userId == null) return undefined;
     const controller = new AbortController();
-    const load = () => fetch(`${API_BASE_URL}/api/notifications?per_page=50`, {
+    let inFlight = false;
+    // A rider update can arrive just as the previous notification request is
+    // finishing. Keep that refresh instead of dropping it, otherwise the
+    // customer can continue seeing the earlier status until the next poll.
+    let refreshQueued = false;
+    const load = () => {
+      if (document.visibilityState === 'hidden') return;
+      if (inFlight) {
+        refreshQueued = true;
+        return;
+      }
+      inFlight = true;
+      fetch(`${API_BASE_URL}/api/notifications?per_page=50`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal
     })
       .then((response) => (response.ok ? response.json() : null))
       .then((body) => {
         if (!body?.data) return;
-        setBackendNotifications(body.data);
+        // The API is already scoped to request->user(), but retain this
+        // client-side ownership check as a second boundary against stale or
+        // incorrectly cached responses during an account switch.
+        setBackendNotifications(body.data.filter((notification) => (
+          String(notification.UserID) === String(userId)
+        )));
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        inFlight = false;
+        if (refreshQueued) {
+          refreshQueued = false;
+          load();
+        }
+      });
+    };
     load();
-    const poll = window.setInterval(load, 30000);
-    return () => { controller.abort(); window.clearInterval(poll); };
-  }, []);
+    // Rider status changes happen on a different device, so there is no
+    // browser event to carry the update to the customer. Poll frequently
+    // enough for delivery notifications to feel connected, and always
+    // refresh immediately when the customer returns to the tab.
+    const poll = window.setInterval(load, ACTIVE_NOTIFICATION_REFRESH_MS);
+    // A status update made in this browser (for example while testing the
+    // rider and customer accounts in separate tabs) has already been
+    // accepted by the server when ORDERS_CHANGED_EVENT fires. Refresh the
+    // notification feed then instead of leaving the customer to wait for
+    // the next polling interval. Other devices remain covered by polling
+    // and the visibility refresh below.
+    window.addEventListener(ORDERS_CHANGED_EVENT, load);
+    const refreshFromAnotherTab = (event) => {
+      if (event.key === ORDER_PROGRESS_CHANGED_STORAGE_KEY) load();
+    };
+    window.addEventListener('storage', refreshFromAnotherTab);
+    const refreshWhenVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      controller.abort();
+      window.clearInterval(poll);
+      window.removeEventListener(ORDERS_CHANGED_EVENT, load);
+      window.removeEventListener('storage', refreshFromAnotherTab);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [sessionVersion]);
 
   return backendNotifications;
 };

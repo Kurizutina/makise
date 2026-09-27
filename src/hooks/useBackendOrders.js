@@ -1,7 +1,39 @@
 import { useEffect, useState } from 'react';
 import { toUtcIso } from '../utils/backendTime';
+import { catalogImageUrl } from '../utils/catalog';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// Status is work-critical while a delivery is active. Two seconds is quick
+// enough to feel live across separate phones without requiring a WebSocket
+// server, and the poller below never overlaps requests.
+const ACTIVE_ORDER_REFRESH_MS = 2000;
+
+// Fired by CustomerActivityContext right after a status/assignment/payment
+// change it made is confirmed by the backend, so every useBackendOrders
+// poller on the page can catch up immediately instead of waiting out its
+// interval. See ORDERS_CHANGED_EVENT usage below for why this exists -
+// applyBackendTruth() overlays this cached snapshot onto local orders
+// unconditionally, so without this a customer's own optimistic local
+// change (e.g. cancelling their own order) gets visibly clobbered back to
+// the stale backend status for up to 30s, until the interval happens to
+// fire, which read like "cancel doesn't work until I refresh."
+export const ORDERS_CHANGED_EVENT = 'otuzan:orders-changed';
+export const ORDER_PROGRESS_CHANGED_STORAGE_KEY = 'otuzan:order-progress-changed';
+
+// Custom browser events do not leave the tab that dispatched them. Mirror a
+// confirmed server update through localStorage as well, so a customer and a
+// rider signed in through different tabs immediately refresh each other's
+// server-backed order view. The regular poll remains the fallback for
+// separate devices and for browsers where storage is unavailable.
+export const broadcastOrderProgressChanged = () => {
+  window.dispatchEvent(new Event(ORDERS_CHANGED_EVENT));
+  try {
+    localStorage.setItem(ORDER_PROGRESS_CHANGED_STORAGE_KEY, String(Date.now()));
+  } catch {
+    // Private/storage-restricted browsers still receive the same-tab event
+    // and the scheduled backend refresh.
+  }
+};
 
 // Polls the real backend order API and returns a lookup of backend orders by
 // their OrderID. Returns {} (safe no-op) if there's no session or the
@@ -14,7 +46,20 @@ export const useBackendOrders = (endpoint) => {
     const token = sessionStorage.getItem('otuzanAuthenticated');
     if (!token) return undefined;
     const controller = new AbortController();
-    const load = () => fetch(`${API_BASE_URL}${endpoint}`, {
+    let inFlight = false;
+    // A rider can confirm an order while the customer's previous poll is
+    // still in flight. Do not discard the explicit refresh in that case:
+    // otherwise that old pending_rider response wins and the tracker can
+    // remain on "Waiting for rider" until a later interval happens.
+    let refreshQueued = false;
+    const load = () => {
+      if (document.visibilityState === 'hidden') return;
+      if (inFlight) {
+        refreshQueued = true;
+        return;
+      }
+      inFlight = true;
+      fetch(`${API_BASE_URL}${endpoint}`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal
     })
@@ -25,19 +70,34 @@ export const useBackendOrders = (endpoint) => {
         body.data.forEach((order) => { byId[order.OrderID] = order; });
         setBackendOrdersById(byId);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        inFlight = false;
+        if (refreshQueued) {
+          refreshQueued = false;
+          load();
+        }
+      });
+    };
     load();
-    // 30s, not 15s: this now also runs on every customer-facing page (added
-    // in step 1f, for real queue positions), on top of the admin and rider
-    // dashboards that already polled. The local dev backend (php artisan
-    // serve) has very limited request concurrency - confirmed directly, 8
-    // concurrent requests queue up to ~2.5s for the last one - so with 3
-    // independent pollers now instead of 2, halving the request rate here
-    // measurably reduces how often a real click gets stuck behind polling
-    // traffic. 30s of staleness on order status is an acceptable tradeoff;
-    // a stuck button on every click is not.
-    const poll = window.setInterval(load, 30000);
-    return () => { controller.abort(); window.clearInterval(poll); };
+    // Status changes are made by riders/admins on separate devices. A short
+    // poll keeps customer tracking in sync even though those devices cannot
+    // dispatch a shared browser event.
+    const poll = window.setInterval(load, ACTIVE_ORDER_REFRESH_MS);
+    window.addEventListener(ORDERS_CHANGED_EVENT, load);
+    const refreshFromAnotherTab = (event) => {
+      if (event.key === ORDER_PROGRESS_CHANGED_STORAGE_KEY) load();
+    };
+    window.addEventListener('storage', refreshFromAnotherTab);
+    const refreshWhenVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      controller.abort();
+      window.clearInterval(poll);
+      window.removeEventListener(ORDERS_CHANGED_EVENT, load);
+      window.removeEventListener('storage', refreshFromAnotherTab);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
   }, [endpoint]);
 
   return backendOrdersById;
@@ -52,28 +112,36 @@ export const useBackendOrders = (endpoint) => {
 // staff would see nothing a customer placed from their own device, despite
 // the backend having the real data all along.
 //
-const toLocalOrderShape = (backend) => {
+// Exported so any purely backend-driven view (e.g. the admin History tab's
+// own paginated fetch) can reuse the exact same shape-conversion instead of
+// duplicating it - it only ever needs fields indexAll()/index() already
+// eager-load (items.product.brand.service, user, rider, payments) plus
+// queuePosition, which both those endpoints attach.
+export const toLocalOrderShape = (backend) => {
   const payment = backend.payments?.[0];
   const isBill = Boolean(payment);
   const brand = backend.items?.[0]?.product?.brand;
-  const source = isBill ? (payment.PaymentName || 'Bill payment') : (brand?.BrandName || 'Otu-Zan');
-  const section = isBill ? 'bills' : (brand?.service?.ServiceType === 'item' ? 'item' : 'food');
+  const snapshot = backend.OrderSnapshot || {};
+  const source = isBill ? (payment.PaymentName || 'Bill payment') : (snapshot.source || brand?.BrandName || 'Otu-Zan');
+  const section = isBill ? 'bills' : (snapshot.section || (brand?.service?.ServiceType === 'item' ? 'item' : 'food'));
   let paymentNote = {};
   if (isBill) {
     try { paymentNote = JSON.parse(payment.PaymentNote || '{}'); } catch { paymentNote = {}; }
   }
   return {
     id: `BACKEND-${backend.OrderID}`,
+    clientOrderId: snapshot.clientOrderId || null,
     backendOrderId: backend.OrderID,
     backendPaymentId: payment?.PaymentID ?? null,
     source,
-    label: isBill ? `${source} bill payment` : `${source} order`,
+    label: isBill ? `${source} bill payment` : (snapshot.label || `${source} order`),
     section,
-    items: (backend.items || []).map((item) => ({
+    items: (backend.items?.length ? backend.items : (snapshot.items || [])).map((item) => ({
       productId: item.ProductID,
-      name: item.product?.ProductName || 'Item',
-      price: Number(item.OrderItemPrice) || 0,
-      quantity: item.ProductQuantity || 1
+      name: item.product?.ProductName || item.name || 'Item',
+      price: Number(item.OrderItemPrice ?? item.price) || 0,
+      quantity: item.ProductQuantity || 1,
+      image: catalogImageUrl(item.product?.ImagePath)
     })),
     details: isBill ? {
       establishment: source,
@@ -93,7 +161,7 @@ const toLocalOrderShape = (backend) => {
     queuePosition: backend.queuePosition ?? null,
     serviceFee: Number(backend.ServiceFee) || 0,
     createdAt: toUtcIso(backend.OrderDate),
-    updatedAt: toUtcIso(backend.OrderDate)
+    updatedAt: toUtcIso(backend.StatusUpdatedAt || backend.OrderDate)
   };
 };
 
@@ -113,17 +181,43 @@ const toLocalOrderShape = (backend) => {
 // same as before this existed) pass through untouched.
 export const applyBackendTruth = (orders, backendOrdersById) => {
   const matchedBackendIds = new Set();
+  const backendOrders = Object.values(backendOrdersById);
   const overlaid = orders.map((order) => {
-    const backend = order.backendOrderId ? backendOrdersById[order.backendOrderId] : null;
+    // backendOrderId is the normal, immediate link. clientOrderId is the
+    // durable fallback for the small window where POST /orders succeeds but
+    // the browser is interrupted before it can save that server ID.
+    let backend = order.backendOrderId
+      ? backendOrdersById[order.backendOrderId]
+      : backendOrders.find((candidate) => String(candidate.OrderSnapshot?.clientOrderId || '') === String(order.id));
+    // Repair cards created before clientOrderId existed as well. This only
+    // considers the same customer, store, and a two-minute creation window;
+    // it lets an already-confirmed item delivery replace its stranded local
+    // pending card without conflating ordinary orders.
+    if (!backend && !order.backendOrderId && order.status === 'pending_rider') {
+      const localCreatedAt = Date.parse(order.createdAt);
+      backend = backendOrders.find((candidate) => {
+        const source = candidate.OrderSnapshot?.source || candidate.items?.[0]?.product?.brand?.BrandName || 'Otu-Zan';
+        return String(candidate.UserID) === String(order.customerId)
+          && source === order.source
+          && Number.isFinite(localCreatedAt)
+          && Math.abs(Date.parse(candidate.OrderDate) - localCreatedAt) <= 120000;
+      });
+    }
     if (!backend) return order;
     matchedBackendIds.add(String(backend.OrderID));
     const payment = backend.payments?.[0];
     return {
       ...order,
+      backendOrderId: backend.OrderID,
+      backendPaymentId: payment?.PaymentID ?? order.backendPaymentId ?? null,
       status: backend.DeliveryStatus,
       assignedRider: backend.rider ? { id: backend.rider.UserID, name: backend.rider.UserName } : null,
       details: payment ? { ...order.details, paymentStatus: payment.PaymentStatus } : order.details,
-      queuePosition: backend.queuePosition ?? null
+      queuePosition: backend.queuePosition ?? null,
+      // StatusUpdatedAt is the backend's clock for rider/admin actions.
+      // Keeping it on the displayed order makes the progress estimate start
+      // from confirmation instead of from a stale local-storage timestamp.
+      updatedAt: toUtcIso(backend.StatusUpdatedAt || backend.OrderDate)
     };
   });
   const unmatched = Object.values(backendOrdersById)

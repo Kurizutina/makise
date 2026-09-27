@@ -6,10 +6,13 @@ import {
   useCustomerActivity
 } from '../../../../context/CustomerActivityContext';
 import './CustomerActivity.css';
-import { calculateDeliveryFee, DELIVERY_LOCATIONS, findDeliveryLocation } from '../../../../utils/deliveryRates';
+import { calculateDeliveryFee, findDeliveryLocation } from '../../../../utils/deliveryRates';
+import LocationPicker from '../LocationPicker/LocationPicker';
 import { getSessionUser } from '../../../../utils/session';
 import { applyBackendTruth, useBackendOrders } from '../../../../hooks/useBackendOrders';
 import { toLocalNotificationShape, useBackendNotifications } from '../../../../hooks/useBackendNotifications';
+import OrderChat from '../../../common/OrderChat/OrderChat';
+import { happenedTodayInManila, remainsVisibleToday } from '../../../../utils/backendTime';
 
 const NotificationIcon = () => (
   <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -85,13 +88,18 @@ const CustomerActivity = () => {
     cart,
     orders: localOrders,
     notifications: localNotifications,
+    deliveryLocation,
     updateCartQuantity,
     placeCartOrder,
     markNotificationsRead,
     updateOrderStatus
   } = useCustomerActivity();
   const backendOrdersById = useBackendOrders('/api/orders?per_page=50');
-  const orders = useMemo(() => applyBackendTruth(localOrders, backendOrdersById), [localOrders, backendOrdersById]);
+  const allOrders = useMemo(() => applyBackendTruth(localOrders, backendOrdersById), [localOrders, backendOrdersById]);
+  const [now, setNow] = useState(Date.now());
+  // Completed orders stay available for the rest of the Manila business day
+  // in both customer tracking and the rider dashboard.
+  const orders = useMemo(() => allOrders.filter((order) => remainsVisibleToday(order, now)), [allOrders, now]);
   const backendNotifications = useBackendNotifications();
   // Local notifications only ever cover "order request sent" (instant,
   // same-device - see placeOrder/placeCartOrder). Everything admin/rider
@@ -99,14 +107,24 @@ const CustomerActivity = () => {
   // (step 1g) since it has to reach whatever device the customer checks
   // from next, not just the browser that placed the order. Disjoint event
   // sources by design, so this union never needs deduping.
+  const sessionUserId = getSessionUser()?.id;
+  const clearedAtKey = sessionUserId ? `otuzanNotificationsClearedAt:${sessionUserId}` : null;
+  const [clearedAt, setClearedAt] = useState(() => {
+    try { return clearedAtKey ? Number(localStorage.getItem(clearedAtKey)) || 0 : 0; } catch { return 0; }
+  });
   const notifications = useMemo(() => (
     [...localNotifications, ...backendNotifications.map(toLocalNotificationShape)]
+      .filter((item) => Date.parse(item.createdAt) > clearedAt)
+      .filter((item) => happenedTodayInManila(item.createdAt, now))
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-  ), [localNotifications, backendNotifications]);
+  ), [localNotifications, backendNotifications, clearedAt, now]);
+  const clearAllNotifications = () => {
+    const clearTimestamp = Date.now();
+    try { if (clearedAtKey) localStorage.setItem(clearedAtKey, String(clearTimestamp)); } catch { /* ignore */ }
+    setClearedAt(clearTimestamp);
+  };
   const [openPanel, setOpenPanel] = useState(null);
   const [activityTab, setActivityTab] = useState('notifications');
-  const [now, setNow] = useState(Date.now());
-  const [deliveryLocation, setDeliveryLocation] = useState('');
   const customerType = getSessionUser()?.userType || 'non_student';
   const unreadCount = notifications.filter((item) => !item.read).length;
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
@@ -172,6 +190,10 @@ const CustomerActivity = () => {
                   <button className={activityTab === 'orders' ? 'active' : ''} type="button" onClick={() => setActivityTab('orders')}>Track Orders</button>
                 </div>
 
+                {activityTab === 'notifications' && notifications.length > 0 && (
+                  <button type="button" className="activity-clear-all" onClick={clearAllNotifications}>Clear all</button>
+                )}
+
                 <div className="activity-drawer-body">
                   {activityTab === 'notifications' && (
                     notifications.length ? notifications.map((notification) => (
@@ -191,15 +213,15 @@ const CustomerActivity = () => {
                         {!!order.items?.length && (
                           <details className="tracking-order-items">
                             <summary>View ordered items ({order.items.reduce((total, item) => total + (item.quantity || 1), 0)})</summary>
-                            <ul>{order.items.map((item, index) => <li key={item.cartId || item.id || index}><span>{item.name || `Item ${index + 1}`}</span><strong>×{item.quantity || 1}</strong></li>)}</ul>
+                            <ul>{order.items.map((item, index) => <li key={item.cartId || item.id || index}><span className="order-item-row"><span className="order-item-thumb">{item.image ? <img src={item.image} alt="" loading="lazy" /> : <i className="fa-solid fa-utensils" aria-hidden="true" />}</span><span>{item.name || `Item ${index + 1}`}</span></span><strong>×{item.quantity || 1}</strong></li>)}</ul>
                           </details>
                         )}
 
-                        {['pending_rider', 'cancelled'].includes(order.status) && (
+                        {(['pending_rider', 'cancelled'].includes(order.status) && !order.assignedRider) && (
                           <EstimatedWait order={order} now={now} />
                         )}
 
-                        {order.status === 'pending_rider' && (
+                        {order.status === 'pending_rider' && !order.assignedRider && (
                           <div className="rider-decision-state">
                             <i className="fa-solid fa-clock" aria-hidden="true" /><div><strong>Waiting for a rider</strong><span>Tracking will begin after a rider accepts your order.</span></div>
                           </div>
@@ -231,8 +253,10 @@ const CustomerActivity = () => {
                             <EstimatedWait order={order} now={now} />
                           </div>
                         )}
+
+                        <OrderChat order={order} />
                       </article>
-                    )) : <EmptyState icon="fa-route" title="No active orders" message="Placed orders will be tracked here." />
+                    )) : <EmptyState icon="fa-route" title="No active orders" message="Placed orders will be tracked here until they're delivered or cancelled." />
                   )}
                 </div>
               </>
@@ -250,7 +274,7 @@ const CustomerActivity = () => {
                     </div>
                     <div className="global-cart-summary"><span>Priced subtotal</span><strong>{formatPrice(cartTotal)}</strong></div>
                     {selectedLocation && <div className="global-cart-service-fee"><span>Service fee{deliveryFee.surchargeApplied ? ' (includes night surcharge)' : ''}</span><strong>{formatPrice(deliveryFee.serviceFee)}</strong></div>}
-                    <label className="global-cart-location"><span>Delivery location</span><select value={deliveryLocation} onChange={(event) => setDeliveryLocation(event.target.value)}><option value="">Select your location</option>{DELIVERY_LOCATIONS.map((location) => <option value={location.id} key={location.id}>{location.name}</option>)}</select></label>
+                    <div className="global-cart-location"><span>Delivery location</span><LocationPicker variant="inline" /></div>
                     <button className="global-cart-place" type="button" disabled={!deliveryLocation} onClick={confirmCart}>Place Order</button>
                   </>
                 )}

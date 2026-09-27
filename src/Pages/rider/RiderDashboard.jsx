@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   calculateEstimatedWaitMinutes,
@@ -9,6 +9,9 @@ import './RiderDashboard.css';
 import OrderCustomerDetails from '../../components/common/OrderCustomerDetails/OrderCustomerDetails';
 import { clearSession, getSessionUser, isAssignedTo } from '../../utils/session';
 import { applyBackendTruth, useBackendOrders } from '../../hooks/useBackendOrders';
+import { apiAssetUrl } from '../../utils/catalog';
+import { remainsVisibleForHours } from '../../utils/backendTime';
+import OrderChat from '../../components/common/OrderChat/OrderChat';
 
 const sections = [
   { key: 'food', label: 'Food Delivery', icon: 'fa-utensils' },
@@ -29,15 +32,16 @@ const statusLabels = {
 
 const PaymentDocument = ({ url, name, type, label, onZoom }) => {
   if (!url) return null;
-  const isPdf = type === 'application/pdf' || /\.pdf(?:$|\?)/i.test(url);
+  const documentUrl = apiAssetUrl(url);
+  const isPdf = type === 'application/pdf' || /\.pdf(?:$|\?)/i.test(documentUrl);
   const alt = `Uploaded ${label}: ${name || 'document'}`;
   // A PDF can't be zoomed as an image - that case still opens in a new tab
   // (browsers render PDFs natively there). An image now zooms in place
   // instead, so reviewing it doesn't navigate the rider away from the order.
   if (isPdf) {
-    return <a className="rider-payment-image" href={url} target="_blank" rel="noreferrer"><span className="rider-payment-file"><i className="fa-solid fa-file-pdf" /></span><span>{label}: {name || 'View document'}<small>Open to view</small></span></a>;
+    return <a className="rider-payment-image" href={documentUrl} target="_blank" rel="noreferrer"><span className="rider-payment-file"><i className="fa-solid fa-file-pdf" /></span><span>{label}: {name || 'View document'}<small>Open to view</small></span></a>;
   }
-  return <button type="button" className="rider-payment-image" onClick={() => onZoom({ url, alt })}><img src={url} alt={alt} /><span>{label}: {name || 'View document'}<small>Tap to zoom</small></span></button>;
+  return <button type="button" className="rider-payment-image" onClick={() => onZoom({ url: documentUrl, alt })}><img src={documentUrl} alt={alt} /><span>{label}: {name || 'View document'}<small>Tap to zoom</small></span></button>;
 };
 
 const formatEstimatedWait = (order, now) => {
@@ -75,15 +79,76 @@ const RiderDashboard = () => {
   const user = getSessionUser();
   const backendOrdersById = useBackendOrders('/api/orders?per_page=50');
   const localOrders = allOrders.filter((order) => user?.role === 'driver' && isAssignedTo(order, user));
-  const orders = useMemo(() => applyBackendTruth(localOrders, backendOrdersById), [localOrders, backendOrdersById]);
+  const assignedOrders = useMemo(() => applyBackendTruth(localOrders, backendOrdersById), [localOrders, backendOrdersById]);
   const [activeSection, setActiveSection] = useState('food');
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  // A rider can be viewing an order synthesized from the backend, with no
+  // localStorage copy to update. Keep their chosen progress state in this
+  // screen immediately instead of making the tap appear to do nothing until
+  // the next network poll returns.
+  const [optimisticStatuses, setOptimisticStatuses] = useState({});
+  const [progressError, setProgressError] = useState('');
   const [zoomedImage, setZoomedImage] = useState(null);
   const [now, setNow] = useState(Date.now());
-  const selectedOrder = orders.find((order) => order.id === selectedOrderId);
+  // Keep a compact transaction history: active work remains visible, while
+  // delivered/cancelled orders leave the rider dashboard 12 hours after the
+  // latest status change.
+  const orders = useMemo(() => assignedOrders.filter((order) => remainsVisibleForHours(order, 12, now)), [assignedOrders, now]);
+  const selectedOrder = assignedOrders.find((order) => order.id === selectedOrderId);
   const sectionOrders = useMemo(() => orders.filter((order) => inferSection(order) === activeSection), [activeSection, orders]);
   const pendingCount = orders.filter((order) => order.status === 'pending_rider').length;
   const getCount = (section) => orders.filter((order) => inferSection(order) === section).length;
+
+  const displayedOrder = (order) => {
+    const status = optimisticStatuses[order.id];
+    return status ? { ...order, status } : order;
+  };
+
+  // updateOrderStatus's fetch can still be in flight when this screen
+  // unmounts (navigation away, or - found live in the Jest suite (9/26) -
+  // a test moving to its next case before a prior render's promise settles).
+  // Without this guard the awaited setState calls below fire on an
+  // unmounted component: harmless in the browser (React just no-ops it),
+  // but in tests it leaked a stale update into whichever component rendered
+  // next, corrupting two unrelated tests' assertions.
+  const isMountedRef = useRef(true);
+  // Status clicks can happen faster than a mobile request returns (for
+  // example Confirm then Start Preparing). Keep those clicks in order rather
+  // than silently dropping later steps while the first request is pending.
+  const statusQueuesRef = useRef(new Map());
+  useEffect(() => () => { isMountedRef.current = false; }, []);
+
+  const updateProgress = (order, status) => {
+    setProgressError('');
+    setOptimisticStatuses((current) => ({ ...current, [order.id]: status }));
+    const queue = statusQueuesRef.current.get(order.id) || { running: false, steps: [] };
+    queue.steps.push({ order, status, previousStatus: order.status });
+    statusQueuesRef.current.set(order.id, queue);
+    if (queue.running) return;
+
+    queue.running = true;
+    (async () => {
+      while (queue.steps.length) {
+        const step = queue.steps.shift();
+        let saved = false;
+        try {
+          saved = await updateOrderStatus(step.order, step.status);
+        } catch {
+          // The common failure handling below restores the last confirmed
+          // status and releases every queued action for a clean retry.
+        }
+        if (saved) continue;
+
+        queue.steps.length = 0;
+        if (isMountedRef.current) {
+          setOptimisticStatuses((current) => ({ ...current, [order.id]: step.previousStatus }));
+          setProgressError('Unable to update this order. Please try again.');
+        }
+        break;
+      }
+      statusQueuesRef.current.delete(order.id);
+    })();
+  };
 
   useEffect(() => {
     const countdown = window.setInterval(() => setNow(Date.now()), 1000);
@@ -112,7 +177,7 @@ const RiderDashboard = () => {
       <div className="rider-dashboard-content">
         <section className="rider-welcome">
           <div><span>Order management</span><h2>Customer Orders</h2><p>Review orders assigned to you by the administrator.</p></div>
-          <div className="rider-stat"><strong>{orders.length}</strong><span>Total orders</span></div>
+          <div className="rider-stat"><strong>{orders.length}</strong><span>Active orders</span></div>
         </section>
 
         <nav className="rider-service-tabs" aria-label="Order sections">
@@ -129,21 +194,26 @@ const RiderDashboard = () => {
           <div className="rider-empty-orders"><i className="fa-solid fa-receipt" /><h3>No orders in this section</h3><p>Orders assigned to you will appear here automatically.</p></div>
         ) : (
           <div className="rider-order-grid">
-            {sectionOrders.map((order) => (
+            {sectionOrders.map((rawOrder) => {
+              const order = displayedOrder(rawOrder);
+              return (
               <article className={`rider-order-card status-${order.status}`} key={order.id}>
                 <div className="rider-order-heading"><div><small>{order.id}</small><h3>{getOrderDisplayLabel(order)}</h3></div><span>{statusLabels[order.status] || 'Confirmed'}</span></div>
                 <div className="rider-order-source"><i className="fa-solid fa-store" /><div><strong>{order.source}</strong><span>{new Date(order.createdAt).toLocaleString()}</span></div></div>
                 <div className="rider-order-estimate"><i className="fa-regular fa-clock" /><span>Estimated wait</span><strong>{formatEstimatedWait(order, now)}</strong></div>
                 <OrderCustomerDetails order={order} />
                 <div className="rider-order-preview"><span><i className="fa-solid fa-bag-shopping" /> {order.items?.reduce((total, item) => total + (item.quantity || 1), 0) || 0} item(s)</span><button type="button" onClick={() => setSelectedOrderId(order.id)}>View Order <i className="fa-solid fa-arrow-right" /></button></div>
-                {order.status === 'pending_rider' && <div className="rider-decision-buttons"><button type="button" className="rider-cancel" onClick={() => updateOrderStatus(order, 'cancelled')}>Cancel</button><button type="button" className="rider-accept" onClick={() => updateOrderStatus(order, 'confirmed')}>Confirm Order</button></div>}
+                {order.status === 'pending_rider' && <div className="rider-decision-buttons"><button type="button" className="rider-cancel" onClick={() => updateProgress(order, 'cancelled')}>Cancel</button><button type="button" className="rider-accept" onClick={() => updateProgress(order, 'confirmed')}>Confirm Order</button></div>}
               </article>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
-      {selectedOrder && (
+      {selectedOrder && (() => {
+        const order = displayedOrder(selectedOrder);
+        return (
         <div className="rider-order-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedOrderId(null); }}>
           <section className="rider-order-modal" role="dialog" aria-modal="true" aria-labelledby="rider-order-title">
             <div className="rider-order-modal-header"><div><span>{selectedOrder.id}</span><h2 id="rider-order-title">Order Details</h2></div><button type="button" onClick={() => setSelectedOrderId(null)} aria-label="Close order details">×</button></div>
@@ -151,21 +221,25 @@ const RiderDashboard = () => {
 
             <OrderCustomerDetails order={selectedOrder} />
             {!!selectedOrder.items?.length ? (
-              <div className="rider-detail-items"><h3>Items placed</h3><ul>{selectedOrder.items.map((item, index) => <li key={item.cartId || item.id || index}><div><strong>{item.name || `Item ${index + 1}`}</strong>{item.selectedOption && <span>{item.selectedOption}</span>}</div><b>×{item.quantity || 1}</b></li>)}</ul></div>
+              <div className="rider-detail-items"><h3>Items placed</h3><ul>{selectedOrder.items.map((item, index) => <li key={item.cartId || item.id || index}><span className="order-item-thumb">{item.image ? <img src={item.image} alt="" loading="lazy" /> : <i className="fa-solid fa-utensils" aria-hidden="true" />}</span><div><strong>{item.name || `Item ${index + 1}`}</strong>{item.selectedOption && <span>{item.selectedOption}</span>}</div><b>×{item.quantity || 1}</b></li>)}</ul></div>
             ) : (
               <div className="rider-detail-items"><h3>Payment request</h3><p>Payment status: <strong>{selectedOrder.details?.paymentStatus || 'pending'}</strong>. Review the uploaded documents before proceeding.</p><PaymentDocument url={selectedOrder.details?.billReceiptUrl} name={selectedOrder.details?.billReceiptName} type={selectedOrder.details?.billReceiptType} label="Receipt" onZoom={setZoomedImage} /><PaymentDocument url={selectedOrder.details?.transferProofUrl} name={selectedOrder.details?.transferProofName} type={selectedOrder.details?.transferProofType} label="Proof of payment" onZoom={setZoomedImage} /></div>
             )}
 
             {selectedOrder.details?.fulfillmentMethod === 'pickup' && <div className="rider-recipient"><h3>Pick Up recipient</h3><p><strong>{selectedOrder.details.recipientName}</strong> · {selectedOrder.details.recipientContact}</p><span>{selectedOrder.details.deliveryAddress}</span></div>}
 
+            <OrderChat order={selectedOrder} />
+
             <div className="rider-modal-actions">
-              {selectedOrder.status === 'pending_rider' && <><button type="button" className="rider-cancel" onClick={() => updateOrderStatus(selectedOrder, 'cancelled')}>Cancel Order</button><button type="button" className="rider-accept" onClick={() => updateOrderStatus(selectedOrder, 'confirmed')}>Confirm Order</button></>}
-              {nextStatuses[selectedOrder.status] && <button type="button" className="rider-advance" onClick={() => updateOrderStatus(selectedOrder, nextStatuses[selectedOrder.status][0])}>{nextStatuses[selectedOrder.status][1]}</button>}
-              {['delivered', 'cancelled'].includes(selectedOrder.status) && <button type="button" className="rider-close-order" onClick={() => setSelectedOrderId(null)}>Close</button>}
+              {order.status === 'pending_rider' && <><button type="button" className="rider-cancel" onClick={() => updateProgress(order, 'cancelled')}>Cancel Order</button><button type="button" className="rider-accept" onClick={() => updateProgress(order, 'confirmed')}>Confirm Order</button></>}
+              {nextStatuses[order.status] && <button type="button" className="rider-advance" onClick={() => updateProgress(order, nextStatuses[order.status][0])}>{nextStatuses[order.status][1]}</button>}
+              {['delivered', 'cancelled'].includes(order.status) && <button type="button" className="rider-close-order" onClick={() => setSelectedOrderId(null)}>Close</button>}
             </div>
+            {progressError && <p className="rider-progress-error" role="alert">{progressError}</p>}
           </section>
         </div>
-      )}
+        );
+      })()}
 
       {zoomedImage && (
         <div className="rider-image-zoom-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setZoomedImage(null); }}>

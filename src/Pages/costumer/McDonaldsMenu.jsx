@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FaUtensils } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerActivity } from '../../context/CustomerActivityContext';
-import { calculateDeliveryFee, DELIVERY_LOCATIONS, findDeliveryLocation } from '../../utils/deliveryRates';
+import { calculateDeliveryFee, findDeliveryLocation } from '../../utils/deliveryRates';
 import { getSessionUser } from '../../utils/session';
+import LocationPicker from '../../components/home/Header/LocationPicker/LocationPicker';
 import './JollibeeMenu.css';
 
 const formatPrice = (price) => new Intl.NumberFormat('en-PH', {
@@ -13,8 +14,57 @@ const formatPrice = (price) => new Intl.NumberFormat('en-PH', {
   maximumFractionDigits: 2
 }).format(price);
 
+const CategoryNavigation = ({ activeCategory, categories, onSelect, restaurantName, variant }) => {
+  // Desktop-only: the chip row scrolls horizontally (overflow-x: auto), but
+  // nothing kept the active chip inside that visible strip as the page
+  // scrolled - on a brand with enough categories to overflow it (most of
+  // them), the highlighted chip could scroll out of the strip entirely,
+  // which reads as "the bar isn't following along." Mobile's row is short
+  // enough in practice and wasn't reported broken, so this only runs for
+  // the desktop variant to avoid touching mobile's existing behavior.
+  const activeButtonRef = useRef(null);
+  useEffect(() => {
+    if (variant !== 'desktop') return;
+    // jsdom (used by the customer-menu tests) does not implement this DOM
+    // convenience method; browsers do. Guarding it keeps the progressive
+    // enhancement from making an otherwise usable menu fail to render.
+    activeButtonRef.current?.scrollIntoView?.({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+  }, [activeCategory, variant]);
+
+  return (
+    <nav className={`jollibee-category-nav jollibee-category-nav--${variant}`} aria-label={`${restaurantName} menu categories`}>
+      {categories.map(({ category }) => (
+        <button
+          key={category}
+          ref={activeCategory === category ? activeButtonRef : null}
+          type="button"
+          className={activeCategory === category ? 'active' : ''}
+          onClick={() => onSelect(category)}
+        >
+          {category}
+        </button>
+      ))}
+    </nav>
+  );
+};
+
 const RestaurantProductCard = ({ product, onAddToCart, showFoodIcons }) => {
   const [variantIndex, setVariantIndex] = useState(0);
+  const [imageSrc, setImageSrc] = useState(product.image || product.fallbackImage || null);
+  const [usingFallbackImage, setUsingFallbackImage] = useState(!product.image && Boolean(product.fallbackImage));
+  useEffect(() => {
+    setImageSrc(product.image || product.fallbackImage || null);
+    setUsingFallbackImage(!product.image && Boolean(product.fallbackImage));
+  }, [product.image, product.fallbackImage]);
+
+  const handleImageError = () => {
+    if (product.fallbackImage && imageSrc !== product.fallbackImage) {
+      setImageSrc(product.fallbackImage);
+      setUsingFallbackImage(true);
+      return;
+    }
+    setImageSrc(null);
+  };
   const variant = product.variants?.[variantIndex];
   const selectedProduct = variant ? {
     ...product,
@@ -26,8 +76,8 @@ const RestaurantProductCard = ({ product, onAddToCart, showFoodIcons }) => {
 
   return (
     <article className="jollibee-product-card" id={product.productId ? `product-card-${product.productId}` : undefined}>
-      {product.image && <div className="jollibee-product-image"><img src={product.image} alt={product.name} loading="lazy" /></div>}
-      {showFoodIcons && !product.image && (
+      {imageSrc && <div className={`jollibee-product-image${usingFallbackImage ? ' brand-logo' : ''}`}><img src={imageSrc} alt={usingFallbackImage ? `${product.brandName || 'Brand'} logo` : product.name} loading="lazy" onError={handleImageError} /></div>}
+      {showFoodIcons && !imageSrc && (
         <div className="restaurant-product-food-icon" aria-hidden="true">
           <FaUtensils />
         </div>
@@ -54,6 +104,41 @@ const RestaurantProductCard = ({ product, onAddToCart, showFoodIcons }) => {
   );
 };
 
+const similarBrandCards = [
+  { name: 'Jollibee', image: '/images/jollibee_logo.jpg' },
+  { name: "McDonald's", image: "/images/mcdonald's_logo.png" },
+  { name: 'Mang Inasal', image: '/images/mang_inasal_logo.png' },
+  { name: "Manuela's", image: '/images/maluelas_logo.jpg' }
+];
+
+// Intentionally presentational: these cards introduce the discovery pattern
+// without adding routes, click handlers, or changing the existing menu flow.
+const SimilarBrands = ({ sourceKey }) => {
+  const brands = similarBrandCards.filter((brand) => brand.name !== sourceKey).slice(0, 3);
+  if (!brands.length) return null;
+
+  return (
+    <section className="similar-brands" aria-labelledby="similar-brands-heading">
+      <div className="similar-brands-heading">
+        <div>
+          <span>Keep exploring</span>
+          <h2 id="similar-brands-heading">More food to discover</h2>
+        </div>
+        <p>Popular choices available through Otu-Zan.</p>
+      </div>
+      <div className="similar-brands-grid">
+        {brands.map((brand) => (
+          <article className="similar-brand-card" key={brand.name}>
+            <img src={brand.image} alt="" />
+            <strong>{brand.name}</strong>
+            <span>Food delivery</span>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+};
+
 export const RestaurantMenu = ({
   restaurantName,
   sourceKey,
@@ -71,7 +156,8 @@ export const RestaurantMenu = ({
     cart: sharedCart,
     addToCart: addSharedCartItem,
     updateCartQuantity,
-    placeCartOrder
+    placeCartOrder,
+    deliveryLocation
   } = useCustomerActivity();
   const [products, setProducts] = useState(menuItems || []);
   const cart = sharedCart.filter((item) => item.source === sourceKey);
@@ -80,7 +166,6 @@ export const RestaurantMenu = ({
   const [showCustomItem, setShowCustomItem] = useState(false);
   const [notice, setNotice] = useState('');
   const [isLoading, setIsLoading] = useState(!menuItems);
-  const [deliveryLocation, setDeliveryLocation] = useState('');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const customerType = getSessionUser()?.userType || 'non_student';
@@ -186,19 +271,66 @@ export const RestaurantMenu = ({
     }
   }, [categories, activeCategory]);
 
+  // Found live (9/24): the previous IntersectionObserver band (a narrow
+  // ~90px slice computed from a guessed, hardcoded rootMargin) left the
+  // active chip stuck on a stale category whenever nothing happened to
+  // intersect that slice - most visibly at the very top of the page, where
+  // the intro/heading content pushes the first category section below the
+  // band, so scrolling to the top left whichever category was active
+  // *before* stuck highlighted instead of resetting to the first one.
+  //
+  // Replaced with a direct reference-line check instead: the active
+  // category is whichever section's top has scrolled up to (or past) the
+  // real, live-measured bottom edge of the sticky header+nav - the last one
+  // that's "been reached," which is correct at the very top (nothing's
+  // been reached yet, so it stays on the first category), the very bottom
+  // (the last category, since its top eventually scrolls past the line
+  // too), and everywhere in between. Measuring the sticky elements' actual
+  // rendered height (rather than a guessed constant) also means this stays
+  // correct if the mobile/desktop nav variants ever end up different
+  // heights.
   useEffect(() => {
     if (!showCategoryNav) return undefined;
-    // Treats a category as "current" once it's scrolled into the band just
-    // below the sticky header+chip row, not only once it's fully in view -
-    // rootMargin shrinks the observed viewport to roughly that top band.
-    const observer = new IntersectionObserver((entries) => {
-      const topMost = entries
-        .filter((entry) => entry.isIntersecting)
-        .sort((first, second) => first.boundingClientRect.top - second.boundingClientRect.top)[0];
-      if (topMost) setActiveCategory(topMost.target.dataset.category);
-    }, { rootMargin: '-140px 0px -70% 0px' });
-    Object.values(categorySectionRefs.current).forEach((section) => section && observer.observe(section));
-    return () => observer.disconnect();
+    let ticking = false;
+
+    const getReferenceY = () => {
+      const header = document.querySelector('.jollibee-page-header');
+      const visibleNav = [...document.querySelectorAll('.jollibee-category-nav')]
+        .find((element) => getComputedStyle(element).display !== 'none');
+      return visibleNav?.getBoundingClientRect().bottom
+        ?? header?.getBoundingClientRect().bottom
+        ?? 0;
+    };
+
+    const updateActiveCategory = () => {
+      ticking = false;
+      // +20px tolerance: browsers' own "sticky-aware" scrollIntoView (used
+      // by clicking a chip, below) doesn't land pixel-exact against the
+      // sticky elements' measured height - observed landing a handful of
+      // pixels short, which without slack flipped the active chip back to
+      // the previous category the instant the smooth scroll settled.
+      const referenceY = getReferenceY() + 20;
+      let current = categories[0]?.category;
+      categories.forEach((group) => {
+        const element = categorySectionRefs.current[group.category];
+        if (element && element.getBoundingClientRect().top <= referenceY) current = group.category;
+      });
+      setActiveCategory(current);
+    };
+
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(updateActiveCategory);
+    };
+
+    updateActiveCategory();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
   }, [categories, showCategoryNav]);
 
   const scrollToCategory = (category) => {
@@ -283,18 +415,13 @@ export const RestaurantMenu = ({
       </header>
 
       {showCategoryNav && (
-        <nav className="jollibee-category-nav" aria-label={`${restaurantName} menu categories`}>
-          {categories.map(({ category }) => (
-            <button
-              key={category}
-              type="button"
-              className={activeCategory === category ? 'active' : ''}
-              onClick={() => scrollToCategory(category)}
-            >
-              {category}
-            </button>
-          ))}
-        </nav>
+        <CategoryNavigation
+          activeCategory={activeCategory}
+          categories={categories}
+          onSelect={scrollToCategory}
+          restaurantName={restaurantName}
+          variant="mobile"
+        />
       )}
 
       {notice && <div className="jollibee-notice" role="status">{notice}</div>}
@@ -316,6 +443,16 @@ export const RestaurantMenu = ({
 
       <div className="jollibee-layout">
         <div className="jollibee-menu-content">
+          {showCategoryNav && (
+            <CategoryNavigation
+              activeCategory={activeCategory}
+              categories={categories}
+              onSelect={scrollToCategory}
+              restaurantName={restaurantName}
+              variant="desktop"
+            />
+          )}
+
           <section className="jollibee-intro">
             <div>
               <p className={`jollibee-eyebrow ${eyebrowClass}`}>Choose your favorites</p>
@@ -412,16 +549,15 @@ export const RestaurantMenu = ({
             </div>
           )}
           {selectedLocation && <div className="restaurant-cart-service-fee"><span>Service fee{deliveryFee.surchargeApplied ? ' (includes night surcharge)' : ''}</span><strong>{formatPrice(deliveryFee.serviceFee)}</strong></div>}
-          <label className="restaurant-delivery-location">
+          <div className="restaurant-delivery-location">
             <span>Delivery location</span>
-            <select value={deliveryLocation} onChange={(event) => setDeliveryLocation(event.target.value)}>
-              <option value="">Select your location</option>
-              {DELIVERY_LOCATIONS.map((location) => <option value={location.id} key={location.id}>{location.name}</option>)}
-            </select>
-          </label>
+            <LocationPicker variant="inline" />
+          </div>
           <button type="button" className="jollibee-checkout" disabled={!cart.length} onClick={checkoutCart}>Place Order {itemCount > 0 && `(${itemCount})`}</button>
         </aside>
       </div>
+
+      <SimilarBrands sourceKey={sourceKey} />
 
       {showBackToTop && (
         <button

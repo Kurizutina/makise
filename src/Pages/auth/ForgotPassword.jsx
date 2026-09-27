@@ -61,7 +61,7 @@ const ForgotPassword = () => {
               <input className="input-field with-icon" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email address" required autoComplete="email" />
             </div>
           </div>
-          <button className="action-btn" type="submit" disabled={isSubmitting || cooldown > 0}>
+          <button className="action-btn reset-link-btn" type="submit" disabled={isSubmitting || cooldown > 0}>
             <i className="fas fa-paper-plane" /> {isSubmitting ? 'Sending...' : cooldown > 0 ? `Try again in ${cooldown}s` : 'Send reset link'}
           </button>
         </form>

@@ -1,12 +1,22 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { getSessionUser, isAssignedTo } from '../utils/session';
+import { getSessionUser, isAssignedTo, SESSION_CHANGED_EVENT } from '../utils/session';
 import { CUSTOMER_ACTIVITY_CHANGED } from '../utils/customerProfileSync';
+import { broadcastOrderProgressChanged } from '../hooks/useBackendOrders';
 import { calculateDeliveryFee, findDeliveryLocation } from '../utils/deliveryRates';
 
 const CustomerActivityContext = createContext(null);
 const STORAGE_KEY = 'otuzanCustomerActivity';
 const PROFILE_KEY = 'otuzanCustomerProfile';
+// Separate key, not folded into STORAGE_KEY: a saved delivery location is a
+// per-browser default the customer sets once (like foodpanda/GrabFood's
+// header location), not part of the cart/orders/notifications activity log
+// those already-established merge/sync mechanisms exist for.
+const LOCATION_KEY = 'otuzanDeliveryLocation';
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// A rider status action is time-sensitive. Normal requests return almost
+// immediately; anything longer is treated as failed so the dashboard can
+// release its per-order request lock and let the rider retry.
+export const STATUS_SYNC_TIMEOUT_MS = 3000;
 
 const authHeaders = () => {
   const token = sessionStorage.getItem('otuzanAuthenticated');
@@ -43,27 +53,35 @@ const patchStoredOrder = (localOrderId, patch) => {
   window.dispatchEvent(new CustomEvent(CUSTOMER_ACTIVITY_CHANGED, { detail: next }));
 };
 
-// Best-effort sync to the real backend order API. Only fires for orders made
-// up entirely of real catalog products (i.e. a productId on every line) -
-// static-menu brands, custom items, and bill payments stay localStorage-only
-// for now. Never awaited by callers and never throws: the localStorage write
+// Best-effort sync to the real backend order API. Catalog-backed orders keep
+// their server-verified product/price path; static/custom menu orders send a
+// display snapshot so they are still recorded for admin operations and fee
+// revenue. Never awaited by callers and never throws: the localStorage write
 // already happened and is what the UI actually reflects, so a failure here
 // (offline, backend down, brand not yet migrated) changes nothing the
 // customer sees. On success, patches the returned backend OrderID onto the
 // local order so later status/assignment changes can also be synced.
-const syncOrderToBackend = (localOrderId, items, deliveryAddress, serviceFee = 0) => {
+const syncOrderToBackend = (localOrderId, order, deliveryAddress, serviceFee = 0) => {
   try {
-    if (!items?.length || !items.every((item) => Number.isInteger(item.productId))) return;
+    const items = order?.items || [];
+    if (!items.length) return;
     const headers = authHeaders();
     if (!headers || getSessionUser()?.role !== 'customer') return;
     fetch(`${API_BASE_URL}/api/orders`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({
-        items: items.map((item) => ({ ProductID: item.productId, quantity: item.quantity || 1 })),
-        deliveryAddress: deliveryAddress || 'Not provided',
-        serviceFee: Number(serviceFee) || 0
-      })
+      body: JSON.stringify(items.every((item) => Number.isInteger(item.productId))
+        ? {
+          items: items.map((item) => ({ ProductID: item.productId, quantity: item.quantity || 1 })),
+          clientOrderId: localOrderId,
+          deliveryAddress: deliveryAddress || 'Not provided', serviceFee: Number(serviceFee) || 0
+        }
+        : {
+          customItems: items.map((item) => ({ name: item.name || 'Custom item', quantity: item.quantity || 1, price: Number(item.price) || 0 })),
+          source: order.source || 'Otu-Zan', label: order.label || 'Customer order', section: order.section === 'item' ? 'item' : 'food',
+          clientOrderId: localOrderId,
+          deliveryAddress: deliveryAddress || 'Not provided', serviceFee: Number(serviceFee) || 0
+        })
     })
       .then((response) => (response.ok ? response.json() : null))
       .then((body) => {
@@ -80,12 +98,56 @@ const syncOrderToBackend = (localOrderId, items, deliveryAddress, serviceFee = 0
 // Same best-effort philosophy: only fires when the order already has a
 // backendOrderId (i.e. syncOrderToBackend succeeded for it earlier). Orders
 // without one - static-menu brands, custom items, bills - are unaffected.
+// applyBackendTruth() overlays the cached poll snapshot onto local orders
+// unconditionally (see useBackendOrders.js), so without this, the status
+// change we just made locally would render correctly for a moment, then get
+// clobbered back to the pre-change backend status until the next 30s poll -
+// found live as "cancel doesn't work until I refresh."
+// Dispatches ORDERS_CHANGED_EVENT on a REJECTED response too, not just
+// success - found live (9/25): two staff acting on the same order from
+// separate devices (e.g. admin cancels while a rider's still-unpolled
+// screen shows it as actionable) makes the backend correctly 422 the
+// rider's stale click ("This order is already finalized"), but silently -
+// nothing else here ever inspected the response for failure. Dispatching
+// regardless means a rejected click still forces an immediate refetch, so
+// the stale button/status corrects itself right away instead of looking
+// like the click just did nothing.
 const syncStatusToBackend = (backendOrderId, status) => {
   const headers = authHeaders();
-  if (!backendOrderId || !headers) return;
-  fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/status`, {
-    method: 'PATCH', headers, body: JSON.stringify({ status })
-  }).catch(() => {});
+  if (!backendOrderId || !headers) return Promise.resolve(false);
+  // A mobile network request can remain pending after a connection change.
+  // The rider UI waits on this promise before it re-enables its action, so
+  // settle this promise ourselves instead of relying on fetch to reject when
+  // aborted. Some browser/network combinations leave an aborted request
+  // pending, which otherwise leaves the rider button stuck on "Updating".
+  const controller = new AbortController();
+  return new Promise((resolve) => {
+    let settled = false;
+    const settle = (result) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      resolve(result);
+    };
+    const timeout = window.setTimeout(() => {
+      controller.abort();
+      settle(false);
+    }, STATUS_SYNC_TIMEOUT_MS);
+
+    fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/status`, {
+      method: 'PATCH', headers, body: JSON.stringify({ status }), signal: controller.signal
+    })
+      .then((response) => {
+        if (!response.ok) console.warn(`Status update to "${status}" was rejected (order may have already been finalized elsewhere).`);
+        // Broadcast on rejection too, not just success (see comment above) -
+        // merged with origin/kurizu's Promise<boolean> return (RiderDashboard's
+        // updateProgress awaits this to roll back its optimistic status update
+        // on failure), rather than picking one fix over the other.
+        broadcastOrderProgressChanged();
+        settle(response.ok);
+      })
+      .catch(() => settle(false));
+  });
 };
 
 const syncAssignmentToBackend = (backendOrderId, riderId) => {
@@ -93,7 +155,12 @@ const syncAssignmentToBackend = (backendOrderId, riderId) => {
   if (!backendOrderId || !headers) return;
   fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/assign`, {
     method: 'PATCH', headers, body: JSON.stringify({ riderId: riderId || null })
-  }).catch(() => {});
+  })
+    .then((response) => {
+      if (!response.ok) console.warn('Rider assignment change was rejected (order may have already changed elsewhere).');
+      broadcastOrderProgressChanged();
+    })
+    .catch(() => {});
 };
 
 // Same best-effort philosophy as syncOrderToBackend, but for Pay Bills -
@@ -130,10 +197,15 @@ const syncPaymentToBackend = (localOrderId, details, serviceFee = 0) => {
 
 const syncPaymentStatusToBackend = (backendPaymentId, status) => {
   const headers = authHeaders();
-  if (!backendPaymentId || !headers) return;
-  fetch(`${API_BASE_URL}/api/payments/${backendPaymentId}/status`, {
+  if (!backendPaymentId || !headers) return Promise.resolve(false);
+  return fetch(`${API_BASE_URL}/api/payments/${backendPaymentId}/status`, {
     method: 'PATCH', headers, body: JSON.stringify({ status })
-  }).catch(() => {});
+  })
+    .then((response) => {
+      if (response.ok) broadcastOrderProgressChanged();
+      return response.ok;
+    })
+    .catch(() => false);
 };
 
 const syncNotificationsReadToBackend = () => {
@@ -196,14 +268,36 @@ const loadActivity = () => {
   }
 };
 
+// Orders are server-backed, but carts intentionally remain browser-local
+// until checkout. The activity blob is shared by every account that uses
+// this browser, so cart lines must carry an owner; otherwise a customer who
+// signs in after someone else inherits their basket. Old untagged lines are
+// treated as a guest cart rather than being assigned to the next account.
+const activeCartOwner = () => {
+  const user = getSessionUser();
+  return user?.role === 'customer' && user.id != null ? `customer:${user.id}` : 'guest';
+};
+
+const cartOwner = (item) => item.cartOwner || 'guest';
+const cartForActiveOwner = (items = []) => items.filter((item) => cartOwner(item) === activeCartOwner());
+const tagCartForActiveOwner = (items = []) => items.map((item) => ({ ...item, cartOwner: activeCartOwner() }));
+
 export const CustomerActivityProvider = ({ children }) => {
   const saved = useMemo(() => loadActivity(), []);
-  const [cart, setCart] = useState(saved.cart || []);
+  const [cart, setCart] = useState(() => cartForActiveOwner(saved.cart));
   const [orders, setOrders] = useState((saved.orders || []).filter((order) => {
     const riderName = String(order.assignedRider?.name || '').trim().toLowerCase();
     return riderName !== 'jayson deguzman';
   }));
   const [notifications, setNotifications] = useState(saved.notifications || []);
+  const [deliveryLocation, setDeliveryLocationState] = useState(
+    () => localStorage.getItem(LOCATION_KEY) || ''
+  );
+  const setDeliveryLocation = (locationId) => {
+    setDeliveryLocationState(locationId);
+    if (locationId) localStorage.setItem(LOCATION_KEY, locationId);
+    else localStorage.removeItem(LOCATION_KEY);
+  };
   // Guards placeOrder/placeCartOrder against rapid repeat clicks. A ref, not
   // state: state updates aren't visible until the next render, so several
   // click handlers firing back-to-back in the same tick (a fast double-tap,
@@ -242,7 +336,7 @@ export const CustomerActivityProvider = ({ children }) => {
       if (event.key !== STORAGE_KEY || !event.newValue) return;
       try {
         const next = JSON.parse(event.newValue);
-        setCart(next.cart || []);
+        setCart(cartForActiveOwner(next.cart));
         setOrders((next.orders || []).filter((order) => String(order.assignedRider?.name || '').trim().toLowerCase() !== 'jayson deguzman'));
         setNotifications(next.notifications || []);
       } catch {
@@ -251,14 +345,21 @@ export const CustomerActivityProvider = ({ children }) => {
     };
     window.addEventListener('storage', syncActivity);
     const syncProfileOrders = (event) => {
-      setCart(event.detail.cart || []);
+      setCart(cartForActiveOwner(event.detail.cart));
       setOrders((event.detail.orders || []).filter((order) => String(order.assignedRider?.name || '').trim().toLowerCase() !== 'jayson deguzman'));
       setNotifications(event.detail.notifications || []);
     };
     window.addEventListener(CUSTOMER_ACTIVITY_CHANGED, syncProfileOrders);
+    // App keeps this provider mounted across logout/login. Reload the
+    // browser-local cart when the signed-in account changes so the previous
+    // customer's in-memory basket can never be shown or re-saved for the
+    // next account.
+    const syncCartForSession = () => setCart(cartForActiveOwner(loadActivity().cart));
+    window.addEventListener(SESSION_CHANGED_EVENT, syncCartForSession);
     return () => {
       window.removeEventListener('storage', syncActivity);
       window.removeEventListener(CUSTOMER_ACTIVITY_CHANGED, syncProfileOrders);
+      window.removeEventListener(SESSION_CHANGED_EVENT, syncCartForSession);
     };
   }, []);
 
@@ -276,10 +377,17 @@ export const CustomerActivityProvider = ({ children }) => {
 
   const persist = (nextCart, nextOrders, nextNotifications) => {
     const latest = loadActivity();
+    // Preserve cart lines belonging to other signed-in customers (or the
+    // guest basket) while replacing only this account's visible basket.
+    // This also makes concurrent tabs for the same customer stay in sync.
+    const storedCart = [
+      ...(latest.cart || []).filter((item) => cartOwner(item) !== activeCartOwner()),
+      ...tagCartForActiveOwner(nextCart)
+    ];
     const mergedOrders = mergeById(nextOrders, latest.orders || []);
     const mergedNotifications = mergeById(nextNotifications, latest.notifications || []);
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      cart: nextCart,
+      cart: storedCart,
       orders: mergedOrders,
       notifications: mergedNotifications
     }));
@@ -300,7 +408,7 @@ export const CustomerActivityProvider = ({ children }) => {
       ? cart.map((entry) => entry.cartId === cartId
         ? { ...entry, quantity: entry.quantity + (item.quantity || 1) }
         : entry)
-      : [...cart, { ...item, cartId, quantity: item.quantity || 1 }];
+      : [...cart, { ...item, cartId, quantity: item.quantity || 1, cartOwner: activeCartOwner() }];
     updateAll(nextCart, orders, notifications);
   };
 
@@ -342,6 +450,7 @@ export const CustomerActivityProvider = ({ children }) => {
     const notification = {
       id: `NOT-${Date.now()}-${Math.random()}`,
       orderId: order.id,
+      customerId: customer.customerId,
       title: 'Order request sent',
       message: `${order.label} is waiting for a rider to accept it.`,
       createdAt,
@@ -351,7 +460,7 @@ export const CustomerActivityProvider = ({ children }) => {
     if (section === 'bills') {
       syncPaymentToBackend(order.id, details, order.serviceFee);
     } else {
-      syncOrderToBackend(order.id, items, customer.customerAddress, order.serviceFee);
+      syncOrderToBackend(order.id, order, customer.customerAddress, order.serviceFee);
     }
     return order;
   });
@@ -397,6 +506,7 @@ export const CustomerActivityProvider = ({ children }) => {
     const newNotifications = newOrders.map((order) => ({
       id: `NOT-${order.id}-${Math.random()}`,
       orderId: order.id,
+      customerId: order.customerId,
       title: 'Order request sent',
       message: `Your ${order.source} order ${order.id} is waiting for a rider.`,
       createdAt: order.createdAt,
@@ -404,7 +514,7 @@ export const CustomerActivityProvider = ({ children }) => {
     }));
     const nextCart = source ? cart.filter((item) => item.source !== source) : [];
     updateAll(nextCart, [...newOrders, ...orders], [...newNotifications, ...notifications]);
-    newOrders.forEach((order) => syncOrderToBackend(order.id, order.items, customer.customerAddress, order.serviceFee));
+    newOrders.forEach((order) => syncOrderToBackend(order.id, order, customer.customerAddress, order.serviceFee));
     return newOrders[0];
   });
 
@@ -438,19 +548,18 @@ export const CustomerActivityProvider = ({ children }) => {
       // carries the real backend customerId/status even with no local copy.
       const isOwningCustomerCancelling = user?.role === 'customer' && status === 'cancelled'
         && String(orderRef?.customerId) === String(user?.id) && orderRef?.status === 'pending_rider';
-      if (!backendOrderId || !(user?.role === 'admin' || user?.role === 'driver' || isOwningCustomerCancelling)) return;
-      syncStatusToBackend(backendOrderId, status);
-      return;
+      if (!backendOrderId || !(user?.role === 'admin' || user?.role === 'driver' || isOwningCustomerCancelling)) return Promise.resolve(false);
+      return syncStatusToBackend(backendOrderId, status);
     }
-    if (currentOrder.status === status) return;
+    if (currentOrder.status === status) return Promise.resolve(true);
     const user = getSessionUser();
     // A customer may cancel their own order while it's still pending_rider -
     // same server-side rule as OrderController::updateStatus. Anything past
     // that point (confirmed onward) is out of their hands.
     const isOwningCustomerCancelling = user?.role === 'customer' && status === 'cancelled'
       && String(currentOrder.customerId) === String(user?.id) && currentOrder.status === 'pending_rider';
-    if (user?.role !== 'admin' && !(user?.role === 'driver' && isAssignedTo(currentOrder, user)) && !isOwningCustomerCancelling) return;
-    if (['delivered', 'cancelled'].includes(currentOrder.status)) return;
+    if (user?.role !== 'admin' && !(user?.role === 'driver' && isAssignedTo(currentOrder, user)) && !isOwningCustomerCancelling) return Promise.resolve(false);
+    if (['delivered', 'cancelled'].includes(currentOrder.status)) return Promise.resolve(false);
 
     const statusContent = {
       confirmed: ['Order accepted', `${currentOrder.label} was accepted. Tracking is now available.`],
@@ -460,7 +569,7 @@ export const CustomerActivityProvider = ({ children }) => {
       delivered: ['Order delivered', `${currentOrder.label} has been delivered.`]
     };
     const content = statusContent[status];
-    if (!content) return;
+    if (!content) return Promise.resolve(false);
 
     const updatedAt = new Date().toISOString();
     const estimatedWaitMinutes = currentOrder.estimatedWaitMinutes
@@ -492,7 +601,26 @@ export const CustomerActivityProvider = ({ children }) => {
         type: status === 'cancelled' ? 'cancelled' : 'status'
       }, ...(latest.notifications || notifications)];
     updateAll(latest.cart || cart, nextOrders, nextNotifications);
-    syncStatusToBackend(currentOrder.backendOrderId, status);
+    // Local-only legacy orders have no server request to wait for. Backend
+    // orders return a success flag so callers can keep an optimistic status
+    // visible while a stale poll is still in flight, then roll it back if
+    // the server rejects the transition.
+    if (!currentOrder.backendOrderId) return Promise.resolve(true);
+    return syncStatusToBackend(currentOrder.backendOrderId, status).then((saved) => {
+      if (saved) return true;
+      // The screen is optimistic, but the persisted local order must also
+      // return to the server's last known state. Otherwise a retry sees the
+      // requested status already cached, short-circuits as a no-op, and can
+      // never reach the backend again.
+      const latestAfterFailure = loadActivity();
+      const restoredOrders = (latestAfterFailure.orders || []).map((order) => (
+        order.id === orderId && order.status === status
+          ? { ...order, status: currentOrder.status, updatedAt: new Date().toISOString() }
+          : order
+      ));
+      updateAll(latestAfterFailure.cart || cart, restoredOrders, latestAfterFailure.notifications || notifications);
+      return false;
+    });
   };
 
   const assignOrderToRider = (orderRef, rider) => {
@@ -524,11 +652,10 @@ export const CustomerActivityProvider = ({ children }) => {
     // there's no way to derive it from the id string alone.
     if (!currentOrder) {
       const backendPaymentId = orderRef?.backendPaymentId;
-      if (!backendPaymentId) return;
-      syncPaymentStatusToBackend(backendPaymentId, paymentStatus);
-      return;
+      if (!backendPaymentId) return Promise.resolve(false);
+      return syncPaymentStatusToBackend(backendPaymentId, paymentStatus);
     }
-    if (currentOrder.section !== 'bills') return;
+    if (currentOrder.section !== 'bills') return Promise.resolve(false);
     const nextOrders = (latest.orders || orders).map((order) => order.id === orderId
       ? { ...order, details: { ...order.details, paymentStatus }, updatedAt: new Date().toISOString() }
       : order);
@@ -538,13 +665,22 @@ export const CustomerActivityProvider = ({ children }) => {
       ? (latest.notifications || notifications)
       : [{ id: `NOT-${Date.now()}-${Math.random()}`, orderId, title: `Payment ${paymentStatus}`, message: `Your payment for ${currentOrder.source} was ${paymentStatus}.`, createdAt: new Date().toISOString(), read: false, type: paymentStatus === 'rejected' ? 'cancelled' : 'status' }, ...(latest.notifications || notifications)];
     updateAll(latest.cart || cart, nextOrders, nextNotifications);
-    syncPaymentStatusToBackend(currentOrder.backendPaymentId, paymentStatus);
+    // An admin may be looking at this order from the shared local cache,
+    // while the passed dashboard order carries the PaymentID supplied by
+    // the backend. Prefer the stored ID, but retain that authoritative
+    // fallback so Verify/Reject always reaches the payment endpoint.
+    const backendPaymentId = currentOrder.backendPaymentId || orderRef?.backendPaymentId;
+    return backendPaymentId
+      ? syncPaymentStatusToBackend(backendPaymentId, paymentStatus)
+      : Promise.resolve(true);
   };
 
   const value = useMemo(() => ({
     cart,
     orders,
     notifications,
+    deliveryLocation,
+    setDeliveryLocation,
     addToCart,
     updateCartQuantity,
     placeOrder,
@@ -555,7 +691,7 @@ export const CustomerActivityProvider = ({ children }) => {
     updatePaymentStatus
   // State is intentionally included so consumers always receive current actions.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [cart, orders, notifications]);
+  }), [cart, orders, notifications, deliveryLocation]);
 
   return <CustomerActivityContext.Provider value={value}>{children}</CustomerActivityContext.Provider>;
 };
@@ -570,7 +706,14 @@ export const useCustomerActivity = () => {
     return {
       ...context,
       orders,
-      notifications: context.notifications.filter((notification) => orderIds.has(notification.orderId))
+      // Browser-local notifications must be explicitly owned by the signed-in
+      // customer. The order-id check retains compatibility with locally
+      // created notifications, while the owner check prevents another account
+      // from seeing a colliding or stale notification from shared storage.
+      notifications: context.notifications.filter((notification) => (
+        String(notification.customerId) === String(user.id)
+        && orderIds.has(notification.orderId)
+      ))
     };
   }
   if (user?.role === 'driver') {
@@ -583,5 +726,17 @@ export const useCustomerActivity = () => {
       notifications: context.notifications.filter((notification) => orderIds.has(notification.orderId))
     };
   }
-  return context;
+  // Admin intentionally sees every order/notification unfiltered - that's
+  // the whole point of the admin dashboard, not a gap.
+  if (user?.role === 'admin') return context;
+  // No session: a guest browsing, or a customer who just logged out (or
+  // closed the tab last time without logging out - sessionStorage clears on
+  // its own then too). otuzanCustomerActivity isn't scoped per account, so
+  // without this branch a guest fell through to the same unfiltered
+  // `context` as admin and saw whichever customer's orders/notifications
+  // were last synced to this browser (found live, 9/23 - a real cross-user
+  // data exposure, not just stale UI). Cart is left untouched: guest
+  // browsing intentionally lets a guest build a cart before being asked to
+  // log in at checkout, and that's not customer-identifying data.
+  return { ...context, orders: [], notifications: [] };
 };

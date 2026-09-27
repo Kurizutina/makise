@@ -84,7 +84,11 @@ class JollibeeProductsSeeder extends Seeder
         $products = [];
         $seen = [];
 
-        foreach (glob($catalogRoot.'/*/*.avif') as $imagePath) {
+        // The supplied AVIF assets are served as application/octet-stream by
+        // the local frontend server, so browsers reject them. Matching PNG
+        // copies are generated alongside the source assets for dependable
+        // catalog and Best Seller rendering.
+        foreach (glob($catalogRoot.'/*/*.png') as $imagePath) {
             $name = pathinfo($imagePath, PATHINFO_FILENAME);
             $key = $this->key($name);
 

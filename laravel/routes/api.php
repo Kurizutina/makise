@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AccountManagementController;
 use App\Http\Controllers\CatalogController;
+use App\Http\Controllers\MessageController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
@@ -38,11 +39,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/orders', [OrderController::class, 'index']);
     Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus']);
     Route::post('/payments', [PaymentController::class, 'store'])->middleware('throttle:20,1');
+    Route::get('/orders/{order}/messages', [MessageController::class, 'index']);
+    Route::post('/orders/{order}/messages', [MessageController::class, 'store'])->middleware('throttle:30,1');
+    Route::patch('/orders/{order}/messages/read', [MessageController::class, 'markRead']);
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::patch('/notifications/read', [NotificationController::class, 'markAllRead']);
     Route::middleware('permission:orders.manage')->group(function () {
         Route::get('/admin/orders', [OrderController::class, 'indexAll']);
         Route::get('/admin/revenue', [OrderController::class, 'revenue']);
+        Route::get('/admin/customer-segments', [OrderController::class, 'customerSegments']);
+        Route::get('/admin/demand-forecast', [OrderController::class, 'demandForecast']);
         Route::patch('/orders/{order}/assign', [OrderController::class, 'assign']);
         Route::patch('/payments/{payment}/status', [PaymentController::class, 'updateStatus']);
     });

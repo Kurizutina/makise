@@ -1,139 +1,25 @@
-.home-header {
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-  width: 100%;
-  background: #e31b62;
-  box-shadow: 0 2px 10px rgba(74, 9, 35, 0.16);
-}
-
-.header-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 58px;
-  padding: 0 clamp(16px, 3vw, 38px);
-  gap: 20px;
-}
-
-.header-brand-lockup,
-.header-tools,
-.header-actions {
-  display: flex;
-  align-items: center;
-}
-
-.header-brand-lockup {
-  gap: 12px;
-  flex-shrink: 0;
-  border: none;
-  background: transparent;
-  padding: 0;
-  margin: 0;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.header-logo,
-.header-logo .logo-container {
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-}
-
-.header-logo { flex: 0 0 52px; }
-
-.header-logo .logo-container {
-  position: relative;
-}
-
-.header-logo .logo-container::before {
-  display: none;
-}
-
-.header-logo .logo-placeholder,
-.header-logo .logo-image {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-}
-
-.header-logo .logo-placeholder {
-  overflow: hidden;
-  border: 2px solid rgba(255, 255, 255, 0.92);
-  background: #fff;
-}
-.header-logo .logo-image { display: block; object-fit: cover; }
-.header-logo .logo-text,
-.header-logo .logo-sub { display: none; }
-
-.header-brand-copy { display: grid; gap: 2px; color: #fff; font-family: Tahoma, sans-serif; }
-.header-brand-copy strong { font-size: clamp(18px, 1.7vw, 24px); font-weight: 700; line-height: 1; }
-.header-brand-copy span { font-size: 10px; font-weight: 400; }
-
-.header-tools { min-width: 0; gap: 14px; }
-.header-search { width: min(30vw, 280px); min-width: 180px; }
-.header-actions { gap: 8px; flex-shrink: 0; }
-
-.header-action-button,
-.header-menu-button {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border: 0;
-  border-radius: 50%;
-  background: #c81752;
-  color: #fff;
-  cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.2s ease;
-}
-
-.header-action-button:hover,
-.header-menu-button:hover { background: #a71243; transform: scale(1.05); }
-.header-action-button:focus-visible,
-.header-menu-button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
-
-.header-service-nav {
-  padding: 7px clamp(16px, 7.8vw, 92px);
-  background: #f23d7b;
-}
-
-@media (max-width: 900px) {
-  .header-container { gap: 14px; }
-  .header-search { width: min(34vw, 250px); min-width: 150px; }
-  .header-service-nav { padding-inline: clamp(16px, 5vw, 42px); }
-}
-
-@media (max-width: 700px) {
-  .header-container { min-height: 62px; padding-inline: 12px; gap: 9px; }
-  .header-brand-lockup { gap: 7px; }
-  .header-logo,
-  .header-logo .logo-container { width: 46px; height: 46px; }
-  .header-logo { flex-basis: 46px; }
-  .header-logo .logo-placeholder,
-  .header-logo .logo-image { width: 42px; height: 42px; }
-  .header-brand-copy strong { font-size: 15px; }
-  .header-brand-copy span { font-size: 8px; }
-  .header-tools { flex: 1; gap: 7px; }
-  .header-search { flex: 1; width: auto; min-width: 0; }
-  .header-actions { gap: 5px; }
-  .header-action-button,
-  .header-menu-button { width: 35px; height: 35px; }
-  .header-service-nav { padding: 6px 12px; }
-}
-
-@media (max-width: 440px) {
-  .header-brand-copy span { display: none; }
-  .header-brand-copy strong { font-size: 13px; }
-  .header-logo,
-  .header-logo .logo-container { width: 40px; height: 40px; }
-  .header-logo { flex-basis: 40px; }
-  .header-logo .logo-placeholder,
-  .header-logo .logo-image { width: 36px; height: 36px; }
-  .header-container { gap: 6px; }
-  .header-action-button,
-  .header-menu-button { width: 32px; height: 32px; }
-}
+/* White/neutral header, not a solid brand-color fill - live-referenced
+   foodpanda (white nav under a thin pink promo strip), GrabFood (no colored
+   header at all, transparent over a photo) and the Pizzaro reference site
+   (cream nav, not the accent color) - every one of them treats the brand
+   color as an accent on individual elements (buttons, active tab, icons),
+   never as the header's own background. Design critique 9/23 already
+   flagged the header/service-nav/footer "three stacked full-bleed color
+   blocks" problem; user flagged live 9/25 that the hero fusing into the
+   header on top of that made it read as one oversized color blob. Keeping
+   the header/nav white is what actually creates the seam - HomeHero's own
+   gradient right below it now reads as a distinct section instead of a
+   continuation of the same fill. */
+.home-header { position:sticky; top:0; z-index:1000; width:100%; background:#fff; box-shadow:0 2px 10px rgba(43,15,26,.08); color:#392f34; }
+.header-top-row,.header-bottom-content { display:flex; align-items:center; width:100%; max-width:1400px; margin:auto; padding-inline:clamp(18px,5vw,64px); }.header-top-row { min-height:64px; justify-content:space-between; }.header-bottom-row { background:#fff; border-top:1px solid #f4e6ec; }.header-bottom-content { position:relative; min-height:52px; justify-content:space-between; gap:24px; }
+.header-brand-cluster { display:flex; align-items:center; gap:18px; min-width:0; }
+.header-brand-lockup { display:flex; align-items:center; gap:10px; border:0; background:transparent; color:var(--color-primary-dark,var(--color-primary-dark)); font:inherit; text-align:left; cursor:pointer; }.header-logo,.header-logo .logo-container { display:grid; place-items:center; width:48px; height:48px; }.header-logo .logo-placeholder,.header-logo .logo-image { width:42px; height:42px; border-radius:0; object-fit:cover; }.header-logo .logo-container::before,.header-logo .logo-text,.header-logo .logo-sub { display:none; }.header-brand-copy { display:grid; gap:2px; }.header-brand-copy strong { font-size:clamp(18px,2vw,24px); font-weight:800; line-height:1; text-transform:uppercase; }.header-brand-copy span { color:#8e7d85; font-size:10px; }
+.header-guest-buttons,.header-member-tools { display:flex; align-items:center; gap:8px; }.header-guest-buttons button { min-height:32px; padding:0 14px; border:1px solid var(--color-primary,var(--color-primary)); border-radius:7px; background:transparent; color:var(--color-primary,var(--color-primary)); font:inherit; font-size:13px; cursor:pointer; }.header-guest-buttons button:hover,.header-guest-buttons button:focus-visible { background:var(--color-primary-light,#ffe9ef); outline:2px solid var(--color-primary,var(--color-primary)); outline-offset:2px; }
+.header-service-nav { margin:0; }.header-search { width:min(30vw,306px); min-width:190px; }.header-search .home-search { height:32px; background:#fbf3f5; }.header-search .search-icon { margin-right:7px; font-size:14px; }.header-search input { font-size:13px; }.header-mobile-toggle { display:none; }.header-member-tools .header-action-button,.header-member-tools .header-menu-button { display:grid; place-items:center; width:36px; height:36px; border:0; border-radius:50%; background:var(--color-primary,var(--color-primary)); color:#fff; cursor:pointer; }
+@media (max-width:700px) { .header-top-row,.header-bottom-content { padding-inline:12px; }.header-top-row { min-height:58px; flex-wrap:wrap; row-gap:6px; }.header-brand-cluster { gap:10px; }.header-brand-copy strong { font-size:15px; }.header-brand-copy span { display:none; }.header-logo,.header-logo .logo-container { width:42px; height:42px; }.header-logo .logo-placeholder,.header-logo .logo-image { width:38px; height:38px; }.header-bottom-content { min-height:50px; gap:10px; }.header-mobile-toggle { display:grid; place-items:center; width:38px; height:34px; border:0; border-radius:7px; background:var(--color-primary-light,#ffe9ef); color:var(--color-primary,var(--color-primary)); cursor:pointer; }.header-service-nav { display:none; position:absolute; top:calc(100% + 6px); left:12px; right:12px; padding:8px; border-radius:12px; background:#fff; border:1px solid #f0dee5; box-shadow:0 10px 24px rgba(43,15,26,.14); }.header-service-nav.is-open { display:block; }.header-service-nav .service-navigation { width:100%; flex-direction:column; align-items:stretch; overflow:visible; background:transparent; border:0; }.header-service-nav .service-tab { width:100%; min-width:0; justify-content:flex-start; padding:11px 13px; }.header-search { flex:1; width:auto; min-width:0; }.header-search .home-search { height:36px; }.header-guest-buttons { gap:5px; }.header-guest-buttons button { min-height:30px; padding:0 9px; font-size:12px; } }
+/* The location picker sits right next to the brand name in the same row -
+   below 480px there isn't room for both the full brand lockup and its text,
+   so it collapses to just the pin icon (still opens the same picker, just
+   without a label competing for space next to "Otu-Zan Delivery"). */
+@media (max-width:480px) { .location-picker-header .location-picker-trigger span { display:none; } }
+@media (max-width:360px) { .header-brand-copy strong { font-size:13px; }.header-guest-buttons button { padding-inline:7px; } }

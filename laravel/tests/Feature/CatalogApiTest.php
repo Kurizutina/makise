@@ -186,7 +186,7 @@ class CatalogApiTest extends TestCase
 
     public function test_best_sellers_ranks_by_recent_units_sold_and_excludes_cancelled_and_stale_orders(): void
     {
-        $brand = Brand::create(['BrandName' => 'Test Brand', 'IsActive' => true]);
+        $brand = Brand::create(['BrandName' => 'Test Brand', 'ImagePath' => '/uploads/brands/test-brand.png', 'IsActive' => true]);
         $popular = Product::create(['ProductName' => 'Popular Item', 'BrandID' => $brand->BrandID, 'ProductPrice' => 100, 'IsActive' => true]);
         $niche = Product::create(['ProductName' => 'Niche Item', 'BrandID' => $brand->BrandID, 'ProductPrice' => 100, 'IsActive' => true]);
         $stale = Product::create(['ProductName' => 'Old Trend Item', 'BrandID' => $brand->BrandID, 'ProductPrice' => 100, 'IsActive' => true]);
@@ -211,5 +211,6 @@ class CatalogApiTest extends TestCase
         $names = collect($response->json('products'))->pluck('ProductName')->all();
 
         $this->assertSame(['Popular Item', 'Niche Item'], $names);
+        $this->assertSame('/uploads/brands/test-brand.png', $response->json('products.0.BrandImagePath'));
     }
 }

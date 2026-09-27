@@ -3,7 +3,7 @@ import Header from '../../components/home/Header/Header';
 import Footer from '../../components/home/Footer/Footer';
 import './FAQ.css';
 
-const FAQ_ITEMS = [
+export const FAQ_ITEMS = [
   {
     question: 'Do I need an account to browse the menu?',
     answer: 'No. You can look through every brand and menu freely without signing up. You only need an account once you\'re ready to actually place an order.'
@@ -11,6 +11,10 @@ const FAQ_ITEMS = [
   {
     question: 'How much is delivery?',
     answer: 'A flat ₱75 per delivery location. A night surcharge (+50%) applies after 8:00 PM for student accounts, or after 6:30 PM for non-student accounts.'
+  },
+  {
+    question: 'What are your business hours?',
+    answer: 'Otu-Zan Delivery is open daily from 7:00 AM to 9:00 PM.'
   },
   {
     question: 'How do I pay for my order?',
@@ -38,24 +42,28 @@ const FAQ_ITEMS = [
   }
 ];
 
+export const FAQSection = ({ home = false }) => (
+  <section className={`faq-page${home ? ' faq-page-home' : ''}`} id="faq">
+    <div className="faq-heading">
+      <span className="faq-eyebrow">Help center</span>
+      <h2>Frequently asked questions</h2>
+      <p>The things customers ask us most, answered directly.</p>
+    </div>
+    <div className="faq-list">
+      {FAQ_ITEMS.map((item) => (
+        <details className="faq-item" key={item.question}>
+          <summary>{item.question}</summary>
+          <p>{item.answer}</p>
+        </details>
+      ))}
+    </div>
+  </section>
+);
+
 const FAQ = () => (
   <div className="home-page">
     <Header services={[]} onServiceChange={() => {}} onSearch={() => {}} />
-    <main className="faq-page">
-      <div className="faq-heading">
-        <span className="faq-eyebrow">Help center</span>
-        <h1>Frequently asked questions</h1>
-        <p>The things customers ask us most, answered directly.</p>
-      </div>
-      <div className="faq-list">
-        {FAQ_ITEMS.map((item) => (
-          <details className="faq-item" key={item.question}>
-            <summary>{item.question}</summary>
-            <p>{item.answer}</p>
-          </details>
-        ))}
-      </div>
-    </main>
+    <main><FAQSection /></main>
     <Footer />
   </div>
 );

@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use Carbon\Carbon;
 use App\Models\Brand;
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
@@ -43,12 +45,14 @@ class OrderApiTest extends TestCase
 
         $response = $this->withToken($this->token($customer))->postJson('/api/orders', [
             'items' => [['ProductID' => $product->ProductID, 'quantity' => 3]],
+            'clientOrderId' => 'ORD-browser-123',
             'deliveryAddress' => '123 Test Street',
             // A malicious client could try to smuggle its own price/total; the
             // endpoint doesn't even accept those fields, so there's nothing to trust.
         ])->assertCreated();
 
         $this->assertEquals(450, (float) $response->json('order.TotalPrice'));
+        $this->assertSame('ORD-browser-123', $response->json('order.OrderSnapshot.clientOrderId'));
         $this->assertDatabaseHas('Orders', [
             'UserID' => $customer->UserID, 'TotalPrice' => 450, 'DeliveryStatus' => 'pending_rider',
         ]);
@@ -72,6 +76,34 @@ class OrderApiTest extends TestCase
         $this->assertDatabaseHas('Orders', [
             'UserID' => $customer->UserID, 'TotalPrice' => 412.5, 'ServiceFee' => 112.5,
         ]);
+    }
+
+    public function test_custom_menu_order_is_persisted_and_its_service_fee_is_revenue(): void
+    {
+        $customer = $this->user('customer');
+        $admin = $this->user('admin');
+
+        $response = $this->withToken($this->token($customer))->postJson('/api/orders', [
+            'customItems' => [['name' => 'Special burger', 'quantity' => 2, 'price' => 95]],
+            'source' => 'Local Burger Shop',
+            'label' => '2pc Special burger',
+            'section' => 'food',
+            'deliveryAddress' => '123 Test Street',
+            'serviceFee' => 75,
+        ])->assertCreated();
+
+        $orderId = $response->json('order.OrderID');
+        $this->assertDatabaseHas('Orders', [
+            'OrderID' => $orderId, 'TotalPrice' => 265, 'ServiceFee' => 75,
+        ]);
+        $this->assertSame('Local Burger Shop', $response->json('order.OrderSnapshot.source'));
+
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token($admin))->getJson('/api/admin/orders')
+            ->assertOk()->assertJsonPath('data.0.OrderID', $orderId);
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token($admin))->getJson('/api/admin/revenue')
+            ->assertOk()->assertJsonPath('total', 75);
     }
 
     public function test_order_rejects_a_service_fee_outside_the_sane_range(): void
@@ -162,6 +194,48 @@ class OrderApiTest extends TestCase
         $this->assertCount(2, $response->json('data'));
     }
 
+    // History fetches its own page directly from this endpoint (instead of
+    // reading from the same capped list Live Orders uses) filtered to
+    // delivered+cancelled in one request - covers both the existing
+    // single-status filter and the new comma-separated multi-status one.
+    public function test_admin_order_list_filters_by_one_or_several_statuses(): void
+    {
+        $customer = $this->user('customer');
+        $admin = $this->user('admin');
+        Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'DeliveryStatus' => 'pending_rider']);
+        Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 200, 'DeliveryStatus' => 'delivered']);
+        Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 300, 'DeliveryStatus' => 'cancelled']);
+
+        $token = $this->token($admin);
+        $single = $this->withToken($token)->getJson('/api/admin/orders?status=delivered')->assertOk();
+        $this->assertCount(1, $single->json('data'));
+        $this->assertEquals('delivered', $single->json('data.0.DeliveryStatus'));
+
+        $this->app['auth']->forgetGuards();
+        $multi = $this->withToken($this->token($admin))->getJson('/api/admin/orders?status=delivered,cancelled')->assertOk();
+        $statuses = collect($multi->json('data'))->pluck('DeliveryStatus')->sort()->values()->all();
+        $this->assertEquals(['cancelled', 'delivered'], $statuses);
+    }
+
+    // History's exact-date filter - orders are stored with a naive UTC
+    // OrderDate, so a Manila-midnight order (still "yesterday" in UTC) has to
+    // land on the requested date and an order just outside the window must
+    // not.
+    public function test_admin_order_list_filters_by_exact_manila_date(): void
+    {
+        $customer = $this->user('customer');
+        $admin = $this->user('admin');
+        $inDay = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'DeliveryStatus' => 'delivered']);
+        $inDay->OrderDate = '2026-09-22 16:30:00'; // 2026-09-23 00:30 Manila
+        $inDay->save();
+        $dayBefore = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'DeliveryStatus' => 'delivered']);
+        $dayBefore->OrderDate = '2026-09-22 15:59:00'; // 2026-09-22 23:59 Manila
+        $dayBefore->save();
+
+        $response = $this->withToken($this->token($admin))->getJson('/api/admin/orders?date=2026-09-23')->assertOk();
+        $this->assertEquals([$inDay->OrderID], collect($response->json('data'))->pluck('OrderID')->all());
+    }
+
     public function test_admin_can_assign_and_unassign_a_rider(): void
     {
         $customer = $this->user('customer');
@@ -173,11 +247,104 @@ class OrderApiTest extends TestCase
             'riderId' => $rider->UserID,
         ])->assertOk()
             ->assertJsonPath('order.AssignedRiderID', $rider->UserID)
-            ->assertJsonPath('order.DeliveryStatus', 'confirmed');
+            ->assertJsonPath('order.DeliveryStatus', 'pending_rider');
 
         $this->withToken($this->token($admin))->patchJson("/api/orders/{$order->OrderID}/assign", [
             'riderId' => null,
         ])->assertOk()->assertJsonPath('order.AssignedRiderID', null);
+    }
+
+    // No customer-facing component read AssignedRiderID at all - a
+    // customer never saw who was actually delivering their order. Rather
+    // than build a separate "your rider" UI, the name rides along in the
+    // notification a customer already checks, once that rider explicitly
+    // accepts the assigned order.
+    public function test_rider_confirmation_names_them_in_the_customer_notification(): void
+    {
+        $customer = $this->user('customer');
+        $rider = $this->user('driver');
+        $rider->UserName = 'Juan Dela Cruz';
+        $rider->save();
+        $order = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'DeliveryStatus' => 'pending_rider']);
+        $admin = $this->user('admin');
+
+        $this->withToken($this->token($admin))->patchJson("/api/orders/{$order->OrderID}/assign", [
+            'riderId' => $rider->UserID,
+        ])->assertOk()->assertJsonPath('order.DeliveryStatus', 'pending_rider');
+
+        $this->assertDatabaseMissing('Notification', ['UserID' => $customer->UserID]);
+
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token($rider))->patchJson("/api/orders/{$order->OrderID}/status", [
+            'status' => 'confirmed',
+        ])->assertOk();
+
+        $message = json_decode(Notification::where('UserID', $customer->UserID)->latest('NotificationID')->first()->NotificationMessage, true);
+        $this->assertStringContainsString('Juan is your rider.', $message['message']);
+    }
+
+    // Before a rider is assigned there's nothing honest to say about who's
+    // delivering - the cancellation notification must not claim otherwise.
+    public function test_notification_omits_rider_name_when_none_is_assigned(): void
+    {
+        $customer = $this->user('customer');
+        $order = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'DeliveryStatus' => 'pending_rider']);
+
+        $this->withToken($this->token($customer))->patchJson("/api/orders/{$order->OrderID}/status", [
+            'status' => 'cancelled',
+        ])->assertOk();
+
+        $message = json_decode(Notification::where('UserID', $customer->UserID)->latest('NotificationID')->first()->NotificationMessage, true);
+        $this->assertStringNotContainsString('is your rider', $message['message']);
+    }
+
+    public function test_rider_delivery_notifies_the_owning_customer(): void
+    {
+        $customer = $this->user('customer');
+        $rider = $this->user('driver');
+        $order = Order::create([
+            'UserID' => $customer->UserID,
+            'AssignedRiderID' => $rider->UserID,
+            'TotalPrice' => 100,
+            'DeliveryStatus' => 'out_for_delivery',
+        ]);
+
+        $this->withToken($this->token($rider))->patchJson("/api/orders/{$order->OrderID}/status", [
+            'status' => 'delivered',
+        ])->assertOk()->assertJsonPath('order.DeliveryStatus', 'delivered');
+
+        $notification = Notification::where('UserID', $customer->UserID)->latest('NotificationID')->firstOrFail();
+        $message = json_decode($notification->NotificationMessage, true);
+        $this->assertSame('Order delivered', $message['title']);
+        $this->assertSame($order->OrderID, $message['orderId']);
+    }
+
+    public function test_each_rider_progress_update_notifies_the_owning_customer(): void
+    {
+        $customer = $this->user('customer');
+        $rider = $this->user('driver');
+        $order = Order::create([
+            'UserID' => $customer->UserID,
+            'AssignedRiderID' => $rider->UserID,
+            'TotalPrice' => 100,
+            'DeliveryStatus' => 'confirmed',
+        ]);
+
+        foreach ([
+            'preparing' => 'Order is being prepared',
+            'out_for_delivery' => 'Order is out for delivery',
+            'delivered' => 'Order delivered',
+        ] as $status => $title) {
+            $this->withToken($this->token($rider))
+                ->patchJson("/api/orders/{$order->OrderID}/status", ['status' => $status])
+                ->assertOk()->assertJsonPath('order.DeliveryStatus', $status);
+
+            $notification = Notification::where('UserID', $customer->UserID)
+                ->latest('NotificationID')->firstOrFail();
+            $message = json_decode($notification->NotificationMessage, true);
+            $this->assertSame($title, $message['title']);
+            $this->assertSame($order->OrderID, $message['orderId']);
+        }
     }
 
     public function test_only_admin_can_assign_a_rider(): void
@@ -242,7 +409,7 @@ class OrderApiTest extends TestCase
         $this->app['auth']->forgetGuards();
         $this->withToken($this->token($admin))->patchJson("/api/orders/{$secondOrder->OrderID}/assign", [
             'riderId' => $rider->UserID,
-        ])->assertOk()->assertJsonPath('order.DeliveryStatus', 'confirmed');
+        ])->assertOk()->assertJsonPath('order.DeliveryStatus', 'pending_rider');
 
         $this->app['auth']->forgetGuards();
         $this->withToken($this->token($customer))->patchJson("/api/orders/{$secondOrder->OrderID}/status", [
@@ -252,7 +419,7 @@ class OrderApiTest extends TestCase
         $this->assertDatabaseHas('Orders', [
             'OrderID' => $secondOrder->OrderID,
             'AssignedRiderID' => $rider->UserID,
-            'DeliveryStatus' => 'confirmed',
+            'DeliveryStatus' => 'pending_rider',
         ]);
     }
 
@@ -315,6 +482,63 @@ class OrderApiTest extends TestCase
         $this->assertEquals(55, $response->json('orderCount'));
     }
 
+    // ?date narrows total/byService/orderCount to that one Manila calendar
+    // day, but `daily` must still return every day on record - that series
+    // feeds the trend graph, which would be pointless if picking a date also
+    // collapsed the chart down to a single point.
+    public function test_admin_revenue_date_filter_narrows_totals_but_not_the_daily_series(): void
+    {
+        $customer = $this->user('customer');
+        $admin = $this->user('admin');
+
+        $today = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 175, 'ServiceFee' => 75, 'DeliveryStatus' => 'delivered']);
+        $today->OrderDate = '2026-09-22 16:30:00'; // 2026-09-23 00:30 Manila
+        $today->save();
+        $yesterday = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 150, 'ServiceFee' => 50, 'DeliveryStatus' => 'delivered']);
+        $yesterday->OrderDate = '2026-09-21 16:30:00'; // 2026-09-22 00:30 Manila
+        $yesterday->save();
+
+        $response = $this->withToken($this->token($admin))->getJson('/api/admin/revenue?date=2026-09-23')->assertOk();
+
+        $this->assertEquals(75.0, (float) $response->json('total'));
+        $this->assertEquals(1, $response->json('orderCount'));
+        $this->assertCount(2, $response->json('daily'));
+    }
+
+    // Layer 1 analytics (peak ordering time). Two orders land in Manila
+    // Monday 04:00, one in Manila Friday 18:00, plus a cancelled order at a
+    // third hour/day that would otherwise dominate - it must be excluded,
+    // same as it already is from every other figure this endpoint returns.
+    public function test_admin_revenue_reports_peak_hour_and_day(): void
+    {
+        $customer = $this->user('customer');
+        $admin = $this->user('admin');
+
+        $mondayA = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 175, 'ServiceFee' => 75, 'DeliveryStatus' => 'delivered']);
+        $mondayA->OrderDate = '2026-09-20 20:00:00'; // 2026-09-21 04:00 Manila, Monday
+        $mondayA->save();
+        $mondayB = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 175, 'ServiceFee' => 75, 'DeliveryStatus' => 'delivered']);
+        $mondayB->OrderDate = '2026-09-20 20:15:00'; // same Manila hour/day
+        $mondayB->save();
+        $friday = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 175, 'ServiceFee' => 75, 'DeliveryStatus' => 'delivered']);
+        $friday->OrderDate = '2026-09-25 10:00:00'; // 2026-09-25 18:00 Manila, Friday
+        $friday->save();
+        $cancelled = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 175, 'ServiceFee' => 75, 'DeliveryStatus' => 'cancelled']);
+        $cancelled->OrderDate = '2026-09-22 01:00:00'; // would otherwise be the peak alone
+        $cancelled->save();
+
+        $response = $this->withToken($this->token($admin))->getJson('/api/admin/revenue')->assertOk();
+
+        $this->assertEquals(4, $response->json('peakHour'));
+        $this->assertEquals('Monday', $response->json('peakDay'));
+        $peakHours = collect($response->json('peakHours'));
+        $this->assertEquals(2, $peakHours->firstWhere('hour', 4)['orders']);
+        $this->assertEquals(1, $peakHours->firstWhere('hour', 18)['orders']);
+        $peakDays = collect($response->json('peakDays'));
+        $this->assertEquals(2, $peakDays->firstWhere('day', 'Monday')['orders']);
+        $this->assertEquals(1, $peakDays->firstWhere('day', 'Friday')['orders']);
+    }
+
     public function test_only_admin_can_view_revenue(): void
     {
         $customer = $this->user('customer');
@@ -323,5 +547,112 @@ class OrderApiTest extends TestCase
         $this->withToken($this->token($customer))->getJson('/api/admin/revenue')->assertForbidden();
         $this->app['auth']->forgetGuards();
         $this->withToken($this->token($driver))->getJson('/api/admin/revenue')->assertForbidden();
+    }
+
+    // Layer 2 analytics (RFM segmentation). Exactly two customers with
+    // maximally different profiles - with only two data points, quintile
+    // scoring places them at the extremes (1 and 5) on every dimension,
+    // so the resulting segments are deterministic regardless of exact
+    // scoring-curve details. customerB's cancelled order would double its
+    // frequency/monetary if wrongly counted - same exclusion Revenue
+    // already applies.
+    public function test_admin_customer_segments_classifies_champions_and_lost(): void
+    {
+        $admin = $this->user('admin');
+        $customerA = $this->user('customer', 'frequent@test.com');
+        $customerB = $this->user('customer', 'inactive@test.com');
+
+        for ($i = 0; $i < 5; $i++) {
+            Order::create([
+                'UserID' => $customerA->UserID, 'TotalPrice' => 300, 'ServiceFee' => 75,
+                'DeliveryStatus' => 'delivered', 'OrderDate' => now()->subDays($i),
+            ]);
+        }
+        $old = Order::create([
+            'UserID' => $customerB->UserID, 'TotalPrice' => 50, 'ServiceFee' => 25, 'DeliveryStatus' => 'delivered',
+        ]);
+        $old->OrderDate = now()->subDays(300);
+        $old->save();
+        // Must not count - cancelled.
+        Order::create(['UserID' => $customerB->UserID, 'TotalPrice' => 999, 'ServiceFee' => 500, 'DeliveryStatus' => 'cancelled']);
+
+        $response = $this->withToken($this->token($admin))->getJson('/api/admin/customer-segments')->assertOk();
+
+        $this->assertEquals(2, $response->json('totalCustomers'));
+        $byEmail = collect($response->json('customers'))->keyBy('email');
+
+        $frequent = $byEmail['frequent@test.com'];
+        $this->assertEquals('Champions', $frequent['segment']);
+        $this->assertEquals(5, $frequent['frequency']);
+        $this->assertEquals(1500, $frequent['monetary']);
+
+        $inactive = $byEmail['inactive@test.com'];
+        $this->assertEquals('Lost', $inactive['segment']);
+        $this->assertEquals(1, $inactive['frequency']);
+        $this->assertEquals(50, $inactive['monetary']);
+    }
+
+    public function test_customer_with_no_orders_is_excluded_from_segments(): void
+    {
+        $admin = $this->user('admin');
+        $this->user('customer', 'noorders@test.com');
+
+        $response = $this->withToken($this->token($admin))->getJson('/api/admin/customer-segments')->assertOk();
+
+        $this->assertEquals(0, $response->json('totalCustomers'));
+    }
+
+    public function test_only_admin_can_view_customer_segments(): void
+    {
+        $customer = $this->user('customer');
+        $driver = $this->user('driver');
+
+        $this->withToken($this->token($customer))->getJson('/api/admin/customer-segments')->assertForbidden();
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token($driver))->getJson('/api/admin/customer-segments')->assertForbidden();
+    }
+
+    // Layer 3 (moving-average forecast). Dates built at Manila noon then
+    // converted to UTC for storage - avoids day-boundary flakiness that
+    // plain now()->subDays() would have depending on the time of day the
+    // suite happens to run. History only goes back 3 days (order placed
+    // "3 days ago"), so the window is capped to 4 days (today's 3 elapsed
+    // days of history + today itself), not the full 7 - zero-filled: day -1
+    // has 3 orders, day -2 has 0, day -3 has 1, day -4 doesn't exist yet.
+    // Average = (3+0+1+0)/4, not (3+1)/2 (which would wrongly ignore the
+    // zero-order days in between).
+    public function test_admin_demand_forecast_averages_recent_days(): void
+    {
+        $admin = $this->user('admin');
+        $customer = $this->user('customer');
+        $manilaNoon = fn (int $daysAgo) => Carbon::now('Asia/Manila')->subDays($daysAgo)->setTime(12, 0)->setTimezone('UTC');
+
+        for ($i = 0; $i < 3; $i++) {
+            $order = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'ServiceFee' => 75, 'DeliveryStatus' => 'delivered']);
+            $order->OrderDate = $manilaNoon(1);
+            $order->save();
+        }
+        $order = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'ServiceFee' => 75, 'DeliveryStatus' => 'delivered']);
+        $order->OrderDate = $manilaNoon(3);
+        $order->save();
+        // Must not count - cancelled.
+        $cancelled = Order::create(['UserID' => $customer->UserID, 'TotalPrice' => 100, 'ServiceFee' => 75, 'DeliveryStatus' => 'cancelled']);
+        $cancelled->OrderDate = $manilaNoon(1);
+        $cancelled->save();
+
+        $response = $this->withToken($this->token($admin))->getJson('/api/admin/demand-forecast')->assertOk();
+
+        $this->assertEquals(4, $response->json('windowSize'));
+        $this->assertEquals(1.0, $response->json('forecastNextDay'));
+    }
+
+    public function test_only_admin_can_view_demand_forecast(): void
+    {
+        $customer = $this->user('customer');
+        $driver = $this->user('driver');
+
+        $this->withToken($this->token($customer))->getJson('/api/admin/demand-forecast')->assertForbidden();
+        $this->app['auth']->forgetGuards();
+        $this->withToken($this->token($driver))->getJson('/api/admin/demand-forecast')->assertForbidden();
     }
 }
