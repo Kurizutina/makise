@@ -450,6 +450,7 @@ export const CustomerActivityProvider = ({ children }) => {
     const notification = {
       id: `NOT-${Date.now()}-${Math.random()}`,
       orderId: order.id,
+      customerId: customer.customerId,
       title: 'Order request sent',
       message: `${order.label} is waiting for a rider to accept it.`,
       createdAt,
@@ -505,6 +506,7 @@ export const CustomerActivityProvider = ({ children }) => {
     const newNotifications = newOrders.map((order) => ({
       id: `NOT-${order.id}-${Math.random()}`,
       orderId: order.id,
+      customerId: order.customerId,
       title: 'Order request sent',
       message: `Your ${order.source} order ${order.id} is waiting for a rider.`,
       createdAt: order.createdAt,
@@ -704,7 +706,14 @@ export const useCustomerActivity = () => {
     return {
       ...context,
       orders,
-      notifications: context.notifications.filter((notification) => orderIds.has(notification.orderId))
+      // Browser-local notifications must be explicitly owned by the signed-in
+      // customer. The order-id check retains compatibility with locally
+      // created notifications, while the owner check prevents another account
+      // from seeing a colliding or stale notification from shared storage.
+      notifications: context.notifications.filter((notification) => (
+        String(notification.customerId) === String(user.id)
+        && orderIds.has(notification.orderId)
+      ))
     };
   }
   if (user?.role === 'driver') {

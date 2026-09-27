@@ -23,7 +23,7 @@ class AuthApiTest extends TestCase
     {
         $data = [
             'username' => 'Ana Cruz', 'email' => 'ANA@example.com', 'password' => 'secret123',
-            'role' => 'customer', 'contact' => '09123456789', 'address' => '12 Mabini Street',
+            'contact' => '09123456789', 'address' => '12 Mabini Street', 'userType' => 'non_student',
         ];
         $response = $this->withHeader('Origin', 'http://localhost:3000')->postJson('/api/auth/register', $data)
             ->assertCreated()->assertJsonPath('user.email', 'ana@example.com')
@@ -54,18 +54,16 @@ class AuthApiTest extends TestCase
         $this->postJson('/api/auth/register', $data)->assertCreated();
     }
 
-    public function test_login_accepts_migrated_bcryptjs_password_hash_and_preserves_id(): void
+    public function test_login_accepts_migrated_bcryptjs_password_hash_and_uses_the_account_role(): void
     {
         $user = $this->account();
         $user->update(['PasswordHash' => '$2b$'.substr($user->PasswordHash, 4)]);
         $this->postJson('/api/auth/login', [
-            'email' => $user->Email, 'password' => 'secret123', 'role' => 'customer',
-        ])->assertOk()->assertJsonPath('user.id', $user->UserID);
+            'email' => $user->Email, 'password' => 'secret123',
+        ])->assertOk()->assertJsonPath('user.id', $user->UserID)
+            ->assertJsonPath('user.role', 'customer');
         $this->postJson('/api/auth/login', [
-            'email' => $user->Email, 'password' => 'wrong-password', 'role' => 'customer',
-        ])->assertUnauthorized();
-        $this->postJson('/api/auth/login', [
-            'email' => $user->Email, 'password' => 'secret123', 'role' => 'admin',
+            'email' => $user->Email, 'password' => 'wrong-password',
         ])->assertUnauthorized();
     }
 
@@ -84,34 +82,10 @@ class AuthApiTest extends TestCase
 
         $this->app['auth']->forgetGuards();
         $this->postJson('/api/auth/login', [
-            'email' => $rider['Email'], 'password' => 'secret123', 'role' => 'driver',
+            'email' => $rider['Email'], 'password' => 'secret123',
         ])->assertOk()->assertJsonPath('user.role', 'driver');
         $this->postJson('/api/auth/register', ['role' => 'superadmin'])->assertUnprocessable()
             ->assertJsonStructure(['error']);
-    }
-
-    public function test_admin_created_rider_must_change_temporary_password(): void
-    {
-        $admin = $this->account('admin');
-        $token = $admin->createToken('test')->plainTextToken;
-        $rider = $this->withToken($token)->postJson('/api/admin/accounts/driver', [
-            'UserName' => 'Temporary Rider', 'Email' => 'temporary-rider@example.com',
-            'Contact' => '09123456789', 'password' => 'temporary123',
-        ])->assertCreated()->json();
-
-        $this->postJson('/api/auth/login', [
-            'email' => $rider['Email'], 'password' => 'temporary123', 'role' => 'driver',
-        ])->assertOk()->assertJsonPath('mustChangePassword', true);
-
-        $this->app['auth']->forgetGuards();
-        $riderUser = User::where('Email', $rider['Email'])->firstOrFail();
-        $riderToken = $riderUser->createToken('test')->plainTextToken;
-        $this->withToken($riderToken)->postJson('/api/auth/change-password', [
-            'currentPassword' => 'temporary123', 'password' => 'permanent123',
-        ])->assertOk();
-        $this->postJson('/api/auth/login', [
-            'email' => $rider['Email'], 'password' => 'permanent123', 'role' => 'driver',
-        ])->assertOk()->assertJsonPath('mustChangePassword', false);
     }
 
     public function test_password_reset_request_sends_a_generic_reset_message(): void

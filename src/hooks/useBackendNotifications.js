@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { toUtcIso } from '../utils/backendTime';
 import { ORDERS_CHANGED_EVENT, ORDER_PROGRESS_CHANGED_STORAGE_KEY } from './useBackendOrders';
+import { SESSION_CHANGED_EVENT, getSessionUser } from '../utils/session';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 const ACTIVE_NOTIFICATION_REFRESH_MS = 2000;
@@ -10,10 +11,23 @@ const ACTIVE_NOTIFICATION_REFRESH_MS = 2000;
 // useBackendOrders.js.
 export const useBackendNotifications = () => {
   const [backendNotifications, setBackendNotifications] = useState([]);
+  const [sessionVersion, setSessionVersion] = useState(0);
+
+  useEffect(() => {
+    const resetForSession = () => {
+      // Never retain the prior account's response while a new account's
+      // request is being made.
+      setBackendNotifications([]);
+      setSessionVersion((version) => version + 1);
+    };
+    window.addEventListener(SESSION_CHANGED_EVENT, resetForSession);
+    return () => window.removeEventListener(SESSION_CHANGED_EVENT, resetForSession);
+  }, []);
 
   useEffect(() => {
     const token = sessionStorage.getItem('otuzanAuthenticated');
-    if (!token) return undefined;
+    const userId = getSessionUser()?.id;
+    if (!token || userId == null) return undefined;
     const controller = new AbortController();
     let inFlight = false;
     // A rider update can arrive just as the previous notification request is
@@ -34,7 +48,12 @@ export const useBackendNotifications = () => {
       .then((response) => (response.ok ? response.json() : null))
       .then((body) => {
         if (!body?.data) return;
-        setBackendNotifications(body.data);
+        // The API is already scoped to request->user(), but retain this
+        // client-side ownership check as a second boundary against stale or
+        // incorrectly cached responses during an account switch.
+        setBackendNotifications(body.data.filter((notification) => (
+          String(notification.UserID) === String(userId)
+        )));
       })
       .catch(() => {})
       .finally(() => {
@@ -71,7 +90,7 @@ export const useBackendNotifications = () => {
       window.removeEventListener('storage', refreshFromAnotherTab);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
-  }, []);
+  }, [sessionVersion]);
 
   return backendNotifications;
 };

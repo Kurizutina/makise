@@ -64,13 +64,15 @@ test('a customer sees notifications only for orders linked to their account', ()
     orders: [ownOrder, otherOrder],
     cart: [],
     notifications: [
-      { id: 'OWN-NOTIFICATION', orderId: 'OWN-ORDER' },
-      { id: 'OTHER-NOTIFICATION', orderId: 'OTHER-ORDER' }
+      { id: 'OWN-NOTIFICATION', orderId: 'OWN-ORDER', customerId: 42 },
+      { id: 'OTHER-NOTIFICATION', orderId: 'OTHER-ORDER', customerId: 99 },
+      // Even an order-id collision cannot expose another customer's message.
+      { id: 'COLLIDING-NOTIFICATION', orderId: 'OWN-ORDER', customerId: 99 }
     ]
   }));
   render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
   expect(actions.orders).toEqual([ownOrder]);
-  expect(actions.notifications).toEqual([{ id: 'OWN-NOTIFICATION', orderId: 'OWN-ORDER' }]);
+  expect(actions.notifications).toEqual([{ id: 'OWN-NOTIFICATION', orderId: 'OWN-ORDER', customerId: 42 }]);
 });
 
 test('a cart belongs only to the customer who added its items', () => {
