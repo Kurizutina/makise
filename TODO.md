@@ -119,11 +119,25 @@ flipping the box, to keep this split meaningful over time.
 - [X] Align order status labels with the team's documented decision (meeting
       minutes: Prepared → Packaging → Delivering) — currently uses different wording
       (`pending_rider`, `confirmed`, `preparing`, etc.).
-- [ ] Automate the Security test cases already promised in the QA plan (TC-020
-      session expiry, TC-021 RBAC restriction, TC-022 SQL injection) — most
-      meaningful now that 1b–1d exist (see Completed Work).
-- [ ] Mobile/responsive verification pass on remaining customer-facing pages beyond
-      what's already been spot-checked.
+- [X] Automate the Security test cases already promised in the QA plan (TC-020
+      session expiry, TC-021 RBAC restriction, TC-022 SQL injection). Completed
+      9/27 in `laravel/tests/Feature/SecurityApiTest.php`: expired and revoked
+      Sanctum tokens return 401; customer and driver tokens receive 403 on key
+      admin endpoints (while unauthenticated access returns 401); and a
+      `'; DROP TABLE Orders; --` delivery-address payload is stored as literal
+      data while the Orders table remains readable. Verified: 3 tests, 14
+      assertions passing.
+- [X] Mobile/responsive verification pass on remaining customer-facing pages beyond
+      what's already been spot-checked. Completed 9/27: reviewed the guest/customer
+      routes (Home, searchable brand grid, FAQ, shared restaurant menus, cart,
+      custom-order sheet, and Pay Bills sheet) at narrow breakpoints. Existing
+      layouts collapse grids, navigation, carts, and forms into mobile-safe
+      treatments; added the global `border-box` sizing guard so padded 100%-width
+      controls and bottom sheets cannot create horizontal overflow on narrow phones.
+      Also guarded the desktop category-chip scroll enhancement for environments
+      without `scrollIntoView`. The Home customer test passes and the production
+      frontend build compiles successfully; the unrelated stale Login/Manuela menu
+      test expectations remain tracked separately below.
 - [skip this at the moment] **Set up hosting and deploy** (teammate request, 9/20; recommendation given
       9/23) — the design doc specifies Vercel, which doesn't natively run a
       persistent Laravel backend. **Recommendation**: keep Vercel for the React
@@ -208,13 +222,11 @@ flipping the box, to keep this split meaningful over time.
 
 ## Data Analytics (Emerging Technology)
 
-**Current status, honestly: researched and planned only. Zero layers implemented
-yet.** The plan below is real, specific, and grounded in what this system's schema
-already collects - but none of it is running code today. See the chat conversation
-from 9/23 for the exact answer/script to give if asked "where is the emerging
-technology in your system" during a progress check - the short version is: be
-honest that you're in the implementation phase with a validated plan, not claim
-something exists that doesn't.
+**Current status: implemented and verified.** The three analytics layers below use
+the system's persisted Orders, OrderItems, Products, Payments, and Users data and
+are available to authorized admins in the Revenue Analytics dashboard. They are
+deliberately lightweight, transparent methods suited to the available history:
+descriptive aggregation, RFM scoring, and a moving-average forecast.
 
 Researched how real delivery platforms and e-commerce systems apply data
 analytics, and grounded the plan in what Otu-Zan's schema already collects
@@ -239,20 +251,21 @@ giants: Gartner's own 2025 research puts 81% of organizations using analytics or
 AI for key business decisions
 ([source](https://www.gartner.com/en/newsroom/press-releases/2025-06-17-gartner-announces-top-data-and-analytics-predictions)).
 
-- [ ] **Layer 1 — Revenue Trends & Best-Sellers (Descriptive Analytics)**.
+- [X] **Layer 1 — Revenue Trends & Best-Sellers (Descriptive Analytics)**.
       Revenue and best-sellers are already live:
       `GET /api/admin/revenue` aggregates real, persisted `ServiceFee` by
       calendar day and by service; `GET /api/catalog/best-sellers` ranks
       products by real units sold in the last 30 days; the admin dashboard also
-      renders the daily revenue trend as a bar chart. The remaining work for
-      this analytics layer is a peak-ordering-time query (hour-of-day / day-of-week).
+      renders the daily revenue trend as a bar chart. Peak-ordering-time analysis
+      (hour-of-day / day-of-week) is also implemented from all non-cancelled
+      orders and displayed alongside the revenue trend.
       Dashboard design research recommends keeping each view to a handful of
       KPIs with one clear primary metric, not a wall of numbers
       ([Improvado: Dashboard Design Best
       Practices](https://improvado.io/blog/dashboard-design-guide)) - resist the
       urge to show everything at once. **This is the layer to implement first**
       - most of it is already done as a side effect of the bug fix.
-- [ ] **Layer 2 — RFM Customer Segmentation (Diagnostic Analytics)**. Score each
+- [X] **Layer 2 — RFM Customer Segmentation (Diagnostic Analytics)**. Scores each
       customer on Recency (days since last order), Frequency (order count), and
       Monetary value (total spend) to classify them into segments like
       loyal/at-risk/new
@@ -263,10 +276,10 @@ AI for key business decisions
       E-Commerce](https://doi.org/10.3390/jtaer21050142)). Genuinely achievable
       with plain SQL aggregation over the existing `Orders` table - no
       machine-learning library needed, no dependency on Layer 1 landing first.
-      **Cheapest of the three layers and doesn't need to wait on anything else** -
-      it's a query, not a feature. Gives the paper a named, citable methodology
-      instead of "we counted things."
-- [ ] **Layer 3 — Lightweight Predictive Demand Forecast (Predictive Analytics)**.
+      Implemented as an admin-only endpoint and dashboard card. It excludes
+      cancelled orders, assigns 1–5 relative quintile scores, and reports named
+      segment counts in the dashboard through an admin-protected API.
+- [X] **Layer 3 — Lightweight Predictive Demand Forecast (Predictive Analytics)**.
       A rolling average or day-of-week seasonal average of past order volume, to
       project expected orders for the next day/hour, framed as informing rider
       staffing. Real platforms do this with full ML pipelines analyzing
@@ -278,9 +291,11 @@ AI for key business decisions
       a capstone timeline doesn't support that, but a moving-average forecast
       computed in plain PHP/SQL is still legitimately "predictive analytics" for
       the paper without needing an ML stack this project doesn't have anywhere
-      else in its architecture. **Do this one last, and only if time allows** -
-      it's the most "emerging-tech-sounding" layer for the paper, but the least
-      load-bearing for the actual running system.
+      else in its architecture. Implemented as a transparent, zero-filled 7-day
+      moving average of non-cancelled daily orders (shorter only when the system
+      has less history), with the current forecast and recent actual order counts
+      shown to authorized admins. It is presented as a staffing baseline, not as
+      a full machine-learning model.
 
 ## Non-code / academic
 
@@ -289,7 +304,8 @@ AI for key business decisions
       had the emerging-tech slot as AI-based ETA prediction, later deprioritized
       in favor of simple status labels. Data Analytics is a different pivot from
       what's currently documented - still confirm the switch before it goes into
-      the paper, but you now have a concrete, achievable, industry-validated plan
+      the paper, but the implemented feature now has a concrete,
+      industry-validated basis.
       (above) to bring to that conversation instead of an open question.
 
 ---

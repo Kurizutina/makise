@@ -25,7 +25,7 @@ class CatalogController extends Controller
                 ->orderBy('BrandName')])
             ->orderBy('ServiceID')->get();
         return response()->json(['services' => $services])
-            ->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=60');
+            ->header('Cache-Control', 'no-store');
     }
 
     // Windowed to the last 30 days, not all-time, so this reflects current
@@ -85,7 +85,7 @@ class CatalogController extends Controller
             ->select(['ProductID', 'BrandID', 'ProductName', 'ProductPrice', 'ImagePath', 'Description'])
             ->orderBy('ProductName')->get();
         return response()->json(['brand' => $brand, 'products' => $products])
-            ->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=60');
+            ->header('Cache-Control', 'no-store');
     }
 
     public function options(): JsonResponse

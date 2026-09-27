@@ -40,6 +40,15 @@ export const remainsVisibleToday = (item, now = Date.now()) => {
     && manilaDateKey(item.updatedAt || item.createdAt) === manilaDateKey(now);
 };
 
+// The rider's work queue is most useful as a short recent history. Active
+// deliveries must always remain available, while completed/cancelled work is
+// removed a fixed number of hours after its latest status change.
+export const remainsVisibleForHours = (item, hours, now = Date.now()) => {
+  if (!['delivered', 'cancelled'].includes(item.status)) return true;
+  const completedAt = Date.parse(item.updatedAt || item.createdAt);
+  return Number.isFinite(completedAt) && completedAt > now - (hours * 60 * 60 * 1000);
+};
+
 export const happenedTodayInManila = (timestamp, now = Date.now()) => (
   !isDailyTransactionCutoff(now) && manilaDateKey(timestamp) === manilaDateKey(now)
 );

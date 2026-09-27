@@ -208,6 +208,8 @@ export const applyBackendTruth = (orders, backendOrdersById) => {
     const payment = backend.payments?.[0];
     return {
       ...order,
+      backendOrderId: backend.OrderID,
+      backendPaymentId: payment?.PaymentID ?? order.backendPaymentId ?? null,
       status: backend.DeliveryStatus,
       assignedRider: backend.rider ? { id: backend.rider.UserID, name: backend.rider.UserName } : null,
       details: payment ? { ...order.details, paymentStatus: payment.PaymentStatus } : order.details,

@@ -25,7 +25,10 @@ const CategoryNavigation = ({ activeCategory, categories, onSelect, restaurantNa
   const activeButtonRef = useRef(null);
   useEffect(() => {
     if (variant !== 'desktop') return;
-    activeButtonRef.current?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+    // jsdom (used by the customer-menu tests) does not implement this DOM
+    // convenience method; browsers do. Guarding it keeps the progressive
+    // enhancement from making an otherwise usable menu fail to render.
+    activeButtonRef.current?.scrollIntoView?.({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
   }, [activeCategory, variant]);
 
   return (

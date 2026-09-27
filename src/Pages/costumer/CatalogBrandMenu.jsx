@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { RestaurantMenu } from './McDonaldsMenu';
-import { catalogImageUrl, getBrandProducts } from '../../utils/catalog';
+import { CATALOG_CHANGED_EVENT, catalogImageUrl, getBrandProducts, invalidateCatalogCache } from '../../utils/catalog';
 
 const CatalogBrandMenu = () => {
   const { brandId } = useParams();
@@ -9,6 +9,23 @@ const CatalogBrandMenu = () => {
   const highlightProductId = location.state?.highlightProductId ?? null;
   const [catalog, setCatalog] = useState(null);
   const [error, setError] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const refresh = () => {
+      invalidateCatalogCache();
+      setRefreshKey((key) => key + 1);
+    };
+    const refreshFromAnotherTab = (event) => {
+      if (event.key === 'otuzan:catalog-changed') refresh();
+    };
+    window.addEventListener(CATALOG_CHANGED_EVENT, refresh);
+    window.addEventListener('storage', refreshFromAnotherTab);
+    return () => {
+      window.removeEventListener(CATALOG_CHANGED_EVENT, refresh);
+      window.removeEventListener('storage', refreshFromAnotherTab);
+    };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -18,7 +35,7 @@ const CatalogBrandMenu = () => {
       .then((data) => setCatalog(data))
       .catch((reason) => { if (!controller.signal.aborted) setError(reason.message); });
     return () => controller.abort();
-  }, [brandId]);
+  }, [brandId, refreshKey]);
 
   // Was recomputed inline on every render, handing RestaurantMenu a new
   // array reference each time even though the data hadn't changed - its

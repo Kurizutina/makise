@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCustomerActivity } from '../../context/CustomerActivityContext';
 import './DeliveryAdminDashboard.css';
 import OrderCustomerDetails from '../../components/common/OrderCustomerDetails/OrderCustomerDetails';
-import { apiAssetUrl, catalogImageUrl } from '../../utils/catalog';
+import { apiAssetUrl, broadcastCatalogChanged, catalogImageUrl } from '../../utils/catalog';
 import { clearSession } from '../../utils/session';
 import { applyBackendTruth, toLocalOrderShape, useBackendOrders } from '../../hooks/useBackendOrders';
 
@@ -624,12 +624,13 @@ const CatalogTab = () => {
       const hasUpload = module === 'brands' || module === 'products';
       const body = hasUpload ? (() => { const data = new FormData(); const fields = module === 'brands' ? ['BrandName', 'ServiceID', 'Description', 'IsActive'] : ['ProductName', 'BrandID', 'ProductPrice', 'Description', 'IsActive']; fields.forEach((name) => data.append(name, payload[name] ?? '')); if (module === 'brands' && logoFile) data.append('Logo', logoFile); if (module === 'products' && productImageFile) data.append('Image', productImageFile); if (editing?.[key]) data.append('_method', 'PUT'); return data; })() : JSON.stringify(payload);
       await request(editing?.[key] ? `${module}/${editing[key]}` : module, { method: hasUpload ? 'POST' : editing?.[key] ? 'PUT' : 'POST', body });
+      broadcastCatalogChanged();
       setEditing(null); setLogoFile(null); setProductImageFile(null); setForm(blank()); await loadOptions(); if (page !== 1) setPage(1); else await load();
     } catch (e) { setError(e.message); } finally { setSaving(false); }
   };
   const remove = async (item) => {
     if (!window.confirm(`Delete ${item[nameKey]}? This cannot be undone.`)) return;
-    try { await request(`${module}/${item[key]}`, { method: 'DELETE' }); await loadOptions(); if (page > 1 && items.length === 1) setPage(page - 1); else await load(); } catch (e) { setError(e.message); }
+    try { await request(`${module}/${item[key]}`, { method: 'DELETE' }); broadcastCatalogChanged(); await loadOptions(); if (page > 1 && items.length === 1) setPage(page - 1); else await load(); } catch (e) { setError(e.message); }
   };
   const beginEdit = (item) => { setEditing(item); setLogoFile(null); setProductImageFile(null); setForm({ ...blank(), ...item, ServiceID: item.ServiceID || '', BrandID: item.BrandID || '' }); };
   const filterOptions = module === 'products' ? brands : services;

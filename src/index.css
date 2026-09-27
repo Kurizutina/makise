@@ -33,6 +33,15 @@
     'Helvetica Neue', sans-serif;
 }
 
+/* Keep padded controls and modal sheets inside the viewport. Without this,
+   several customer-facing forms combine `width: 100%` with horizontal
+   padding, which makes their rendered width exceed a narrow phone screen. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   font-family: var(--font-family-base);

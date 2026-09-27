@@ -10,7 +10,7 @@ import OthersOrderForm from '../../components/home/OthersOrderForm/OthersOrderFo
 import PayBillsForm from '../../components/home/PayBillsForm/PayBillsForm';
 import { FAQSection } from './FAQ';
 import { useCustomerActivity } from '../../context/CustomerActivityContext';
-import { catalogImageUrl, getCatalog, getBestSellers } from '../../utils/catalog';
+import { CATALOG_CHANGED_EVENT, catalogImageUrl, getCatalog, getBestSellers, invalidateCatalogCache } from '../../utils/catalog';
 import { getSessionUser } from '../../utils/session';
 
 
@@ -112,7 +112,25 @@ const Home = () => {
     const refreshWhenVisible = () => { if (document.visibilityState === 'visible') load(); };
     load();
     document.addEventListener('visibilitychange', refreshWhenVisible);
-    return () => { active = false; document.removeEventListener('visibilitychange', refreshWhenVisible); };
+    const refreshAfterCatalogChange = () => {
+      invalidateCatalogCache();
+      load();
+    };
+    const refreshFromAnotherTab = (event) => {
+      if (event.key === 'otuzan:catalog-changed') refreshAfterCatalogChange();
+    };
+    // A customer on another device has no shared browser event, so refresh
+    // the small catalog payload periodically as a fallback.
+    const refreshTimer = window.setInterval(refreshAfterCatalogChange, 15000);
+    window.addEventListener(CATALOG_CHANGED_EVENT, refreshAfterCatalogChange);
+    window.addEventListener('storage', refreshFromAnotherTab);
+    return () => {
+      active = false;
+      window.clearInterval(refreshTimer);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener(CATALOG_CHANGED_EVENT, refreshAfterCatalogChange);
+      window.removeEventListener('storage', refreshFromAnotherTab);
+    };
   }, [reloadCatalog]);
 
   useEffect(() => {

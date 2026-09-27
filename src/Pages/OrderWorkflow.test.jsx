@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { CustomerActivityProvider, useCustomerActivity } from '../context/CustomerActivityContext';
+import { CustomerActivityProvider, STATUS_SYNC_TIMEOUT_MS, useCustomerActivity } from '../context/CustomerActivityContext';
 import DeliveryAdminDashboard from './admin/DeliveryAdminDashboard';
 import RiderDashboard from './rider/RiderDashboard';
 import { syncCustomerOrders } from '../utils/customerProfileSync';
+import { setSession } from '../utils/session';
 
 jest.mock('react-router-dom', () => ({ useNavigate: () => jest.fn() }));
 
@@ -85,6 +86,37 @@ test('a cart belongs only to the customer who added its items', () => {
   const otherCustomer = render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
   expect(actions.cart).toEqual([]);
   otherCustomer.unmount();
+});
+
+test('switching accounts in the mounted app clears the previous customer cart', () => {
+  render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
+  act(() => setSession('first-token', { id: 42, role: 'customer' }));
+  act(() => actions.addToCart({ id: 'burger', source: 'Shop', name: 'Burger' }));
+  expect(actions.cart).toHaveLength(1);
+
+  act(() => setSession('second-token', { id: 99, role: 'customer' }));
+  expect(actions.cart).toEqual([]);
+  expect(saved().cart).toMatchObject([{ id: 'burger', cartOwner: 'customer:42' }]);
+});
+
+test('payment verification uses the backend payment ID carried by the admin order', async () => {
+  signIn(1, 'admin');
+  const billOrder = {
+    ...order, id: 'BILL-1', section: 'bills', backendOrderId: 50,
+    details: { paymentStatus: 'pending' }
+  };
+  localStorage.setItem('otuzanCustomerActivity', JSON.stringify({ orders: [billOrder], cart: [], notifications: [] }));
+  global.fetch.mockResolvedValue({ ok: true, json: async () => ({ data: [] }) });
+  render(<CustomerActivityProvider><Observer /></CustomerActivityProvider>);
+  await act(async () => {
+    await actions.updatePaymentStatus({ ...billOrder, backendPaymentId: 75 }, 'verified');
+  });
+  expect(global.fetch).toHaveBeenCalledWith(
+    'http://localhost:5000/api/payments/75/status',
+    expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ status: 'verified' })
+    })
+  );
+  expect(saved().orders[0].details.paymentStatus).toBe('verified');
 });
 
 // Regression test for a real cross-user privacy leak (found live, 9/23):
@@ -227,7 +259,15 @@ test('a failed rider progress request releases the updating button', async () =>
   localStorage.setItem('otuzanCustomerActivity', JSON.stringify({
     orders: [{ ...order, backendOrderId: 99, assignedRider: { id: 7, name: 'Rider Seven' } }], cart: [], notifications: []
   }));
-  global.fetch.mockRejectedValue(new Error('offline'));
+  let failStatusRequest = true;
+  let statusRequestCount = 0;
+  global.fetch.mockImplementation((url, options = {}) => {
+    if (options.method === 'PATCH' && String(url).includes('/status')) {
+      statusRequestCount += 1;
+      return failStatusRequest ? Promise.reject(new Error('offline')) : Promise.resolve({ ok: true });
+    }
+    return Promise.resolve({ ok: true, json: async () => ({ data: [] }) });
+  });
   render(<CustomerActivityProvider><RiderDashboard /></CustomerActivityProvider>);
   fireEvent.click(await screen.findByRole('button', { name: /View Order/ }));
   const dialog = screen.getByRole('dialog');
@@ -237,6 +277,67 @@ test('a failed rider progress request releases the updating button', async () =>
   });
   expect(within(dialog).getByRole('button', { name: 'Confirm Order' })).toBeEnabled();
   expect(screen.getByRole('alert')).toHaveTextContent('Unable to update this order');
+  expect(statusRequestCount).toBe(1);
+  failStatusRequest = false;
+  await act(async () => {
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm Order' }));
+    await Promise.resolve();
+  });
+  expect(statusRequestCount).toBe(2);
+  expect(within(dialog).getByRole('button', { name: 'Start Preparing' })).toBeEnabled();
+});
+
+test('a rider status change is immediate even while its request is pending', async () => {
+  jest.useFakeTimers();
+  try {
+    signIn(7, 'driver');
+    localStorage.setItem('otuzanCustomerActivity', JSON.stringify({
+      orders: [{ ...order, backendOrderId: 99, assignedRider: { id: 7, name: 'Rider Seven' } }], cart: [], notifications: []
+    }));
+    global.fetch.mockImplementation(() => new Promise(() => {}));
+    render(<CustomerActivityProvider><RiderDashboard /></CustomerActivityProvider>);
+    fireEvent.click(screen.getByRole('button', { name: /View Order/ }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm Order' }));
+    expect(within(dialog).getByRole('button', { name: 'Start Preparing' })).toBeEnabled();
+    await act(async () => {
+      jest.advanceTimersByTime(STATUS_SYNC_TIMEOUT_MS);
+      await Promise.resolve();
+    });
+    expect(within(dialog).getByRole('button', { name: 'Confirm Order' })).toBeEnabled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Unable to update this order');
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test('rapid rider status clicks are sent in order instead of being discarded', async () => {
+  signIn(7, 'driver');
+  localStorage.setItem('otuzanCustomerActivity', JSON.stringify({
+    orders: [{ ...order, backendOrderId: 99, assignedRider: { id: 7, name: 'Rider Seven' } }], cart: [], notifications: []
+  }));
+  const pendingStatusRequests = [];
+  global.fetch.mockImplementation((url, options = {}) => {
+    if (options.method === 'PATCH' && String(url).includes('/status')) return new Promise((resolve) => pendingStatusRequests.push(resolve));
+    return Promise.resolve({ ok: true, json: async () => ({ data: [] }) });
+  });
+  render(<CustomerActivityProvider><RiderDashboard /></CustomerActivityProvider>);
+  fireEvent.click(screen.getByRole('button', { name: /View Order/ }));
+  const dialog = screen.getByRole('dialog');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm Order' }));
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Start Preparing' }));
+  expect(pendingStatusRequests).toHaveLength(1);
+
+  await act(async () => {
+    pendingStatusRequests[0]({ ok: true });
+    await Promise.resolve();
+  });
+  expect(pendingStatusRequests).toHaveLength(2);
+  await act(async () => {
+    pendingStatusRequests[1]({ ok: true });
+    await Promise.resolve();
+  });
+  expect(within(dialog).getByRole('button', { name: 'Mark Out for Delivery' })).toBeEnabled();
 });
 
 test('backend rider lookup failure prevents assigning an unavailable rider', async () => {

@@ -1,11 +1,13 @@
 export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 // Catalog changes are uncommon compared with browsing. Keep a small in-tab
-// cache so returning to Home or reopening a menu is instant, but expire it
-// quickly enough that admin changes appear without a hard refresh.
+// cache so returning to Home or reopening a menu is instant, and explicitly
+// invalidate it as soon as an admin changes the catalog.
 const CATALOG_CACHE_MS = 60 * 1000;
 let catalogCache = null;
 const brandProductCache = new Map();
+export const CATALOG_CHANGED_EVENT = 'otuzan:catalog-changed';
+const CATALOG_CHANGED_STORAGE_KEY = 'otuzan:catalog-changed';
 
 const stillFresh = (entry) => entry && (Date.now() - entry.savedAt) < CATALOG_CACHE_MS;
 
@@ -42,9 +44,25 @@ export const apiAssetUrl = (path) => {
 
 export const catalogImageUrl = apiAssetUrl;
 
+export const broadcastCatalogChanged = () => {
+  catalogCache = null;
+  brandProductCache.clear();
+  window.dispatchEvent(new Event(CATALOG_CHANGED_EVENT));
+  try {
+    localStorage.setItem(CATALOG_CHANGED_STORAGE_KEY, String(Date.now()));
+  } catch {
+    // The current tab still receives the custom event if storage is blocked.
+  }
+};
+
+export const invalidateCatalogCache = () => {
+  catalogCache = null;
+  brandProductCache.clear();
+};
+
 export const getCatalog = async (signal) => {
   if (stillFresh(catalogCache)) return catalogCache.data;
-  const response = await fetch(`${API_BASE_URL}/api/catalog`, { signal, cache: 'force-cache' });
+  const response = await fetch(`${API_BASE_URL}/api/catalog`, { signal, cache: 'no-store' });
   if (!response.ok) throw new Error('Unable to load the catalog. Please try again.');
   const data = await response.json();
   catalogCache = { data, savedAt: Date.now() };
@@ -55,7 +73,7 @@ export const getBrandProducts = async (brandId, signal) => {
   const cached = brandProductCache.get(String(brandId));
   if (stillFresh(cached)) return cached.data;
   const response = await fetch(`${API_BASE_URL}/api/catalog/brands/${brandId}/products`, {
-    signal, cache: 'force-cache'
+    signal, cache: 'no-store'
   });
   if (!response.ok) throw new Error('This brand is no longer available.');
   const data = await response.json();

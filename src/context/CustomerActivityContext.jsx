@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { getSessionUser, isAssignedTo } from '../utils/session';
+import { getSessionUser, isAssignedTo, SESSION_CHANGED_EVENT } from '../utils/session';
 import { CUSTOMER_ACTIVITY_CHANGED } from '../utils/customerProfileSync';
 import { broadcastOrderProgressChanged } from '../hooks/useBackendOrders';
 import { calculateDeliveryFee, findDeliveryLocation } from '../utils/deliveryRates';
@@ -13,6 +13,10 @@ const PROFILE_KEY = 'otuzanCustomerProfile';
 // those already-established merge/sync mechanisms exist for.
 const LOCATION_KEY = 'otuzanDeliveryLocation';
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// A rider status action is time-sensitive. Normal requests return almost
+// immediately; anything longer is treated as failed so the dashboard can
+// release its per-order request lock and let the rider retry.
+export const STATUS_SYNC_TIMEOUT_MS = 3000;
 
 const authHeaders = () => {
   const token = sessionStorage.getItem('otuzanAuthenticated');
@@ -113,23 +117,37 @@ const syncStatusToBackend = (backendOrderId, status) => {
   if (!backendOrderId || !headers) return Promise.resolve(false);
   // A mobile network request can remain pending after a connection change.
   // The rider UI waits on this promise before it re-enables its action, so
-  // bound it instead of allowing an order to remain stuck in "Updating".
+  // settle this promise ourselves instead of relying on fetch to reject when
+  // aborted. Some browser/network combinations leave an aborted request
+  // pending, which otherwise leaves the rider button stuck on "Updating".
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 12000);
-  return fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/status`, {
-    method: 'PATCH', headers, body: JSON.stringify({ status }), signal: controller.signal
-  })
-    .then((response) => {
-      if (!response.ok) console.warn(`Status update to "${status}" was rejected (order may have already been finalized elsewhere).`);
-      // Broadcast on rejection too, not just success (see comment above) -
-      // merged with origin/kurizu's Promise<boolean> return (RiderDashboard's
-      // updateProgress awaits this to roll back its optimistic status update
-      // on failure), rather than picking one fix over the other.
-      broadcastOrderProgressChanged();
-      return response.ok;
+  return new Promise((resolve) => {
+    let settled = false;
+    const settle = (result) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      resolve(result);
+    };
+    const timeout = window.setTimeout(() => {
+      controller.abort();
+      settle(false);
+    }, STATUS_SYNC_TIMEOUT_MS);
+
+    fetch(`${API_BASE_URL}/api/orders/${backendOrderId}/status`, {
+      method: 'PATCH', headers, body: JSON.stringify({ status }), signal: controller.signal
     })
-    .catch(() => false)
-    .finally(() => window.clearTimeout(timeout));
+      .then((response) => {
+        if (!response.ok) console.warn(`Status update to "${status}" was rejected (order may have already been finalized elsewhere).`);
+        // Broadcast on rejection too, not just success (see comment above) -
+        // merged with origin/kurizu's Promise<boolean> return (RiderDashboard's
+        // updateProgress awaits this to roll back its optimistic status update
+        // on failure), rather than picking one fix over the other.
+        broadcastOrderProgressChanged();
+        settle(response.ok);
+      })
+      .catch(() => settle(false));
+  });
 };
 
 const syncAssignmentToBackend = (backendOrderId, riderId) => {
@@ -179,12 +197,15 @@ const syncPaymentToBackend = (localOrderId, details, serviceFee = 0) => {
 
 const syncPaymentStatusToBackend = (backendPaymentId, status) => {
   const headers = authHeaders();
-  if (!backendPaymentId || !headers) return;
-  fetch(`${API_BASE_URL}/api/payments/${backendPaymentId}/status`, {
+  if (!backendPaymentId || !headers) return Promise.resolve(false);
+  return fetch(`${API_BASE_URL}/api/payments/${backendPaymentId}/status`, {
     method: 'PATCH', headers, body: JSON.stringify({ status })
   })
-    .then((response) => { if (response.ok) broadcastOrderProgressChanged(); })
-    .catch(() => {});
+    .then((response) => {
+      if (response.ok) broadcastOrderProgressChanged();
+      return response.ok;
+    })
+    .catch(() => false);
 };
 
 const syncNotificationsReadToBackend = () => {
@@ -329,9 +350,16 @@ export const CustomerActivityProvider = ({ children }) => {
       setNotifications(event.detail.notifications || []);
     };
     window.addEventListener(CUSTOMER_ACTIVITY_CHANGED, syncProfileOrders);
+    // App keeps this provider mounted across logout/login. Reload the
+    // browser-local cart when the signed-in account changes so the previous
+    // customer's in-memory basket can never be shown or re-saved for the
+    // next account.
+    const syncCartForSession = () => setCart(cartForActiveOwner(loadActivity().cart));
+    window.addEventListener(SESSION_CHANGED_EVENT, syncCartForSession);
     return () => {
       window.removeEventListener('storage', syncActivity);
       window.removeEventListener(CUSTOMER_ACTIVITY_CHANGED, syncProfileOrders);
+      window.removeEventListener(SESSION_CHANGED_EVENT, syncCartForSession);
     };
   }, []);
 
@@ -575,9 +603,22 @@ export const CustomerActivityProvider = ({ children }) => {
     // orders return a success flag so callers can keep an optimistic status
     // visible while a stale poll is still in flight, then roll it back if
     // the server rejects the transition.
-    return currentOrder.backendOrderId
-      ? syncStatusToBackend(currentOrder.backendOrderId, status)
-      : Promise.resolve(true);
+    if (!currentOrder.backendOrderId) return Promise.resolve(true);
+    return syncStatusToBackend(currentOrder.backendOrderId, status).then((saved) => {
+      if (saved) return true;
+      // The screen is optimistic, but the persisted local order must also
+      // return to the server's last known state. Otherwise a retry sees the
+      // requested status already cached, short-circuits as a no-op, and can
+      // never reach the backend again.
+      const latestAfterFailure = loadActivity();
+      const restoredOrders = (latestAfterFailure.orders || []).map((order) => (
+        order.id === orderId && order.status === status
+          ? { ...order, status: currentOrder.status, updatedAt: new Date().toISOString() }
+          : order
+      ));
+      updateAll(latestAfterFailure.cart || cart, restoredOrders, latestAfterFailure.notifications || notifications);
+      return false;
+    });
   };
 
   const assignOrderToRider = (orderRef, rider) => {
@@ -609,11 +650,10 @@ export const CustomerActivityProvider = ({ children }) => {
     // there's no way to derive it from the id string alone.
     if (!currentOrder) {
       const backendPaymentId = orderRef?.backendPaymentId;
-      if (!backendPaymentId) return;
-      syncPaymentStatusToBackend(backendPaymentId, paymentStatus);
-      return;
+      if (!backendPaymentId) return Promise.resolve(false);
+      return syncPaymentStatusToBackend(backendPaymentId, paymentStatus);
     }
-    if (currentOrder.section !== 'bills') return;
+    if (currentOrder.section !== 'bills') return Promise.resolve(false);
     const nextOrders = (latest.orders || orders).map((order) => order.id === orderId
       ? { ...order, details: { ...order.details, paymentStatus }, updatedAt: new Date().toISOString() }
       : order);
@@ -623,7 +663,14 @@ export const CustomerActivityProvider = ({ children }) => {
       ? (latest.notifications || notifications)
       : [{ id: `NOT-${Date.now()}-${Math.random()}`, orderId, title: `Payment ${paymentStatus}`, message: `Your payment for ${currentOrder.source} was ${paymentStatus}.`, createdAt: new Date().toISOString(), read: false, type: paymentStatus === 'rejected' ? 'cancelled' : 'status' }, ...(latest.notifications || notifications)];
     updateAll(latest.cart || cart, nextOrders, nextNotifications);
-    syncPaymentStatusToBackend(currentOrder.backendPaymentId, paymentStatus);
+    // An admin may be looking at this order from the shared local cache,
+    // while the passed dashboard order carries the PaymentID supplied by
+    // the backend. Prefer the stored ID, but retain that authoritative
+    // fallback so Verify/Reject always reaches the payment endpoint.
+    const backendPaymentId = currentOrder.backendPaymentId || orderRef?.backendPaymentId;
+    return backendPaymentId
+      ? syncPaymentStatusToBackend(backendPaymentId, paymentStatus)
+      : Promise.resolve(true);
   };
 
   const value = useMemo(() => ({
