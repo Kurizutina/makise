@@ -11,38 +11,11 @@ flipping the box, to keep this split meaningful over time.
 
 ---
 
-## Note for any AI assistant picking this up (added 9/27)
-
-This project is being finished by two people using two different AI assistants
-against the same repo (Claude Code and Codex/Astra), working one task at a
-time with a commit after each. If you're an AI reading this cold:
-
-- **Deadline is September 30.** Client demo, not a soft target.
-- **Budget is tight on both sides** - neither assistant should over-iterate,
-  gold-plate, or refactor beyond what's actually asked. Scope to the minimum
-  that works.
-- **Read recent commits and this file critically before building on them** -
-  don't assume a prior decision, cost estimate, or assumption here is correct
-  just because it's written down. If something looks wrong, say so to the
-  user rather than silently building on top of it.
-- **Keep committing one task at a time.** Commit messages and any TODO.md
-  updates should explain *why*, not just *what* - the next reader (human or
-  AI) has zero shared context beyond this repo. Flag genuine uncertainty
-  explicitly (in the commit or here) rather than presenting a guess as
-  settled.
-- The user relays output between the two assistants sometimes - expect your
-  work to get scrutinized by the other one, and vice versa. That's
-  intentional, not a sign something's wrong.
-- Start by reading the **Data Analytics** section below (all three layers
-  complete) before changing its implementation or documentation.
-
----
-
 # Outstanding Work
 
 ## High Priority
 
-- [ ] **Two open decisions still block the *correct final number* for
+- [X] **Two open decisions still block the *correct final number* for
       Revenue** (user request, 9/24 - the date-filter/graph infrastructure
       that used to block on this is now done, see Completed Work) -
       flagging these again since they were asked and not yet answered:
@@ -58,10 +31,29 @@ time with a commit after each. If you're an AI reading this cold:
       small, isolated change to what `OrderController::revenue` sums, not a
       rebuild of the date-picker or the graph.
 
-## Medium Priority
+### Reviewed Product Intake (9/23)
+
+| Request | Verdict | Priority | Relationship | Product review / scope |
+| --- | --- | --- | --- | --- |
+| Fix cross-device receipt images | Recommended | High - completed | Duplicate / completed | Fixed: persist backend-relative upload paths and resolve legacy localhost URLs against the configured API host. Verify with the deployed/LAN API URL before release. |
+| Customer-rider in-app communication | Recommended with Changes | High - completed | Duplicate / completed | Completed 9/25: order-scoped, authenticated customer-rider messaging is implemented after rider assignment, with persisted messages and access control. See Completed Work below. |
+| Separate today's history from older orders | Recommended with Changes | Medium - completed | New / completed | Fixed 9/23: added an All dates/Today/Previous filter to the admin History tab, using the Asia/Manila business-timezone convention already established for Revenue. Defaults to "All dates" to preserve existing behavior. See Completed Work below. |
+| Show product images in Order Details | Recommended with Changes | Medium - completed | New / completed | Fixed 9/24: `toLocalOrderShape` (`useBackendOrders.js`) now resolves each item's image via `catalogImageUrl`; the customer Track Orders tab and the rider order-detail modal both render a small thumbnail per item with a fallback utensils icon when no image exists. Receipt/proof images were untouched. See Completed Work below. |
+| Improve scrolling smoothness system-wide | Recommended with Changes | Medium | Related | Treat this as a measured performance pass: profile long lists, preserve pagination/lazy image loading, and address actual jank. Do not add decorative smooth-scroll behavior that can reduce accessibility or mask rendering problems. |
+| Make the brand logo square | Recommended with Changes | Low | Related | Use a square logo container with `object-fit: contain`; do not crop or distort brand artwork. This complements the existing compact brand-tile work. |
+| Research competitor color schemes and refine the palette | Recommended with Changes | Medium | Duplicate | Continue the existing token/palette-consolidation item. Use competitor research for conventions, not imitation; define accessible primary, hover, surface, text, and semantic status colors around the Otu-Zan logo. |
+| Stop notifications after logout | Recommended | High - completed | New / completed | Fixed 9/23: `useCustomerActivity()` had no branch for "no session," so a guest fell through to the same unfiltered path as admin and could see whichever customer's orders/notifications were last cached on that browser. See Completed Work below for the reproduction and fix. |
+| Put the mobile sign-in card at the top | Not Recommended as a standalone task | Not Recommended | Related | Fold this into the modal-authentication work below. A separate top-of-page login layout conflicts with the current guest-browsing entry point and would create two competing auth experiences. |
+| Show current/general location in the header, while allowing a delivery location selection | Recommended with Changes | Medium - completed | Duplicate / completed | Fixed 9/24: header now shows the saved delivery location foodpanda/GrabFood-style, with a custom in-DOM picker replacing the native `<select>` everywhere it was used. See Completed Work below. Device-geolocation ask was out of scope - the location set is one of the fixed billable delivery zones, not a free-form address. |
+| Open Login/Sign Up as a modal over a blurred homepage | Recommended with Changes | Medium | Related | Keep guest browsing, then open an accessible modal from the header. Use focus trapping, Escape/backdrop close, and a mobile full-screen sheet rather than a blurred, cramped card; preserve the current direct auth route as a fallback. |
 
 ### Functionality
 
+- [disregard] **"Newly added" indicator when browsing a brand's menu** (user request,
+      9/22) — `Product` currently has no creation timestamp (the model disables
+      Eloquent timestamps and its migrations add none), so this first needs a
+      timestamp migration/backfill policy before a reliable recency badge or
+      section can be built.
 - [ ] Delete dead Express backend (`backend/`) + hardcoded access codes in
       `src/config/roles.js` — not currently exploitable (Laravel ignores role/accessCode
       on register), but it's a loaded gun sitting in the repo. **Needs a decision,
@@ -70,13 +62,61 @@ time with a commit after each. If you're an AI reading this cold:
       using this folder for something (a reference copy of the schema?). Confirm
       with Sean before deleting rather than assuming it's safe to remove.
       `src/config/roles.js`'s hardcoded codes are unambiguously dead either way.
+- [Diregard] *(Needs clarification before scoping)* **"Make it OOP"** (user request,
+      9/22) — as stated this doesn't map to a concrete change. The Laravel
+      backend already is OOP (Eloquent models, controller classes) - nothing to
+      change there. If this means converting React function components back to
+      class components, that's a step backward from current React best practice
+      and not recommended. If it means extracting business logic out of fat
+      controllers into dedicated Service classes, that's a legitimate
+      maintainability refactor, but it's internal-architecture-only (no visible
+      behavior change) and refactors like that are exactly where regressions
+      hide close to a deadline - confirm which is actually meant (and whether
+      it's coming from a specific rubric requirement) before touching anything.
+- [Depends on the BO, He doesn't clarify his pricing] *(Needs a decision before scoping)* **OpenLeaflet map for delivery
+      location** (user request, 9/22) — the biggest/riskiest design-adjacent item
+      raised this round, not a quick add. Today's delivery-fee system
+      (`utils/deliveryRates.js`) is keyed off fixed named zones (CLSU Main
+      Campus, Bagong Sikat, etc.) with a flat fee per zone. A real map means
+      arbitrary lat/lng pins, which doesn't map onto that fee model without
+      deciding: (a) snap-to-nearest-zone - keeps current pricing logic, the map
+      is just a nicer picker than a dropdown, or (b) real distance-based
+      pricing - a bigger change, and needs a geocoding call (Nominatim for
+      OpenStreetMap, free but rate-limited, usage-policy compliance required)
+      to turn a picked point into an address. Needs (a) vs (b) decided before
+      any implementation starts.
+- [Disregard] *(Needs specifics)* **"Make the header better"** (user request, 9/22) —
+      too vague to scope as stated. Either point at a specific reference site's
+      header the way foodpanda/Deliveroo were used for the entry-point and hero
+      work already landed, or describe concretely what's not working about the
+      current one.
 
 ## Low Priority
 
-- [ ] Clean up stale "jayson deguzman" hardcoded filter in
+- [skipped] **Show estimated time on the brand-selection screen** (Grab/foodpanda
+      reference, 9/21) — live-checked foodpanda.ph and GrabFood's web apps for
+      comparison. foodpanda's "Top brands" section shows a delivery-time estimate
+      (e.g. "5 min") right on the brand tile, before the customer even opens the
+      menu. Otu-Zan's Home.jsx brand grid shows only logo + name — no timing context
+      up front. Would need real prep-time data per brand/service to be honest, not
+      just decorative (tie to `calculateEstimatedWaitMinutes`, already used inside
+      each menu page, just not surfaced one level up).
+- [] **Dark mode** (teammate/user request, 9/21) — technically possible, nothing
+      architecturally blocks it, but it's a real chunk of work, not a quick toggle:
+      checked the codebase and found 545 hardcoded hex color values across 17 of the
+      19 CSS files, zero use of CSS custom properties anywhere. Doing it properly
+      means (1) refactoring those into CSS variables first (same prerequisite as the
+      color-palette-consolidation item above - do that work once, get both), (2)
+      designing an actual dark palette — a judgment call, not just inverting colors,
+      since the brand's pink/magenta needs to still read as "Otu-Zan" on a dark
+      background, (3) a toggle + persisted preference, (4) checking every page
+      (login, customer menus, cart, rider dashboard, admin dashboard) for
+      contrast/legibility in both modes. Reasonable nice-to-have; not something to
+      start before the higher-priority items above are done.
+- [X] Clean up stale "jayson deguzman" hardcoded filter in
       `CustomerActivityContext.jsx` (4 places) — verify no live bad data still depends
       on it first.
-- [ ] Align order status labels with the team's documented decision (meeting
+- [X] Align order status labels with the team's documented decision (meeting
       minutes: Prepared → Packaging → Delivering) — currently uses different wording
       (`pending_rider`, `confirmed`, `preparing`, etc.).
 - [ ] Automate the Security test cases already promised in the QA plan (TC-020
@@ -84,7 +124,7 @@ time with a commit after each. If you're an AI reading this cold:
       meaningful now that 1b–1d exist (see Completed Work).
 - [ ] Mobile/responsive verification pass on remaining customer-facing pages beyond
       what's already been spot-checked.
-- [ ] **Set up hosting and deploy** (teammate request, 9/20; recommendation given
+- [skip this at the moment] **Set up hosting and deploy** (teammate request, 9/20; recommendation given
       9/23) — the design doc specifies Vercel, which doesn't natively run a
       persistent Laravel backend. **Recommendation**: keep Vercel for the React
       frontend (matches the doc, genuinely good fit for it), and use **Render or
@@ -168,6 +208,14 @@ time with a commit after each. If you're an AI reading this cold:
 
 ## Data Analytics (Emerging Technology)
 
+**Current status, honestly: researched and planned only. Zero layers implemented
+yet.** The plan below is real, specific, and grounded in what this system's schema
+already collects - but none of it is running code today. See the chat conversation
+from 9/23 for the exact answer/script to give if asked "where is the emerging
+technology in your system" during a progress check - the short version is: be
+honest that you're in the implementation phase with a validated plan, not claim
+something exists that doesn't.
+
 Researched how real delivery platforms and e-commerce systems apply data
 analytics, and grounded the plan in what Otu-Zan's schema already collects
 (Orders, OrderItems, Products, Payments, Queue, Users) rather than proposing
@@ -191,29 +239,20 @@ giants: Gartner's own 2025 research puts 81% of organizations using analytics or
 AI for key business decisions
 ([source](https://www.gartner.com/en/newsroom/press-releases/2025-06-17-gartner-announces-top-data-and-analytics-predictions)).
 
-- [x] **Layer 1 — Revenue Trends & Best-Sellers (Descriptive Analytics)**.
-      Revenue and best-sellers were already live: `GET /api/admin/revenue`
-      aggregates real, persisted `ServiceFee` by calendar day and by service;
-      `GET /api/catalog/best-sellers` ranks products by real units sold in the
-      last 30 days; the admin dashboard renders the daily revenue trend as a
-      bar chart. **Completed 9/26**: the remaining piece, a peak-ordering-time
-      query (hour-of-day / day-of-week), is done - `OrderController::revenue`
-      now also returns an hourly and day-of-week order-count distribution
-      (computed from the same non-cancelled order set it already fetches, no
-      new query), and the admin Revenue tab shows a "Peak ordering time" card
-      with a plain-language summary plus two small bar charts. Dashboard
-      design research recommends keeping each view to a handful of KPIs with
-      one clear primary metric, not a wall of numbers ([Improvado: Dashboard
-      Design Best Practices](https://improvado.io/blog/dashboard-design-guide))
-      - this card follows that: one sentence, two compact charts, nothing
-      more. Verified live: seeded orders concentrated on Friday evenings,
-      confirmed the dashboard correctly identified "6PM on Fridays" as the
-      peak, with a cancelled order excluded from the calculation. Layer 1 is
-      now fully done - this was confirmed **not blocked** by the still-open
-      revenue-definition decision (High Priority) before starting; that
-      decision only changes what number `ServiceFee`-based revenue shows, not
-      any of this layer's structure.
-- [x] **Layer 2 — RFM Customer Segmentation (Diagnostic Analytics)**. Score each
+- [ ] **Layer 1 — Revenue Trends & Best-Sellers (Descriptive Analytics)**.
+      Revenue and best-sellers are already live:
+      `GET /api/admin/revenue` aggregates real, persisted `ServiceFee` by
+      calendar day and by service; `GET /api/catalog/best-sellers` ranks
+      products by real units sold in the last 30 days; the admin dashboard also
+      renders the daily revenue trend as a bar chart. The remaining work for
+      this analytics layer is a peak-ordering-time query (hour-of-day / day-of-week).
+      Dashboard design research recommends keeping each view to a handful of
+      KPIs with one clear primary metric, not a wall of numbers
+      ([Improvado: Dashboard Design Best
+      Practices](https://improvado.io/blog/dashboard-design-guide)) - resist the
+      urge to show everything at once. **This is the layer to implement first**
+      - most of it is already done as a side effect of the bug fix.
+- [ ] **Layer 2 — RFM Customer Segmentation (Diagnostic Analytics)**. Score each
       customer on Recency (days since last order), Frequency (order count), and
       Monetary value (total spend) to classify them into segments like
       loyal/at-risk/new
@@ -221,42 +260,27 @@ AI for key business decisions
       Segmentation](https://clevertap.com/blog/rfm-analysis/);
       [ScienceDirect/JTAER: Customer Segmentation Using an Extended RFM Model and
       Clustering Algorithms in
-      E-Commerce](https://doi.org/10.3390/jtaer21050142)). **Completed 9/26**:
-      new `GET /api/admin/customer-segments` scores every customer with at
-      least one non-cancelled order 1-5 on each dimension by quintile rank
-      across the customer base, then maps the combination to a named segment
-      (Champions/Loyal/At Risk/New/Needs Attention/Lost) - the standard
-      technique from the citations above, not a bespoke scheme. Monetary is
-      each customer's own total spend (`TotalPrice`), deliberately different
-      from the business's own Revenue figure (`ServiceFee` only, still a
-      separate open decision) - RFM needs real order value to tell customers
-      apart, which a flat delivery fee can't do. Admin Revenue tab shows a
-      "Customer segments" card - summary sentence + bar breakdown, no full
-      customer table (matches the "don't show everything at once" approach
-      already established for Layer 1). Verified live with seeded customers
-      of distinct profiles - correct Champions/Lost classification, correct
-      bar widths/colors confirmed via the DOM. Three new backend tests
-      (classification, cancelled-order exclusion, zero-order exclusion,
-      admin-only access).
-- [x] **Layer 3 — Lightweight Predictive Demand Forecast (Predictive Analytics)**.
-      A rolling average of past order volume, to project expected orders for
-      the next day, framed as informing rider staffing. Real platforms do
-      this with full ML pipelines analyzing historical sales, seasonality,
-      and local events ([Kody Technolab: Predictive Analytics in
+      E-Commerce](https://doi.org/10.3390/jtaer21050142)). Genuinely achievable
+      with plain SQL aggregation over the existing `Orders` table - no
+      machine-learning library needed, no dependency on Layer 1 landing first.
+      **Cheapest of the three layers and doesn't need to wait on anything else** -
+      it's a query, not a feature. Gives the paper a named, citable methodology
+      instead of "we counted things."
+- [ ] **Layer 3 — Lightweight Predictive Demand Forecast (Predictive Analytics)**.
+      A rolling average or day-of-week seasonal average of past order volume, to
+      project expected orders for the next day/hour, framed as informing rider
+      staffing. Real platforms do this with full ML pipelines analyzing
+      historical sales, seasonality, and local events
+      ([Kody Technolab: Predictive Analytics in
       Delivery](https://kodytechnolab.com/blog/predictive-analytics-in-delivery/);
       [Deliverect: How Data Analytics is Revolutionizing Online Food
-      Ordering](https://www.deliverect.com/en-us/blog/trending/how-data-analytics-is-revolutionizing-the-online-food-ordering-industry))
-      - a capstone timeline doesn't support that. **Completed 9/26**, scoped
-      down exactly as planned: a plain N-day (up to 7) moving average of
-      daily non-cancelled order counts, zero-filled for no-order days so a
-      gap doesn't inflate the average, capped to however much order history
-      actually exists. Deliberately no seasonality, no tuning - the
-      simplest viable version, per this entry's own original scoping.
-      New `GET /api/admin/demand-forecast`; admin Revenue tab shows a
-      "Demand forecast" card (forecast number + last 14 days for context).
-      Verified live in one pass against real data - forecast and window
-      size both matched hand-calculation exactly, no rework needed.
-      **All three Data Analytics layers are now done.**
+      Ordering](https://www.deliverect.com/en-us/blog/trending/how-data-analytics-is-revolutionizing-the-online-food-ordering-industry)) -
+      a capstone timeline doesn't support that, but a moving-average forecast
+      computed in plain PHP/SQL is still legitimately "predictive analytics" for
+      the paper without needing an ML stack this project doesn't have anywhere
+      else in its architecture. **Do this one last, and only if time allows** -
+      it's the most "emerging-tech-sounding" layer for the paper, but the least
+      load-bearing for the actual running system.
 
 ## Non-code / academic
 
@@ -267,6 +291,7 @@ AI for key business decisions
       what's currently documented - still confirm the switch before it goes into
       the paper, but you now have a concrete, achievable, industry-validated plan
       (above) to bring to that conversation instead of an open question.
+
 ---
 
 # Completed Work
@@ -946,74 +971,6 @@ AI for key business decisions
 
 ## Medium
 
-### Design
-
-- [x] **Color palette has no enforced system - 7+ ad hoc pink/magenta hex
-      values in header/footer/tokens alone** (design critique, 9/23, verified
-      by grepping the actual CSS rather than going on memory: `#e31b62`,
-      `#da1c5c`, `#c81752`, `#a71243`, `#f23d7b`, `#86133b`, `#b25d7a`). The
-      hue itself is fine and well-precedented (foodpanda's real production
-      color is nearly identical magenta) - the problem is that nobody
-      decided "these are our five pinks, here's when each one is used," so
-      every file just picked one that looked fine in isolation. Separately,
-      the **login page's submit button uses a completely different color
-      family** (gold/orange gradient, `#F9C12F` -> `#FF9846`) while every
-      other primary action in the app is pink - not a deliberate two-tone
-      system, just drift between pages built at different times.
-
-      **Completed (9/26)**: the listed ad hoc colors were replaced across the
-      UI with the shared `:root` tokens: primary, dark (hover/pressed), and
-      light (tints/backgrounds). The login submit action now uses the same
-      pink primary/dark gradient as the rest of the app. A post-change audit
-      finds no listed ad hoc value outside the canonical primary-token
-      definition; the production build succeeds.
-
-      On the gold/orange: recommend **retiring it**, not keeping it as a
-      secondary accent - nothing in the app currently uses it with intent
-      (no promos/deals surface exists to reserve it for), so it's pure
-      drift, not an underused feature. Login's submit button becomes pink
-      like every other primary action. If a real promo/deals surface gets
-      built later, a deliberate secondary accent can be reconsidered then,
-      scoped to that feature specifically - not resurrected from what's
-      already there by default.
-- [x] **Brand grid/footer visual separation** (completed).
-      User report, Jollibee's own site given as a reference. Two attempts so
-      far, both landed as real improvements but not the actual fix the user
-      wants: (1) a thin 6px gradient hairline - too subtle, read as a
-      rendering glitch rather than a deliberate divider; (2) removed
-      `margin-top: auto` (was force-pushing Footer to the viewport's bottom
-      on short pages, e.g. Pay Bills, leaving a large dead gap) and gave
-      Footer its own tinted background (`--color-primary-light`) instead of
-      sharing `--color-background` with the page body - closer, but still
-      called "not landing" after several rounds. Completed as part of the
-      final design pass. (`6d5c6e7`, `5ca91e7` - both still live, not reverted)
-- [x] **Products without photos hurt conversion** (web research, 9/21;
-      re-confirmed and sharpened during the design critique, 9/23) — this is a
-      recognized, documented UX problem, not just an aesthetic nitpick: a 2018
-      GrabFood UX case study quotes a user directly — *"Food photos are important
-      for me. It's hard imagining what they look like when the app doesn't provide
-      their photos"* — and lists missing menu photos as one of the top pain points
-      driving users away
-      ([source](https://uxdesign.cc/ux-ui-case-study-grabfood-ab2faa0512ec)).
-      **This got more urgent on 9/22, not less**: Sean's Jollibee catalog update
-      (121 real product photos) now looks close to foodpanda-quality, which
-      means McDonald's (184 products) and Manuela's (185) - still zero individual
-      photos, brand logo placeholder on every single one - now sit right next to
-      genuinely good work in the same app. Before, the whole catalog was
-      uniformly plain, which read as "unfinished but consistent." Now it reads
-      as "one brand got finished and the rest didn't," which invites exactly
-      the question "why does only one of these look real?" in a live demo.
-      Still a content/photography task, not a code fix - but the bar it needs
-      to clear just moved, and it's the highest-visual-impact gap left in the
-      whole system.
-- [x] **"Similar brands" section before the footer** (user request, 9/21, noticed on
-      foodpanda) — a discovery/cross-sell section at the bottom of a brand's menu
-      page suggesting other brands in the same category (e.g. viewing Jollibee
-      suggests McDonald's, Mang Inasal — other Food Delivery brands). Standard
-      pattern across delivery and e-commerce apps generally. Lower priority than the
-      items above — more of a "keep browsing" nudge than something blocking an
-      order, and needs a "same service/category" grouping rule decided first.
-
 - [x] **Footer visual treatment** (9/26) — replaced the solid, full-bleed
       saturated-pink block with a light, bordered footer card using the shared
       surface, text, border, and brand-color tokens. Mobile content is centered;
@@ -1442,65 +1399,65 @@ AI for key business decisions
       Verified live: two assigned orders, one marked delivered up front
       (dropped immediately) and one delivered mid-review (grid emptied,
       modal + Close button stayed open). (`985bc70`)
-- [x] **Driver/admin status buttons intermittently slow (6-7s) or apparently
-      not working** (user report, 9/25) — two real, distinct causes found and
-      fixed:
-      1. `config/cors.php` had `max_age => 0`, so every authenticated request
-         in the app (nearly all of them) sent its own separate `OPTIONS`
-         preflight round trip first - doubling real request volume against
-         the Windows dev server's single-threaded queue (`php artisan serve`
-         can't use worker processes there - no `fork()`, already a documented
-         dead end). Set to 7200s, the practical ceiling since Chrome/Brave cap
-         the actual cache duration there regardless of a larger value.
-         Verified live: watched the rider dashboard's network log - every ~5s
-         poll fired its own `OPTIONS` before the fix, only the first request
-         per endpoint did after.
-      2. `syncStatusToBackend`/`syncAssignmentToBackend` only refreshed the UI
-         on a 2xx response - a legitimately rejected update (two staff acting
-         on the same order from separate devices, e.g. admin cancels while a
-         rider's still-unpolled screen shows it as actionable - real 422
-         "This order is already finalized") produced zero feedback at all, so
-         the click looked like it silently did nothing. Now refreshes
-         regardless of response status, so a rejected click corrects the
-         stale button/order immediately instead of leaving it looking broken.
-         Verified live: staged the exact race, confirmed the 422 fires as
-         expected and the order drops out of the rider's grid right away.
-      Neither fix touches how fast the server *itself* processes a request -
-      that's the separately-flagged `php artisan serve` single-threading
-      limitation (see Medium/High priority) - these reduce how often a click
-      gets stuck behind other traffic, and stop failures from being
-      invisible. (`e396192`, `9abffe7`)
-- [x] **Merged Sean's `kurizu` commits (9/26)** — real architectural overlap,
-      not a routine merge conflict: Sean independently built his own fix for
-      the exact same "click silently does nothing" bug above, but via a
-      different mechanism - `syncStatusToBackend` returning a `Promise<boolean>`
-      that `RiderDashboard`'s new `updateProgress` awaits for optimistic-
-      update-with-rollback, rather than the unconditional-refresh approach
-      here. **Both are needed, not either/or** - resolved by keeping the
-      Promise<boolean> return (so `updateProgress`'s rollback keeps working)
-      *and* always calling `broadcastOrderProgressChanged()` regardless of
-      response status (so a rejected click still self-corrects immediately,
-      not just on success). If either half gets "simplified" away later
-      without reading this note first, the other one silently regresses.
-      Also found and fixed a real pre-existing bug in Sean's own commit while
-      verifying the merge, unrelated to the conflict itself: a test
-      ("status actions preserve a just-written assignment...") still called
-      the now-Promise-returning `updateOrderStatus` inside a sync `act(() =>
-      ...)` without awaiting it - React's `act()` detects the thenable
-      return and treats the whole call as an unclosed async scope, which
-      doesn't fail that test but corrupts the *next* test's ability to
-      render at all (confirmed via bisection against both the pure pre-merge
-      baseline and Sean's own unmerged commit - present in his branch
-      independent of anything on this side). Fixed by awaiting it properly,
-      matching the pattern already used elsewhere in the same file. Also
-      added a `RiderDashboard.jsx` unmount guard (`isMountedRef`) so
-      `updateProgress`'s awaited state updates don't fire after the screen
-      unmounts. Verified live post-merge: (1) the original rejected-click
-      race - order cancelled by admin while a rider's stale screen still
-      showed it as actionable, confirmed the 422 fires, the warning logs,
-      and a clean reload shows the true cancelled state; (2) Sean's
-      optimistic UI - clicking "Confirm Order" showed "Confirmed" instantly,
-      backend confirmed the same status moments later. Both suites at
-      baseline after merging (frontend 24/28 - the known 4 JSDOM failures
-      plus Sean's 1 new passing test; backend 57/60, same 3 pre-existing
-      failures).
+
+## Medium Priority
+
+### Design
+
+- [x] **Color palette has no enforced system - 7+ ad hoc pink/magenta hex
+      values in header/footer/tokens alone** (design critique, 9/23, verified
+      by grepping the actual CSS rather than going on memory: `#e31b62`,
+      `#da1c5c`, `#c81752`, `#a71243`, `#f23d7b`, `#86133b`, `#b25d7a`). The
+      hue itself is fine and well-precedented (foodpanda's real production
+      color is nearly identical magenta) - the problem is that nobody
+      decided "these are our five pinks, here's when each one is used," so
+      every file just picked one that looked fine in isolation. Separately,
+      the **login page's submit button uses a completely different color
+      family** (gold/orange gradient, `#F9C12F` -> `#FF9846`) while every
+      other primary action in the app is pink - not a deliberate two-tone
+      system, just drift between pages built at different times.
+
+      **Status (9/26 - partially implemented)**: authentication and core form
+      accents now use the primary/dark/light scale, but the full app-wide
+      migration remains open. Collapse every remaining hardcoded hex above to the
+      three shared tokens in `:root` - primary / dark (hover,
+      pressed) / light (tint, backgrounds) - and mechanically replace each
+      file's ad hoc value with the matching token. Low-risk, high-payoff:
+      it's a find-and-replace against a decided scale, not a redesign, and
+      it's also the exact prerequisite the Dark Mode item below already
+      needs (same token refactor, do it once, unlock both).
+
+      On the gold/orange: recommend **retiring it**, not keeping it as a
+      secondary accent - nothing in the app currently uses it with intent
+      (no promos/deals surface exists to reserve it for), so it's pure
+      drift, not an underused feature. Login's submit button becomes pink
+      like every other primary action. If a real promo/deals surface gets
+      built later, a deliberate secondary accent can be reconsidered then,
+      scoped to that feature specifically - not resurrected from what's
+      already there by default.
+- [skipped ] **Products without photos hurt conversion** (web research, 9/21; 
+      re-confirmed and sharpened during the design critique, 9/23) — this is a
+      recognized, documented UX problem, not just an aesthetic nitpick: a 2018
+      GrabFood UX case study quotes a user directly — *"Food photos are important
+      for me. It's hard imagining what they look like when the app doesn't provide
+      their photos"* — and lists missing menu photos as one of the top pain points
+      driving users away
+      ([source](https://uxdesign.cc/ux-ui-case-study-grabfood-ab2faa0512ec)).
+      **This got more urgent on 9/22, not less**: Sean's Jollibee catalog update
+      (121 real product photos) now looks close to foodpanda-quality, which
+      means McDonald's (184 products) and Manuela's (185) - still zero individual
+      photos, brand logo placeholder on every single one - now sit right next to
+      genuinely good work in the same app. Before, the whole catalog was
+      uniformly plain, which read as "unfinished but consistent." Now it reads
+      as "one brand got finished and the rest didn't," which invites exactly
+      the question "why does only one of these look real?" in a live demo.
+      Still a content/photography task, not a code fix - but the bar it needs
+      to clear just moved, and it's the highest-visual-impact gap left in the
+      whole system.
+- [x] **"Similar brands" section before the footer** (user request, 9/21, noticed on
+      foodpanda) — a discovery/cross-sell section at the bottom of a brand's menu
+      page suggesting other brands in the same category (e.g. viewing Jollibee
+      suggests McDonald's, Mang Inasal — other Food Delivery brands). Standard
+      pattern across delivery and e-commerce apps generally. Lower priority than the
+      items above — more of a "keep browsing" nudge than something blocking an
+      order, and needs a "same service/category" grouping rule decided first.
