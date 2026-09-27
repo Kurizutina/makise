@@ -38,7 +38,22 @@ class OrderController extends Controller
             'serviceFee' => ['nullable', 'numeric', 'min:0', 'max:500'],
         ]);
 
+        // Idempotency guard: if the same clientOrderId arrives more than once
+        // (double-tap, retry, duplicate tab), return the already-created order
+        // instead of inserting a second one. Scoped to the authenticated user so
+        // one customer cannot fish for another's orders by guessing an ID.
+        if (!empty($data['clientOrderId'])) {
+            $existing = Order::where('UserID', $request->user()->UserID)
+                ->whereJsonContains('OrderSnapshot->clientOrderId', $data['clientOrderId'])
+                ->with('items.product')
+                ->first();
+            if ($existing) {
+                return response()->json(['order' => $existing], 200);
+            }
+        }
+
         $order = DB::transaction(function () use ($data, $request) {
+
             $serviceFee = (float) ($data['serviceFee'] ?? 0);
             if (!empty($data['customItems'])) {
                 $itemsTotal = collect($data['customItems'])->sum(fn ($item) => (float) ($item['price'] ?? 0) * $item['quantity']);

@@ -655,4 +655,47 @@ class OrderApiTest extends TestCase
         $this->app['auth']->forgetGuards();
         $this->withToken($this->token($driver))->getJson('/api/admin/demand-forecast')->assertForbidden();
     }
+
+    // Phase 2 — duplicate order prevention. Sending the same clientOrderId
+    // a second time must return the existing order (200), not create a new
+    // one. A different customer sending the same string must not see the
+    // first customer's order (scoped guard check).
+    public function test_duplicate_clientOrderId_returns_existing_order_not_a_new_one(): void
+    {
+        $customer = $this->user('customer');
+        $product = $this->product(price: 100);
+        $payload = [
+            'items' => [['ProductID' => $product->ProductID, 'quantity' => 1]],
+            'clientOrderId' => 'ORD-dupe-test-001',
+            'deliveryAddress' => 'CLSU Main Campus',
+        ];
+
+        $first = $this->withToken($this->token($customer))->postJson('/api/orders', $payload)->assertCreated();
+        $this->app['auth']->forgetGuards();
+        $second = $this->withToken($this->token($customer))->postJson('/api/orders', $payload)->assertOk();
+
+        // Same OrderID — no new row was created.
+        $this->assertSame($first->json('order.OrderID'), $second->json('order.OrderID'));
+        $this->assertDatabaseCount('Orders', 1);
+    }
+
+    public function test_idempotency_guard_is_scoped_to_the_authenticated_customer(): void
+    {
+        $customerA = $this->user('customer', 'a@example.com');
+        $customerB = $this->user('customer', 'b@example.com');
+        $product = $this->product(price: 100);
+        $payload = [
+            'items' => [['ProductID' => $product->ProductID, 'quantity' => 1]],
+            'clientOrderId' => 'ORD-same-id-different-customers',
+            'deliveryAddress' => 'CLSU Main Campus',
+        ];
+
+        $responseA = $this->withToken($this->token($customerA))->postJson('/api/orders', $payload)->assertCreated();
+        $this->app['auth']->forgetGuards();
+        // Customer B uses the same clientOrderId — must get their OWN new order, not A's.
+        $responseB = $this->withToken($this->token($customerB))->postJson('/api/orders', $payload)->assertCreated();
+
+        $this->assertNotSame($responseA->json('order.OrderID'), $responseB->json('order.OrderID'));
+        $this->assertDatabaseCount('Orders', 2);
+    }
 }
