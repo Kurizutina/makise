@@ -11,6 +11,26 @@ flipping the box, to keep this split meaningful over time.
 
 ---
 
+## Branch merge decision (9/28)
+
+Checked both teammates' branches after the Deep Code Review below. **Merged
+`tris` into `kurizu` and pushed** (`ecf15d81`) - verified first, not
+rubber-stamped: clean fast-forward (no conflicts), backend suite 74/74
+passing (up from 69, new tests cover the fixes), frontend 34/34 passing, and
+the concurrency/idempotency fix was re-tested live (5 concurrent identical
+order requests → 1 real order, not 5). `tris` directly fixes nearly every
+finding from the Deep Code Review: `APP_DEBUG` hardening + a catch-all error
+handler, the `MustChangePassword` regression, the `DeliveryAddress`
+wrong-variable bug, duplicate-order idempotency, delivery-zone validation,
+rider double-assignment, the dead `StockQuantity` column, inconsistent error
+shapes, and inconsistent rate-limiting - plus an independently-found
+password-reset token bug and a button-visibility fix. **Did NOT merge
+`sean`** - its latest commit accidentally includes the entire
+`laravel/vendor/` Composer dependency tree (8,595 files, 1.1M+ line
+insertions); merging it would permanently bloat the shared repo. Left
+exactly as flagged, untouched, for Sean to fix on his end. Budget ran out
+here - stopping cleanly, no further review or investigation this session.
+
 ## Deep Code Review (9/27) - code-level design/security review, pre-deployment
 
 Requested as a deeper pass than the ISO/IEC 25010 audit above: actual
